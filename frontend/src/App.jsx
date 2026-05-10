@@ -1,25 +1,28 @@
-import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 
 function App() {
 
-  const [message, setMessage] = useState("Loading...")
-
-  useEffect(() => {
-    axios.get("http://localhost:8080/api/health")
-      .then(response => {
-        setMessage(response.data.service)
-      })
-      .catch(error => {
-        console.error(error)
-        setMessage("Backend connection failed")
-      })
-  }, [])
-
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <h1>EcoFlow</h1>
-      <h2>{message}</h2>
+    <div style={{ height: "100vh", width: "100%" }}>
+      <MapContainer
+        center={[46.5547, 15.6459]}
+        zoom={13}
+        style={{ height: "100%", width: "100%" }}
+      >
+
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        <Marker position={[46.5547, 15.6459]}>
+          <Popup>
+            EcoFlow - Maribor
+          </Popup>
+        </Marker>
+
+      </MapContainer>
     </div>
   )
 }
