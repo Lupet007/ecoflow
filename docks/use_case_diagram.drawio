@@ -13,37 +13,37 @@
         <mxCell id="tD_OXxUOq-QVR94ilkPj-3" parent="1" style="whiteSpace=wrap;strokeWidth=2;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Advanced User" vertex="1">
           <mxGeometry height="54" width="166" x="67" y="1409" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-4" parent="1" style="whiteSpace=wrap;strokeWidth=2;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Research / Local Community User" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-4" parent="1" style="whiteSpace=wrap;strokeWidth=2;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Researcher / Admin" vertex="1">
           <mxGeometry height="78" width="260" x="20" y="1797" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-5" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="View environmental map" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-5" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="View Interactive Environment Map" vertex="1">
           <mxGeometry height="193" width="193" x="341" y="20" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-6" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Filter air quality data" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-6" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Filter by Time &amp; Pollutant" vertex="1">
           <mxGeometry height="169" width="169" x="353" y="263" as="geometry" />
         </mxCell>
         <mxCell id="tD_OXxUOq-QVR94ilkPj-7" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Register / Login" vertex="1">
           <mxGeometry height="129" width="129" x="373" y="482" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-8" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Upload GPX route" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-8" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Import GPX/TCX Route" vertex="1">
           <mxGeometry height="142" width="142" x="367" y="661" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-9" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Save route" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-9" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Save Route" vertex="1">
           <mxGeometry height="91" width="91" x="392" y="853" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-10" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Get eco-route recommendation" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-10" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Calculate Eco-Score &amp; Get Recommendations" vertex="1">
           <mxGeometry height="215" width="215" x="330" y="994" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-11" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="View activity history" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-11" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="View Activity History" vertex="1">
           <mxGeometry height="162" width="162" x="357" y="1259" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-12" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Use advanced filters" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-12" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Personalize Recommendations" vertex="1">
           <mxGeometry height="161" width="161" x="357" y="1471" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-13" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="View dashboard" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-13" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="View Analytical Dashboard" vertex="1">
           <mxGeometry height="128" width="128" x="374" y="1682" as="geometry" />
         </mxCell>
-        <mxCell id="tD_OXxUOq-QVR94ilkPj-14" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Compare regions" vertex="1">
+        <mxCell id="tD_OXxUOq-QVR94ilkPj-14" parent="1" style="ellipse;aspect=fixed;strokeWidth=2;whiteSpace=wrap;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Compare Regions &amp; Historical Trends" vertex="1">
           <mxGeometry height="135" width="135" x="370" y="1860" as="geometry" />
         </mxCell>
         <mxCell id="tD_OXxUOq-QVR94ilkPj-15" edge="1" parent="1" source="tD_OXxUOq-QVR94ilkPj-1" style="curved=1;startArrow=none;endArrow=block;exitX=0.72;exitY=0;entryX=0;entryY=0.46;rounded=0;" target="tD_OXxUOq-QVR94ilkPj-5" value="">
