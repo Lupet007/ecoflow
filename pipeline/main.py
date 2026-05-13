@@ -50,7 +50,7 @@ def create_table_if_not_exists(connection):
     query = """
     CREATE TABLE IF NOT EXISTS copernicus_products (
         id SERIAL PRIMARY KEY,
-        product_id VARCHAR(255),
+        product_id VARCHAR(255) UNIQUE NOT NULL,
         name TEXT,
         content_type VARCHAR(255),
         content_length BIGINT,
@@ -83,7 +83,13 @@ def save_to_database(products):
             origin_date,
             publication_date
         )
-        VALUES (%s, %s, %s, %s, %s, %s);
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (product_id) DO UPDATE SET
+            name = EXCLUDED.name,
+            content_type = EXCLUDED.content_type,
+            content_length = EXCLUDED.content_length,
+            origin_date = EXCLUDED.origin_date,
+            publication_date = EXCLUDED.publication_date;
         """
 
         with connection.cursor() as cursor:
@@ -99,7 +105,7 @@ def save_to_database(products):
 
         connection.commit()
 
-        print("Saved records:", len(products))
+        print("Processed records:", len(products))
 
     finally:
         connection.close()
