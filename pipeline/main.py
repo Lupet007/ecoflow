@@ -1,14 +1,22 @@
 import requests
-import json
+import psycopg2
 from datetime import datetime
 
 COPERNICUS_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$top=5"
+
+DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "database": "ecoflow",
+    "user": "ecoflow",
+    "password": "ecoflow"
+}
+
 
 def fetch_copernicus_products():
     print("Fetching data from Copernicus Data Space API...")
 
     response = requests.get(COPERNICUS_URL, timeout=15)
-
     print("Status:", response.status_code)
 
     if response.status_code != 200:
@@ -25,7 +33,7 @@ def transform_products(raw_data):
 
     for product in products:
         transformed.append({
-            "id": product.get("Id"),
+            "product_id": product.get("Id"),
             "name": product.get("Name"),
             "content_type": product.get("ContentType"),
             "content_length": product.get("ContentLength"),
@@ -36,28 +44,74 @@ def transform_products(raw_data):
     return transformed
 
 
-def save_to_json(data):
-    print("Saving transformed data to JSON file...")
+def create_table_if_not_exists(connection):
+    print("Creating table if it does not exist...")
 
-    output = {
-        "created_at": datetime.now().isoformat(),
-        "source": "Copernicus Data Space Ecosystem API",
-        "records_count": len(data),
-        "records": data
-    }
+    query = """
+    CREATE TABLE IF NOT EXISTS copernicus_products (
+        id SERIAL PRIMARY KEY,
+        product_id VARCHAR(255),
+        name TEXT,
+        content_type VARCHAR(255),
+        content_length BIGINT,
+        origin_date TIMESTAMP NULL,
+        publication_date TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
 
-    with open("data/copernicus_products.json", "w", encoding="utf-8") as file:
-        json.dump(output, file, ensure_ascii=False, indent=4)
+    with connection.cursor() as cursor:
+        cursor.execute(query)
 
-    print("Saved file: data/copernicus_products.json")
+    connection.commit()
+
+
+def save_to_database(products):
+    print("Saving transformed data to PostgreSQL...")
+
+    connection = psycopg2.connect(**DB_CONFIG)
+
+    try:
+        create_table_if_not_exists(connection)
+
+        insert_query = """
+        INSERT INTO copernicus_products (
+            product_id,
+            name,
+            content_type,
+            content_length,
+            origin_date,
+            publication_date
+        )
+        VALUES (%s, %s, %s, %s, %s, %s);
+        """
+
+        with connection.cursor() as cursor:
+            for product in products:
+                cursor.execute(insert_query, (
+                    product["product_id"],
+                    product["name"],
+                    product["content_type"],
+                    product["content_length"],
+                    product["origin_date"],
+                    product["publication_date"]
+                ))
+
+        connection.commit()
+
+        print("Saved records:", len(products))
+
+    finally:
+        connection.close()
 
 
 def main():
     print("EcoFlow data pipeline started")
+    print("Started at:", datetime.now().isoformat())
 
     raw_data = fetch_copernicus_products()
     transformed_data = transform_products(raw_data)
-    save_to_json(transformed_data)
+    save_to_database(transformed_data)
 
     print("Pipeline finished successfully")
 
