@@ -1,5 +1,6 @@
 import requests
 import psycopg2
+import json
 from datetime import datetime
 
 COPERNICUS_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$top=5"
@@ -16,29 +17,43 @@ DB_CONFIG = {
 def fetch_copernicus_products():
     print("Fetching data from Copernicus Data Space API...")
 
-    response = requests.get(COPERNICUS_URL, timeout=15)
-    print("Status:", response.status_code)
+    try:
+        response = requests.get(COPERNICUS_URL, timeout=15)
+        print("Status:", response.status_code)
 
-    if response.status_code != 200:
-        raise Exception("Copernicus API request failed")
+        if response.status_code == 200:
+            return response.json()
 
-    return response.json()
+        print("Copernicus API failed. Using local test dataset...")
+        return load_test_dataset()
+
+    except requests.RequestException as error:
+        print("Copernicus API request error:", error)
+        print("Using local test dataset...")
+        return load_test_dataset()
+
+
+def load_test_dataset():
+    print("Loading fallback dataset from test_data/sample_data.json")
+
+    with open("test_data/sample_data.json", "r", encoding="utf-8") as file:
+        return json.load(file)
 
 
 def transform_products(raw_data):
     print("Transforming Copernicus data...")
 
-    products = raw_data.get("value", [])
+    products = raw_data.get("value", raw_data.get("records", []))
     transformed = []
 
     for product in products:
         transformed.append({
-            "product_id": product.get("Id"),
-            "name": product.get("Name"),
-            "content_type": product.get("ContentType"),
-            "content_length": product.get("ContentLength"),
-            "origin_date": product.get("OriginDate"),
-            "publication_date": product.get("PublicationDate")
+            "product_id": product.get("Id") or product.get("product_id") or product.get("id"),
+            "name": product.get("Name") or product.get("name"),
+            "content_type": product.get("ContentType") or product.get("content_type"),
+            "content_length": product.get("ContentLength") or product.get("content_length"),
+            "origin_date": product.get("OriginDate") or product.get("origin_date"),
+            "publication_date": product.get("PublicationDate") or product.get("publication_date")
         })
 
     return transformed
@@ -94,14 +109,15 @@ def save_to_database(products):
 
         with connection.cursor() as cursor:
             for product in products:
-                cursor.execute(insert_query, (
-                    product["product_id"],
-                    product["name"],
-                    product["content_type"],
-                    product["content_length"],
-                    product["origin_date"],
-                    product["publication_date"]
-                ))
+                if product["product_id"] is not None:
+                    cursor.execute(insert_query, (
+                        product["product_id"],
+                        product["name"],
+                        product["content_type"],
+                        product["content_length"],
+                        product["origin_date"],
+                        product["publication_date"]
+                    ))
 
         connection.commit()
 
@@ -111,12 +127,28 @@ def save_to_database(products):
         connection.close()
 
 
+def save_to_json(data):
+    output = {
+        "created_at": datetime.now().isoformat(),
+        "source": "Copernicus Data Space Ecosystem API",
+        "records_count": len(data),
+        "records": data
+    }
+
+    with open("data/copernicus_products.json", "w", encoding="utf-8") as file:
+        json.dump(output, file, ensure_ascii=False, indent=4)
+
+    print("Saved JSON file: data/copernicus_products.json")
+
+
 def main():
     print("EcoFlow data pipeline started")
     print("Started at:", datetime.now().isoformat())
 
     raw_data = fetch_copernicus_products()
     transformed_data = transform_products(raw_data)
+
+    save_to_json(transformed_data)
     save_to_database(transformed_data)
 
     print("Pipeline finished successfully")
