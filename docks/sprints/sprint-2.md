@@ -14,7 +14,10 @@ Cilj druge iteracije je implementacija osnovnega data pipeline procesa za pridob
 
 ## Trenutno realizirano
 
-- Implementiran osnovni request na Copernicus Data Space API
-- Implementirana transformacija osnovnih metapodatkov
-- Implementirano shranjevanje transformiranih podatkov v JSON datoteko
-- Pripravljena mapa `pipeline/data`
+- Automated Copernicus data ingestion
+- Data transformation and JSON export
+- PostgreSQL/PostGIS storage
+- Duplicate prevention logic
+- Scheduled pipeline refresh
+- Fallback dataset support
+- Display of Copernicus products in frontend
