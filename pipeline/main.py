@@ -6,7 +6,7 @@ COPERNICUS_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$t
 
 DB_CONFIG = {
     "host": "localhost",
-    "port": 5432,
+    "port": 5433,
     "database": "ecoflow",
     "user": "ecoflow",
     "password": "ecoflow"
