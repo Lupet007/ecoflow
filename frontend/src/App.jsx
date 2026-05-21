@@ -13,7 +13,9 @@ function MapPage() {
   const [status, setStatus] = useState('Loading Copernicus products...')
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/copernicus-products')
+    axios.get('http://localhost:8080/api/copernicus-products', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
       .then(response => {
         setProducts(response.data)
         setStatus('Copernicus products loaded successfully')
