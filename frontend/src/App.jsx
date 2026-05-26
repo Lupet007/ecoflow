@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import axios from 'axios'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import { isLoggedIn, logout } from './services/authService'
+import GpxUploadPage from './pages/GpxUploadPage'
 
 function getEnvironmentalType(productName) {
   if (!productName) return 'OTHER'
@@ -151,6 +152,21 @@ function MapPage() {
             Explore environmental conditions before choosing a walking or recreation route.
           </p>
         </div>
+
+<Link
+  to="/gpx-upload"
+  style={{
+    padding: '10px 18px',
+    background: '#10b981',
+    color: '#fff',
+    textDecoration: 'none',
+    borderRadius: '10px',
+    fontWeight: '600',
+    marginRight: '10px'
+  }}
+>
+  Upload GPX
+</Link>
 
         <button
           onClick={handleLogout}
@@ -410,6 +426,15 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+
+        <Route
+    path="/gpx-upload"
+    element={
+      <PrivateRoute>
+        <GpxUploadPage />
+      </PrivateRoute>
+    }
+  />
 
         <Route
           path="/"
