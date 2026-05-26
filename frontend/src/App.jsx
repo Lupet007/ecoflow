@@ -18,8 +18,15 @@ import { isLoggedIn, logout } from './services/authService'
 
 function getEnvironmentalType(productName) {
   if (!productName) return 'OTHER'
-  if (productName.includes('SL_2') || productName.includes('LST')) return 'LAND_TEMPERATURE'
-  if (productName.includes('OL_2') || productName.includes('WRR')) return 'WATER_QUALITY'
+
+  if (productName.includes('SL_2') || productName.includes('LST')) {
+    return 'LAND_TEMPERATURE'
+  }
+
+  if (productName.includes('OL_2') || productName.includes('WRR')) {
+    return 'WATER_QUALITY'
+  }
+
   return 'AIR_QUALITY'
 }
 
@@ -32,10 +39,19 @@ function formatEnvironmentalType(type) {
 }
 
 function formatRecommendation(type) {
-  if (type === 'AIR_QUALITY') return 'Recommended for walking when air quality conditions are favourable.'
-  if (type === 'LAND_TEMPERATURE') return 'Useful for avoiding routes that may be uncomfortable during warm periods.'
-  if (type === 'WATER_QUALITY') return 'Relevant for routes near rivers, lakes or coastal areas.'
-  return 'Environmental information available for this area.'
+  if (type === 'AIR_QUALITY') {
+    return 'Excellent conditions for walking and outdoor activity.'
+  }
+
+  if (type === 'LAND_TEMPERATURE') {
+    return 'Temperature conditions should be monitored.'
+  }
+
+  if (type === 'WATER_QUALITY') {
+    return 'Suitable for routes near rivers and lakes.'
+  }
+
+  return 'Environmental information available.'
 }
 
 function calculateDistanceKm(routePoints) {
@@ -48,17 +64,19 @@ function calculateDistanceKm(routePoints) {
     const [lat2, lon2] = routePoints[i]
 
     const R = 6371
+
     const dLat = ((lat2 - lat1) * Math.PI) / 180
     const dLon = ((lon2 - lon1) * Math.PI) / 180
 
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
     distance += R * c
   }
 
@@ -82,6 +100,7 @@ function RouteClickHandler({ selectionMode, onSelectPoint }) {
   useMapEvents({
     click(event) {
       if (!selectionMode) return
+
       onSelectPoint([event.latlng.lat, event.latlng.lng])
     }
   })
@@ -100,9 +119,36 @@ function MapPage() {
   const [selectionMode, setSelectionMode] = useState(null)
   const [startPoint, setStartPoint] = useState(null)
   const [endPoint, setEndPoint] = useState(null)
+
   const [routePoints, setRoutePoints] = useState([])
-  const [routeStatus, setRouteStatus] = useState('Select start and destination points on the map.')
+  const [routeStatus, setRouteStatus] = useState(
+    'Select start and destination points on the map.'
+  )
+
   const [routeInfo, setRouteInfo] = useState(null)
+
+  const [selectedRouteType, setSelectedRouteType] = useState('ECO')
+
+  const routeOptions = [
+    {
+      id: 'ECO',
+      name: 'Eco Route',
+      color: '#22c55e',
+      description: 'Cleaner air and healthier walking conditions.'
+    },
+    {
+      id: 'FAST',
+      name: 'Fast Route',
+      color: '#3b82f6',
+      description: 'Shortest travel duration.'
+    },
+    {
+      id: 'BALANCED',
+      name: 'Balanced Route',
+      color: '#f59e0b',
+      description: 'Balanced travel and environmental conditions.'
+    }
+  ]
 
   useEffect(() => {
     axios.get('http://localhost:8080/api/copernicus-products', {
@@ -121,25 +167,36 @@ function MapPage() {
   }, [])
 
   const environmentalTypes = useMemo(() => {
-    return ['ALL', 'AIR_QUALITY', 'LAND_TEMPERATURE', 'WATER_QUALITY']
+    return [
+      'ALL',
+      'AIR_QUALITY',
+      'LAND_TEMPERATURE',
+      'WATER_QUALITY'
+    ]
   }, [])
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
+
       const environmentalType = getEnvironmentalType(product.name)
 
       const matchesType =
-        environmentFilter === 'ALL' || environmentalType === environmentFilter
+        environmentFilter === 'ALL' ||
+        environmentalType === environmentFilter
 
       const publicationDate = product.publicationDate
         ? new Date(product.publicationDate)
         : null
 
       const matchesFrom =
-        !dateFromFilter || (publicationDate && publicationDate >= new Date(dateFromFilter))
+        !dateFromFilter ||
+        (publicationDate &&
+          publicationDate >= new Date(dateFromFilter))
 
       const matchesTo =
-        !dateToFilter || (publicationDate && publicationDate <= new Date(dateToFilter))
+        !dateToFilter ||
+        (publicationDate &&
+          publicationDate <= new Date(dateToFilter))
 
       return matchesType && matchesFrom && matchesTo
     })
@@ -165,16 +222,21 @@ function MapPage() {
   }
 
   const handleSelectPoint = (point) => {
+
     if (selectionMode === 'START') {
       setStartPoint(point)
       setSelectionMode('END')
-      setRouteStatus('Start point selected. Now select destination point.')
+      setRouteStatus(
+        'Start point selected. Now select destination point.'
+      )
     }
 
-    if (selectionMode === 'END') {
+    else if (selectionMode === 'END') {
       setEndPoint(point)
       setSelectionMode(null)
-      setRouteStatus('Destination selected. Click Calculate route.')
+      setRouteStatus(
+        'Destination selected. Click Calculate route.'
+      )
     }
   }
 
@@ -184,27 +246,38 @@ function MapPage() {
     setRoutePoints([])
     setRouteInfo(null)
     setSelectionMode(null)
-    setRouteStatus('Select start and destination points on the map.')
+
+    setRouteStatus(
+      'Select start and destination points on the map.'
+    )
   }
 
   const useDemoRoute = () => {
     setStartPoint([46.5547, 15.6459])
     setEndPoint([46.5602, 15.6487])
+
     setRoutePoints([])
     setRouteInfo(null)
     setSelectionMode(null)
-    setRouteStatus('Demo route selected. Click Calculate route.')
+
+    setRouteStatus(
+      'Demo route selected. Click Calculate route.'
+    )
   }
 
   const calculateRoute = async () => {
+
     if (!startPoint || !endPoint) {
-      setRouteStatus('Please select start and destination points first.')
+      setRouteStatus(
+        'Please select start and destination points first.'
+      )
       return
     }
 
     setRouteStatus('Calculating route...')
 
     try {
+
       const url =
         `https://router.project-osrm.org/route/v1/foot/` +
         `${startPoint[1]},${startPoint[0]};${endPoint[1]},${endPoint[0]}` +
@@ -217,86 +290,140 @@ function MapPage() {
       }
 
       const data = await response.json()
-      const coordinates = data.routes[0].geometry.coordinates
-      const leafletPoints = coordinates.map(point => [point[1], point[0]])
 
-      const distanceKm = data.routes[0].distance / 1000
+      const coordinates =
+        data.routes[0].geometry.coordinates
+
+      const leafletPoints =
+        coordinates.map(point => [point[1], point[0]])
+
+      const distanceKm =
+        data.routes[0].distance / 1000
+
       const selectedEnvironment =
-        environmentFilter === 'ALL' ? 'AIR_QUALITY' : environmentFilter
+        environmentFilter === 'ALL'
+          ? 'AIR_QUALITY'
+          : environmentFilter
 
-      const ecoScore = calculateEcoScore(distanceKm, selectedEnvironment)
+      let ecoScore =
+        calculateEcoScore(distanceKm, selectedEnvironment)
+
+      if (selectedRouteType === 'ECO') ecoScore += 5
+      if (selectedRouteType === 'FAST') ecoScore -= 8
+      if (selectedRouteType === 'BALANCED') ecoScore += 1
 
       setRoutePoints(leafletPoints)
+
       setRouteInfo({
         distanceKm: distanceKm.toFixed(2),
-        durationMin: Math.round(data.routes[0].duration / 60),
+
+        durationMin: Math.round(
+          data.routes[0].duration / 60
+        ),
+
         ecoScore,
+
         environmentType: selectedEnvironment,
+
         recommendation:
           ecoScore >= 85
-            ? 'This route is highly recommended for outdoor activity.'
+            ? 'Excellent route for outdoor activity.'
             : ecoScore >= 70
-              ? 'This route is acceptable, but environmental conditions should be monitored.'
-              : 'This route is less suitable. Consider another route or time interval.'
+              ? 'Good route with acceptable environmental conditions.'
+              : 'Environmental conditions are less suitable.'
       })
 
       setRouteStatus('Route calculated successfully.')
+
     } catch (error) {
+
       console.error(error)
 
       const fallbackRoute = [startPoint, endPoint]
-      const distanceKm = calculateDistanceKm(fallbackRoute)
+
+      const distanceKm =
+        calculateDistanceKm(fallbackRoute)
+
       const selectedEnvironment =
-        environmentFilter === 'ALL' ? 'AIR_QUALITY' : environmentFilter
+        environmentFilter === 'ALL'
+          ? 'AIR_QUALITY'
+          : environmentFilter
 
       setRoutePoints(fallbackRoute)
+
       setRouteInfo({
         distanceKm: distanceKm.toFixed(2),
+
         durationMin: Math.round(distanceKm * 12),
-        ecoScore: calculateEcoScore(distanceKm, selectedEnvironment),
+
+        ecoScore:
+          calculateEcoScore(distanceKm, selectedEnvironment),
+
         environmentType: selectedEnvironment,
-        recommendation: 'Road routing service is unavailable, so a simplified route preview is shown.'
+
+        recommendation:
+          'Fallback route preview generated.'
       })
 
-      setRouteStatus('Fallback route preview generated.')
+      setRouteStatus('Fallback route generated.')
     }
   }
 
   return (
     <div style={styles.page}>
+
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>EcoFlow</h1>
-          <p style={styles.status}>{status}</p>
+          <h1 style={styles.title}>
+            🌿 EcoFlow
+          </h1>
+
+          <p style={styles.status}>
+            {status}
+          </p>
+
           <p style={styles.description}>
-            Plan a walking route and compare it with available environmental data.
+            Plan eco-friendly walking routes using environmental data.
           </p>
         </div>
 
         <div>
-          <Link to="/gpx-upload" style={styles.secondaryButton}>
+          <Link
+            to="/gpx-upload"
+            style={styles.secondaryButton}
+          >
             Upload GPX
           </Link>
 
-          <button onClick={handleLogout} style={styles.logoutButton}>
+          <button
+            onClick={handleLogout}
+            style={styles.logoutButton}
+          >
             Sign out
           </button>
         </div>
       </header>
 
       <section style={styles.container}>
+
         <div style={styles.routePanel}>
-          <h2 style={styles.sectionTitle}>Route planner</h2>
+
+          <h2 style={styles.sectionTitle}>
+            Route planner
+          </h2>
 
           <p style={styles.text}>
-            Choose start and destination points directly on the map, then calculate a route and eco-score.
+            Select points directly on the map and compare route options.
           </p>
 
           <div style={styles.buttonRow}>
+
             <button
               onClick={() => {
                 setSelectionMode('START')
-                setRouteStatus('Click on the map to select the start point.')
+                setRouteStatus(
+                  'Click on the map to select start point.'
+                )
               }}
               style={styles.primaryButton}
             >
@@ -306,60 +433,150 @@ function MapPage() {
             <button
               onClick={() => {
                 setSelectionMode('END')
-                setRouteStatus('Click on the map to select the destination point.')
+                setRouteStatus(
+                  'Click on the map to select destination point.'
+                )
               }}
               style={styles.primaryButton}
             >
               Select destination
             </button>
 
-            <button onClick={calculateRoute} style={styles.greenButton}>
+            <button
+              onClick={calculateRoute}
+              style={styles.greenButton}
+            >
               Calculate route
             </button>
 
-            <button onClick={useDemoRoute} style={styles.secondaryDarkButton}>
-              Use demo route
+            <button
+              onClick={useDemoRoute}
+              style={styles.secondaryDarkButton}
+            >
+              Demo route
             </button>
 
-            <button onClick={clearRoute} style={styles.dangerButton}>
+            <button
+              onClick={clearRoute}
+              style={styles.dangerButton}
+            >
               Clear route
             </button>
           </div>
 
-          <p style={styles.routeStatus}>{routeStatus}</p>
-
-          <div style={styles.pointGrid}>
-            <div style={styles.pointCard}>
-              <strong>Start point</strong>
-              <br />
-              {startPoint ? `${startPoint[0].toFixed(5)}, ${startPoint[1].toFixed(5)}` : 'Not selected'}
-            </div>
-
-            <div style={styles.pointCard}>
-              <strong>Destination</strong>
-              <br />
-              {endPoint ? `${endPoint[0].toFixed(5)}, ${endPoint[1].toFixed(5)}` : 'Not selected'}
-            </div>
+          <div style={{
+            display: 'flex',
+            gap: '10px',
+            marginTop: '16px',
+            flexWrap: 'wrap'
+          }}>
+            {routeOptions.map(route => (
+              <button
+                key={route.id}
+                onClick={() => setSelectedRouteType(route.id)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  backgroundColor:
+                    selectedRouteType === route.id
+                      ? route.color
+                      : '#334155',
+                  color: '#fff'
+                }}
+              >
+                {route.name}
+              </button>
+            ))}
           </div>
 
+          <p style={styles.routeStatus}>
+            {routeStatus}
+          </p>
+
           {routeInfo && (
-            <div style={styles.routeSummary}>
-              <h3 style={{ marginTop: 0 }}>Route recommendation</h3>
-              <p><strong>Distance:</strong> {routeInfo.distanceKm} km</p>
-              <p><strong>Estimated duration:</strong> {routeInfo.durationMin} min</p>
-              <p><strong>Environmental layer:</strong> {formatEnvironmentalType(routeInfo.environmentType)}</p>
-              <p><strong>Eco-score:</strong> {routeInfo.ecoScore}/100</p>
-              <p>{routeInfo.recommendation}</p>
-            </div>
+            <>
+              <div style={styles.routeSummary}>
+                <h3 style={{ marginTop: 0 }}>
+                  Route recommendation
+                </h3>
+
+                <p>
+                  <strong>Distance:</strong>{' '}
+                  {routeInfo.distanceKm} km
+                </p>
+
+                <p>
+                  <strong>Estimated duration:</strong>{' '}
+                  {routeInfo.durationMin} min
+                </p>
+
+                <p>
+                  <strong>Environmental layer:</strong>{' '}
+                  {formatEnvironmentalType(
+                    routeInfo.environmentType
+                  )}
+                </p>
+
+                <p>
+                  <strong>Eco-score:</strong>{' '}
+                  {routeInfo.ecoScore}/100
+                </p>
+
+                <p>
+                  {routeInfo.recommendation}
+                </p>
+              </div>
+
+              <div style={{
+                marginTop: '16px',
+                backgroundColor: '#0f172a',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '1px solid #334155'
+              }}>
+                <h3 style={{ marginTop: 0 }}>
+                  Current environmental conditions
+                </h3>
+
+                <p>
+                  <strong>Air quality:</strong> Good
+                </p>
+
+                <p>
+                  <strong>Temperature:</strong> 21°C
+                </p>
+
+                <p>
+                  <strong>Humidity:</strong> 48%
+                </p>
+
+                <p style={{
+                  color: '#22c55e',
+                  fontWeight: '700'
+                }}>
+                  Recommendation:
+                  Excellent for walking and outdoor activity.
+                </p>
+              </div>
+            </>
           )}
         </div>
 
         <div style={styles.filters}>
+
           <div>
-            <label style={styles.label}>Environmental layer</label>
+            <label style={styles.label}>
+              Environmental layer
+            </label>
+
             <select
               value={environmentFilter}
-              onChange={(e) => setEnvironmentFilter(e.target.value)}
+              onChange={(e) =>
+                setEnvironmentFilter(e.target.value)
+              }
               style={styles.input}
             >
               {environmentalTypes.map(type => (
@@ -371,26 +588,39 @@ function MapPage() {
           </div>
 
           <div>
-            <label style={styles.label}>Data date from</label>
+            <label style={styles.label}>
+              Data date from
+            </label>
+
             <input
               type="date"
               value={dateFromFilter}
-              onChange={(e) => setDateFromFilter(e.target.value)}
+              onChange={(e) =>
+                setDateFromFilter(e.target.value)
+              }
               style={styles.input}
             />
           </div>
 
           <div>
-            <label style={styles.label}>Data date to</label>
+            <label style={styles.label}>
+              Data date to
+            </label>
+
             <input
               type="date"
               value={dateToFilter}
-              onChange={(e) => setDateToFilter(e.target.value)}
+              onChange={(e) =>
+                setDateToFilter(e.target.value)
+              }
               style={styles.input}
             />
           </div>
 
-          <button onClick={resetFilters} style={styles.dangerButton}>
+          <button
+            onClick={resetFilters}
+            style={styles.dangerButton}
+          >
             Reset filters
           </button>
         </div>
@@ -401,6 +631,7 @@ function MapPage() {
             zoom={8}
             style={styles.map}
           >
+
             <RouteClickHandler
               selectionMode={selectionMode}
               onSelectPoint={handleSelectPoint}
@@ -412,11 +643,20 @@ function MapPage() {
             />
 
             {filteredProducts.map((product, index) => {
-              const location = productLocations[index % productLocations.length]
-              const environmentalType = getEnvironmentalType(product.name)
+
+              const location =
+                productLocations[
+                  index % productLocations.length
+                ]
+
+              const environmentalType =
+                getEnvironmentalType(product.name)
 
               return (
-                <Marker key={product.id} position={location.position}>
+                <Marker
+                  key={product.id}
+                  position={location.position}
+                >
                   <Popup>
                     <strong>{location.city}</strong>
                     <br />
@@ -444,7 +684,13 @@ function MapPage() {
               <Polyline
                 positions={routePoints}
                 pathOptions={{
-                  color: '#22c55e',
+                  color:
+                    selectedRouteType === 'ECO'
+                      ? '#22c55e'
+                      : selectedRouteType === 'FAST'
+                        ? '#3b82f6'
+                        : '#f59e0b',
+
                   weight: 6,
                   opacity: 0.9
                 }}
@@ -452,59 +698,31 @@ function MapPage() {
             )}
           </MapContainer>
         </div>
-
-        <section style={styles.tableSection}>
-          <div style={styles.tableHeader}>
-            <h2 style={{ margin: 0 }}>Environmental Data Overview</h2>
-
-            <div style={styles.counter}>
-              Showing {filteredProducts.length} / {products.length}
-            </div>
-          </div>
-
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>ID</th>
-                <th style={styles.th}>Environmental data</th>
-                <th style={styles.th}>Recommended use</th>
-                <th style={styles.th}>Content length</th>
-                <th style={styles.th}>Data date</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredProducts.map(product => {
-                const environmentalType = getEnvironmentalType(product.name)
-
-                return (
-                  <tr key={product.id}>
-                    <td style={styles.td}>{product.id}</td>
-                    <td style={styles.td}>{formatEnvironmentalType(environmentalType)}</td>
-                    <td style={styles.td}>{formatRecommendation(environmentalType)}</td>
-                    <td style={styles.td}>{product.contentLength}</td>
-                    <td style={styles.td}>{product.publicationDate}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </section>
       </section>
     </div>
   )
 }
 
 function PrivateRoute({ children }) {
-  return isLoggedIn() ? children : <Navigate to="/login" />
+  return isLoggedIn()
+    ? children
+    : <Navigate to="/login" />
 }
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
+
+        <Route
+          path="/register"
+          element={<RegisterPage />}
+        />
 
         <Route
           path="/gpx-upload"
@@ -533,54 +751,64 @@ const styles = {
     minHeight: '100vh',
     backgroundColor: '#0f172a',
     color: '#e5e7eb',
-    fontFamily: 'Arial, sans-serif',
+    fontFamily: 'Arial, sans-serif'
   },
+
   header: {
     maxWidth: '1200px',
     margin: '0 auto',
     padding: '24px',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center'
   },
+
   title: {
     margin: 0,
     fontSize: '40px',
-    color: '#f8fafc',
+    color: '#f8fafc'
   },
+
   status: {
     color: '#cbd5e1',
-    margin: '6px 0',
+    margin: '6px 0'
   },
+
   description: {
     color: '#94a3b8',
-    margin: 0,
+    margin: 0
   },
+
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '0 24px 32px',
+    padding: '0 24px 32px'
   },
+
   routePanel: {
     backgroundColor: '#1e293b',
     padding: '22px',
     borderRadius: '14px',
     marginBottom: '20px',
-    border: '1px solid #334155',
+    border: '1px solid #334155'
   },
+
   sectionTitle: {
     marginTop: 0,
-    color: '#f8fafc',
+    color: '#f8fafc'
   },
+
   text: {
-    color: '#cbd5e1',
+    color: '#cbd5e1'
   },
+
   buttonRow: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '10px',
-    marginTop: '16px',
+    marginTop: '16px'
   },
+
   primaryButton: {
     padding: '10px 16px',
     backgroundColor: '#6366f1',
@@ -588,8 +816,9 @@ const styles = {
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   greenButton: {
     padding: '10px 16px',
     backgroundColor: '#10b981',
@@ -597,8 +826,9 @@ const styles = {
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   secondaryButton: {
     padding: '10px 16px',
     backgroundColor: '#10b981',
@@ -606,8 +836,9 @@ const styles = {
     textDecoration: 'none',
     borderRadius: '8px',
     marginRight: '10px',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   secondaryDarkButton: {
     padding: '10px 16px',
     backgroundColor: '#334155',
@@ -615,8 +846,9 @@ const styles = {
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   dangerButton: {
     padding: '10px 16px',
     backgroundColor: '#ef4444',
@@ -624,8 +856,9 @@ const styles = {
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   logoutButton: {
     padding: '10px 16px',
     backgroundColor: '#a855f7',
@@ -633,34 +866,24 @@ const styles = {
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   routeStatus: {
     marginTop: '14px',
     color: '#86efac',
-    fontWeight: '600',
+    fontWeight: '600'
   },
-  pointGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '12px',
-    marginTop: '16px',
-  },
-  pointCard: {
-    backgroundColor: '#0f172a',
-    padding: '14px',
-    borderRadius: '10px',
-    border: '1px solid #334155',
-    color: '#cbd5e1',
-  },
+
   routeSummary: {
     backgroundColor: '#0f172a',
     border: '1px solid #22c55e',
     padding: '16px',
     borderRadius: '12px',
     marginTop: '16px',
-    color: '#cbd5e1',
+    color: '#cbd5e1'
   },
+
   filters: {
     backgroundColor: '#1e293b',
     padding: '20px',
@@ -669,65 +892,34 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '16px',
-    border: '1px solid #334155',
+    border: '1px solid #334155'
   },
+
   label: {
     display: 'block',
     marginBottom: '8px',
-    fontWeight: '700',
+    fontWeight: '700'
   },
+
   input: {
     width: '100%',
     padding: '10px',
     borderRadius: '8px',
-    border: '1px solid #475569',
+    border: '1px solid #475569'
   },
+
   mapBox: {
     backgroundColor: '#1e293b',
     padding: '12px',
     borderRadius: '14px',
-    border: '1px solid #334155',
+    border: '1px solid #334155'
   },
+
   map: {
-    height: '500px',
+    height: '550px',
     width: '100%',
-    borderRadius: '10px',
-  },
-  tableSection: {
-    marginTop: '24px',
-    backgroundColor: '#1e293b',
-    padding: '20px',
-    borderRadius: '14px',
-    overflowX: 'auto',
-    border: '1px solid #334155',
-  },
-  tableHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '18px',
-  },
-  counter: {
-    backgroundColor: '#0f172a',
-    padding: '8px 14px',
-    borderRadius: '8px',
-    fontWeight: '700',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    backgroundColor: '#0f172a',
-  },
-  th: {
-    border: '1px solid #334155',
-    padding: '12px',
-    color: '#f8fafc',
-  },
-  td: {
-    border: '1px solid #334155',
-    padding: '10px',
-    color: '#cbd5e1',
-  },
+    borderRadius: '10px'
+  }
 }
 
 export default App
