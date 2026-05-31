@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import axios from 'axios'
 
 function GpxUploadPage() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploadStatus, setUploadStatus] = useState('')
-  const [recommendations, setRecommendations] = useState([])
+  const [uploadedRoute, setUploadedRoute] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const handleFileChange = (event) => {
     const file = event.target.files[0]
@@ -14,52 +16,60 @@ function GpxUploadPage() {
     if (!file.name.toLowerCase().endsWith('.gpx')) {
       setUploadStatus('Please select a valid GPX file.')
       setSelectedFile(null)
+      setUploadedRoute(null)
       return
     }
 
     setSelectedFile(file)
     setUploadStatus('')
+    setUploadedRoute(null)
   }
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) {
       setUploadStatus('Please select a GPX file first.')
       return
     }
 
-    setUploadStatus('GPX file uploaded successfully. Route analysis preview generated.')
+    setLoading(true)
+    setUploadStatus('Uploading and analysing GPX route...')
+    setUploadedRoute(null)
 
-    const mockRecommendations = [
-      {
-        title: 'Recommended walking conditions',
-        ecoScore: 86,
-        level: 'Good',
-        description: 'The uploaded route is suitable for walking. Environmental conditions are acceptable for outdoor activity.'
-      },
-      {
-        title: 'Air quality recommendation',
-        ecoScore: 91,
-        level: 'Very good',
-        description: 'Air quality indicators suggest that this route is appropriate for recreation.'
-      },
-      {
-        title: 'Route safety note',
-        ecoScore: 78,
-        level: 'Moderate',
-        description: 'Some parts of the route should be checked again when real-time environmental data is available.'
-      }
-    ]
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
 
-    setRecommendations(mockRecommendations)
+      const response = await axios.post(
+        'http://localhost:8080/api/routes/upload',
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      )
+
+      setUploadedRoute(response.data)
+      setUploadStatus('GPX route uploaded and analysed successfully.')
+    } catch (error) {
+      console.error(error)
+      setUploadStatus(
+        error.response?.data ||
+        'Failed to upload GPX route.'
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div style={styles.page}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>EcoFlow GPX Route Analysis</h1>
+          <h1 style={styles.title}>EcoFlow GPX Route Upload</h1>
           <p style={styles.subtitle}>
-            Upload a GPX route file and preview environmental recommendations.
+            Upload a GPX route file and analyse it with backend eco-score logic.
           </p>
         </div>
 
@@ -73,8 +83,7 @@ function GpxUploadPage() {
           <h2 style={styles.sectionTitle}>Upload GPX route</h2>
 
           <p style={styles.text}>
-            Select a GPX file exported from a sport tracking application or GPS device.
-            The route will later be analysed with environmental data and eco-score logic.
+            Select a GPX file exported from Strava, Komoot, Garmin, AllTrails or another GPS tracking app.
           </p>
 
           <input
@@ -92,8 +101,12 @@ function GpxUploadPage() {
             </div>
           )}
 
-          <button onClick={handleUpload} style={styles.uploadButton}>
-            Analyse route
+          <button
+            onClick={handleUpload}
+            disabled={loading}
+            style={styles.uploadButton}
+          >
+            {loading ? 'Analysing...' : 'Upload and analyse route'}
           </button>
 
           {uploadStatus && (
@@ -103,35 +116,35 @@ function GpxUploadPage() {
           )}
         </section>
 
-        <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>Environmental recommendations</h2>
+        {uploadedRoute && (
+          <section style={styles.card}>
+            <h2 style={styles.sectionTitle}>Eco-score result</h2>
 
-          {recommendations.length === 0 ? (
-            <p style={styles.text}>
-              Recommendations will be displayed after a GPX route is selected and analysed.
-            </p>
-          ) : (
-            <div style={styles.recommendationGrid}>
-              {recommendations.map((item, index) => (
-                <div key={index} style={styles.recommendationCard}>
-                  <h3 style={styles.recommendationTitle}>{item.title}</h3>
+            <div style={styles.resultBox}>
+              <h3>{uploadedRoute.name}</h3>
 
-                  <div style={styles.scoreBox}>
-                    Eco-score: {item.ecoScore}/100
-                  </div>
+              <div style={styles.scoreBox}>
+                Eco-score: {uploadedRoute.ecoScore}/100
+              </div>
 
-                  <p style={styles.level}>
-                    Level: {item.level}
-                  </p>
+              <p>
+                <strong>Status:</strong> {uploadedRoute.ecoScoreLabel}
+              </p>
 
-                  <p style={styles.text}>
-                    {item.description}
-                  </p>
-                </div>
-              ))}
+              <p>
+                <strong>Track points:</strong> {uploadedRoute.pointCount}
+              </p>
+
+              <p style={styles.text}>
+                The route is now stored in PostgreSQL and can be displayed on the Leaflet map.
+              </p>
+
+              <Link to="/" style={styles.mapButton}>
+                View route on map
+              </Link>
             </div>
-          )}
-        </section>
+          </section>
+        )}
       </main>
     </div>
   )
@@ -221,34 +234,30 @@ const styles = {
     color: '#86efac',
     fontWeight: '600',
   },
-  recommendationGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '16px',
-    marginTop: '16px',
-  },
-  recommendationCard: {
+  resultBox: {
     background: '#0f172a',
     border: '1px solid #334155',
     borderRadius: '12px',
-    padding: '18px',
-  },
-  recommendationTitle: {
-    marginTop: 0,
-    color: '#f8fafc',
+    padding: '20px',
   },
   scoreBox: {
     background: '#10b981',
     color: '#fff',
-    padding: '8px 12px',
+    padding: '10px 14px',
     borderRadius: '8px',
     display: 'inline-block',
     fontWeight: '700',
-    marginBottom: '10px',
+    marginBottom: '12px',
   },
-  level: {
-    color: '#facc15',
-    fontWeight: '600',
+  mapButton: {
+    display: 'inline-block',
+    marginTop: '12px',
+    padding: '10px 16px',
+    background: '#3b82f6',
+    color: '#fff',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontWeight: '700',
   },
 }
 
