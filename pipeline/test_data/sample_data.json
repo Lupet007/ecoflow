@@ -1,10 +1,10 @@
 {
-    "created_at": "2026-05-28T12:38:00.099692",
+    "created_at": "2026-05-14T00:51:40.677553",
     "source": "Copernicus Data Space Ecosystem API",
     "records_count": 5,
     "records": [
         {
-            "product_id": "91822f33-b15c-5b60-aa39-6d9f6f5c773b",
+            "id": "91822f33-b15c-5b60-aa39-6d9f6f5c773b",
             "name": "S3A_SL_1_RBT____20160706T205957_20160706T210257_20181001T215134_0179_006_114______LR1_R_NT_003.SEN3",
             "content_type": "application/octet-stream",
             "content_length": 542376761,
@@ -12,7 +12,7 @@
             "publication_date": "2019-05-14T17:17:22.271834Z"
         },
         {
-            "product_id": "bfd8cd54-52a7-48e2-88d0-58df86167399",
+            "id": "bfd8cd54-52a7-48e2-88d0-58df86167399",
             "name": "S3A_OL_2_WRR____20161024T183627_20161024T183827_20210511T224724_0119_010_141______MAR_R_NT_003.SEN3",
             "content_type": "application/octet-stream",
             "content_length": 16645985,
@@ -20,7 +20,7 @@
             "publication_date": "2025-07-13T09:50:26.628281Z"
         },
         {
-            "product_id": "eb59e26f-c472-4f5f-8289-49bce7b13b7e",
+            "id": "eb59e26f-c472-4f5f-8289-49bce7b13b7e",
             "name": "S3A_SL_2_LST____20160610T013709_20160610T031809_20180929T125453_6059_005_117______LR1_R_NT_003.SEN3",
             "content_type": "application/octet-stream",
             "content_length": 1699752067,
@@ -28,7 +28,7 @@
             "publication_date": "2023-03-13T17:40:42.801179Z"
         },
         {
-            "product_id": "85899f29-0854-30a0-b9a7-5f2d332e6f10",
+            "id": "85899f29-0854-30a0-b9a7-5f2d332e6f10",
             "name": "S3A_OL_1_EFR____20160911T000442_20160911T000742_20241003T183459_0179_008_287_2700_MAR_R_NT_004.SEN3",
             "content_type": "application/octet-stream",
             "content_length": 859558256,
@@ -36,7 +36,7 @@
             "publication_date": "2025-06-01T04:51:04.933819Z"
         },
         {
-            "product_id": "2b5ae1be-1831-447d-90b0-1e4b4d34d7b2",
+            "id": "2b5ae1be-1831-447d-90b0-1e4b4d34d7b2",
             "name": "S3A_OL_2_WRR____20160510T002017_20160510T002217_20210504T182011_0119_004_059______MAR_R_NT_003.SEN3",
             "content_type": "application/octet-stream",
             "content_length": 25147495,
