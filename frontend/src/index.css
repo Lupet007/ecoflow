@@ -66,6 +66,77 @@ body {
   box-sizing: border-box;
 }
 
+/* ── Responsive: EcoFlow app ── */
+
+@media (max-width: 768px) {
+  #root {
+    text-align: left;
+  }
+
+  .eco-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    padding: 16px !important;
+  }
+
+  .eco-header-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .eco-button-row {
+    flex-direction: column !important;
+  }
+
+  .eco-button-row button,
+  .eco-button-row a {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .eco-option-row {
+    flex-direction: column !important;
+  }
+
+  .eco-option-row button {
+    width: 100% !important;
+  }
+
+  .eco-filters {
+    grid-template-columns: 1fr !important;
+  }
+
+  .eco-map {
+    height: 320px !important;
+  }
+
+  .eco-uploaded-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .eco-route-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .eco-title {
+    font-size: 28px !important;
+  }
+
+  .eco-gpx-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .eco-container {
+    padding: 0 12px 24px !important;
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);
