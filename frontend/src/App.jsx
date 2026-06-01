@@ -7,6 +7,7 @@ import {
   Marker,
   Popup,
   Polyline,
+  CircleMarker,
   useMapEvents
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -14,6 +15,7 @@ import 'leaflet/dist/leaflet.css'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import GpxUploadPage from './pages/GpxUploadPage'
+import StatsDashboardPage from './pages/StatsDashboardPage'
 import { isLoggedIn, logout } from './services/authService'
 
 function getAuthHeaders() {
@@ -143,6 +145,21 @@ function MapPage() {
   const [routeInfo, setRouteInfo] = useState(null)
 
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
+  const [showHeatmap, setShowHeatmap] = useState(false)
+
+  // Heatmap data: environmental hotspots across Slovenia
+  const heatmapPoints = [
+    { position: [46.5547, 15.6459], intensity: 0.9, label: 'Maribor – Air Quality', color: '#3b82f6' },
+    { position: [46.2397, 14.3556], intensity: 0.7, label: 'Gorenjska – Air Quality', color: '#3b82f6' },
+    { position: [45.5481, 13.7302], intensity: 0.8, label: 'Koper – Water Quality', color: '#06b6d4' },
+    { position: [46.0569, 14.5058], intensity: 1.0, label: 'Ljubljana – Air Quality', color: '#3b82f6' },
+    { position: [46.1512, 15.2372], intensity: 0.6, label: 'Celje – Land Temperature', color: '#f59e0b' },
+    { position: [46.3600, 13.7200], intensity: 0.5, label: 'Tolmin – Air Quality', color: '#3b82f6' },
+    { position: [45.9631, 15.1708], intensity: 0.7, label: 'Novo Mesto – Water Quality', color: '#06b6d4' },
+    { position: [46.4992, 15.0466], intensity: 0.6, label: 'Slovenj Gradec – Land Temperature', color: '#f59e0b' },
+    { position: [46.6592, 16.1635], intensity: 0.8, label: 'Murska Sobota – Air Quality', color: '#3b82f6' },
+    { position: [45.8100, 14.0000], intensity: 0.9, label: 'Postojna – Water Quality', color: '#06b6d4' },
+  ]
 
   const routeOptions = [
     {
@@ -352,18 +369,22 @@ function MapPage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
+      <header style={styles.header} className="eco-header">
         <div>
-          <h1 style={styles.title}>🌿 EcoFlow</h1>
+          <h1 style={styles.title} className="eco-title">🌿 EcoFlow</h1>
           <p style={styles.status}>{status}</p>
           <p style={styles.description}>
             Plan eco-friendly walking routes using environmental and GPX data.
           </p>
         </div>
 
-        <div>
+        <div className="eco-header-buttons">
           <Link to="/gpx-upload" style={styles.secondaryButton}>
             Upload GPX
+          </Link>
+
+          <Link to="/dashboard" style={{ ...styles.secondaryButton, backgroundColor: '#6366f1' }}>
+            Dashboard
           </Link>
 
           <button onClick={handleLogout} style={styles.logoutButton}>
@@ -372,7 +393,7 @@ function MapPage() {
         </div>
       </header>
 
-      <section style={styles.container}>
+      <section style={styles.container} className="eco-container">
         <div style={styles.routePanel}>
           <h2 style={styles.sectionTitle}>Route planner</h2>
 
@@ -380,7 +401,7 @@ function MapPage() {
             Select points directly on the map and compare route options.
           </p>
 
-          <div style={styles.buttonRow}>
+          <div style={styles.buttonRow} className="eco-button-row">
             <button
               onClick={() => {
                 setSelectionMode('START')
@@ -412,9 +433,19 @@ function MapPage() {
             <button onClick={clearRoute} style={styles.dangerButton}>
               Clear route
             </button>
+
+            <button
+              onClick={() => setShowHeatmap(h => !h)}
+              style={{
+                ...styles.primaryButton,
+                backgroundColor: showHeatmap ? '#0ea5e9' : '#334155'
+              }}
+            >
+              {showHeatmap ? '🌡️ Hide heatmap' : '🌡️ Show heatmap'}
+            </button>
           </div>
 
-          <div style={styles.optionRow}>
+          <div style={styles.optionRow} className="eco-option-row">
             {routeOptions.map(route => (
               <button
                 key={route.id}
@@ -458,7 +489,7 @@ function MapPage() {
           )}
         </div>
 
-        <div style={styles.filters}>
+        <div style={styles.filters} className="eco-filters">
           <div>
             <label style={styles.label}>Environmental layer</label>
             <select
@@ -504,6 +535,7 @@ function MapPage() {
             center={[46.1512, 14.9955]}
             zoom={8}
             style={styles.map}
+            className="eco-map"
           >
             <RouteClickHandler
               selectionMode={selectionMode}
@@ -531,6 +563,39 @@ function MapPage() {
                 </Marker>
               )
             })}
+
+            {/* Heatmap layer */}
+            {showHeatmap && heatmapPoints.map((point, index) => (
+              <CircleMarker
+                key={`heat-${index}`}
+                center={point.position}
+                radius={40 * point.intensity}
+                pathOptions={{
+                  color: point.color,
+                  fillColor: point.color,
+                  fillOpacity: 0.25,
+                  weight: 0
+                }}
+              >
+                <Popup>{point.label}</Popup>
+              </CircleMarker>
+            ))}
+
+            {showHeatmap && heatmapPoints.map((point, index) => (
+              <CircleMarker
+                key={`heat-core-${index}`}
+                center={point.position}
+                radius={14 * point.intensity}
+                pathOptions={{
+                  color: point.color,
+                  fillColor: point.color,
+                  fillOpacity: 0.7,
+                  weight: 1
+                }}
+              >
+                <Popup>{point.label}</Popup>
+              </CircleMarker>
+            ))}
 
             {startPoint && (
               <Marker position={startPoint}>
@@ -591,7 +656,7 @@ function MapPage() {
         </div>
 
         <section style={styles.uploadedRoutesSection}>
-          <div style={styles.uploadedRoutesHeader}>
+          <div style={styles.uploadedRoutesHeader} className="eco-uploaded-header">
             <div>
               <h2 style={{ margin: 0 }}>Uploaded GPX Routes</h2>
               <p style={styles.text}>{routesStatus}</p>
@@ -607,7 +672,7 @@ function MapPage() {
               No GPX routes uploaded yet. Upload a GPX file to display it on the map.
             </p>
           ) : (
-            <div style={styles.routeCardsGrid}>
+            <div style={styles.routeCardsGrid} className="eco-route-cards">
               {uploadedRoutes.map(route => (
                 <div key={route.id} style={styles.gpxCard}>
                   <h3 style={{ marginTop: 0 }}>{route.name}</h3>
@@ -654,6 +719,15 @@ function App() {
           element={
             <PrivateRoute>
               <GpxUploadPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <StatsDashboardPage />
             </PrivateRoute>
           }
         />
