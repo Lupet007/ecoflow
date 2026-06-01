@@ -8,7 +8,8 @@ import {
   Popup,
   Polyline,
   CircleMarker,
-  useMapEvents
+  useMapEvents,
+  useMap
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -16,6 +17,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import GpxUploadPage from './pages/GpxUploadPage'
 import StatsDashboardPage from './pages/StatsDashboardPage'
+import EcoProfilePage from './pages/EcoProfilePage'
 import { isLoggedIn, logout } from './services/authService'
 
 function getAuthHeaders() {
@@ -115,6 +117,16 @@ function parseRouteCoordinates(route) {
   }
 }
 
+function FlyToRegion({ center }) {
+  const map = useMap()
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, 9, { duration: 1.5 })
+    }
+  }, [center, map])
+  return null
+}
+
 function RouteClickHandler({ selectionMode, onSelectPoint }) {
   useMapEvents({
     click(event) {
@@ -126,6 +138,14 @@ function RouteClickHandler({ selectionMode, onSelectPoint }) {
   return null
 }
 
+const regionCoordinates = {
+  Ljubljana: [46.0569, 14.5058],
+  Maribor: [46.5547, 15.6459],
+  Koper: [45.5481, 13.7302],
+  Celje: [46.1512, 15.2372],
+  Kranj: [46.2397, 14.3556],
+}
+
 function MapPage() {
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
@@ -133,7 +153,43 @@ function MapPage() {
   const [status, setStatus] = useState('Loading environmental data...')
   const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
 
-  const [environmentFilter, setEnvironmentFilter] = useState('ALL')
+  // Load eco profile dynamically from localStorage
+  const [ecoProfile, setEcoProfile] = useState(() => {
+    const stored = localStorage.getItem('ecoProfile')
+    return stored ? JSON.parse(stored) : null
+  })
+  const [profileUpdated, setProfileUpdated] = useState(false)
+
+  useEffect(() => {
+    // Show animation if user just saved profile and navigated back
+    if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
+      localStorage.removeItem('ecoProfileJustSaved')
+      setProfileUpdated(true)
+      setTimeout(() => setProfileUpdated(false), 3000)
+    }
+
+    const handleStorageChange = () => {
+      const stored = localStorage.getItem('ecoProfile')
+      const newProfile = stored ? JSON.parse(stored) : null
+      setEcoProfile(newProfile)
+      if (newProfile) {
+        setEnvironmentFilter(newProfile.ecoPriority || 'ALL')
+        setProfileUpdated(true)
+        setTimeout(() => setProfileUpdated(false), 3000)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('ecoProfileUpdated', handleStorageChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('ecoProfileUpdated', handleStorageChange)
+    }
+  }, [])
+
+  const [environmentFilter, setEnvironmentFilter] = useState(
+    ecoProfile?.ecoPriority || 'ALL'
+  )
   const [dateFromFilter, setDateFromFilter] = useState('')
   const [dateToFilter, setDateToFilter] = useState('')
 
@@ -326,6 +382,11 @@ function MapPage() {
       if (selectedRouteType === 'FAST') ecoScore -= 8
       if (selectedRouteType === 'BALANCED') ecoScore += 1
 
+      // Apply activity type bonus from eco profile
+      if (ecoProfile?.activityType === 'WALKING') ecoScore += 5
+      if (ecoProfile?.activityType === 'RUNNING') ecoScore += 3
+      if (ecoProfile?.activityType === 'CYCLING') ecoScore += 1
+
       setRoutePoints(leafletPoints)
 
       setRouteInfo({
@@ -387,6 +448,10 @@ function MapPage() {
             Dashboard
           </Link>
 
+          <Link to="/profile" style={{ ...styles.secondaryButton, backgroundColor: '#f59e0b' }}>
+            Eco Profile
+          </Link>
+
           <button onClick={handleLogout} style={styles.logoutButton}>
             Sign out
           </button>
@@ -396,6 +461,26 @@ function MapPage() {
       <section style={styles.container} className="eco-container">
         <div style={styles.routePanel}>
           <h2 style={styles.sectionTitle}>Route planner</h2>
+
+          {ecoProfile && (
+            <div style={{
+              backgroundColor: profileUpdated ? '#14532d' : '#0f2a1a',
+              border: `1px solid ${profileUpdated ? '#4ade80' : '#22c55e'}`,
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '12px',
+              fontSize: '13px',
+              color: '#86efac',
+              transition: 'all 0.4s ease',
+              boxShadow: profileUpdated ? '0 0 16px rgba(34,197,94,0.4)' : 'none'
+            }}>
+              {profileUpdated
+                ? '✅ Eco Profile updated! Map filter and settings applied.'
+                : <>🌿 Eco Profile active: <strong>{ecoProfile.activityType}</strong> · <strong>{ecoProfile.ecoPriority.replace(/_/g, ' ')}</strong> · <strong>{ecoProfile.preferredRegion}</strong>
+                  {' '}<Link to="/profile" style={{ color: '#22c55e', marginLeft: '8px' }}>Edit profile →</Link></>
+              }
+            </div>
+          )}
 
           <p style={styles.text}>
             Select points directly on the map and compare route options.
@@ -532,7 +617,7 @@ function MapPage() {
 
         <div style={styles.mapBox}>
           <MapContainer
-            center={[46.1512, 14.9955]}
+            center={ecoProfile?.preferredRegion ? regionCoordinates[ecoProfile.preferredRegion] : [46.1512, 14.9955]}
             zoom={8}
             style={styles.map}
             className="eco-map"
@@ -540,6 +625,12 @@ function MapPage() {
             <RouteClickHandler
               selectionMode={selectionMode}
               onSelectPoint={handleSelectPoint}
+            />
+
+            <FlyToRegion
+              center={ecoProfile?.preferredRegion
+                ? regionCoordinates[ecoProfile.preferredRegion]
+                : null}
             />
 
             <TileLayer
@@ -728,6 +819,15 @@ function App() {
           element={
             <PrivateRoute>
               <StatsDashboardPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <EcoProfilePage />
             </PrivateRoute>
           }
         />
