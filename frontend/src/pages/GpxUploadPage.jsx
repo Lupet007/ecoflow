@@ -65,7 +65,7 @@ function GpxUploadPage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
+      <header style={styles.header} className="eco-gpx-header">
         <div>
           <h1 style={styles.title}>EcoFlow GPX Route Upload</h1>
           <p style={styles.subtitle}>
