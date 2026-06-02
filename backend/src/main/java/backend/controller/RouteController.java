@@ -31,11 +31,14 @@ public class RouteController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadGpx(@RequestParam("file") MultipartFile file) {
         try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
+            }
             // Parse GPX
             List<RoutePoint> points = gpxParserService.parse(file.getInputStream());
 
             if (points.isEmpty()) {
-                return ResponseEntity.badRequest().body("No track points found in GPX file.");
+                return ResponseEntity.badRequest().body(Map.of("error","No track points found in GPX file."));
             }
 
             // Calculate eco-score
@@ -52,7 +55,7 @@ public class RouteController {
 
             routeRepository.save(route);
 
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.status(201).body(Map.of(
                     "id", route.getId() != null ? route.getId() : 0,
                     "name", route.getName(),
                     "pointCount", points.size(),
@@ -66,11 +69,27 @@ public class RouteController {
         }
     }
 
+    // GET /api/routes — lightweight summary, NO coordinates
     @GetMapping
-    public List<Route> getAllRoutes() {
-        return routeRepository.findAll();
+    public ResponseEntity<?> getAllRoutes() {
+        try {
+            List<Map<String, Object>> summaries = routeRepository.findAll()
+                    .stream()
+                    .map(route -> Map.<String, Object>of(
+                            "id", route.getId(),
+                            "name", route.getName(),
+                            "pointCount", route.getPointCount(),
+                            "ecoScore", route.getEcoScore(),
+                            "ecoScoreLabel", route.getEcoScoreLabel(),
+                            "uploadedAt", route.getUploadedAt()
+                    ))
+                    .toList();
+            return ResponseEntity.ok(summaries);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to fetch routes."));
+        }
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<?> getRoute(@PathVariable Long id) {
         return routeRepository.findById(id)
