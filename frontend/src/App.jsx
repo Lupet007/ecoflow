@@ -119,11 +119,13 @@ function parseRouteCoordinates(route) {
 
 function FlyToRegion({ center }) {
   const map = useMap()
+
   useEffect(() => {
     if (center) {
       map.flyTo(center, 9, { duration: 1.5 })
     }
   }, [center, map])
+
   return null
 }
 
@@ -153,43 +155,17 @@ function MapPage() {
   const [status, setStatus] = useState('Loading environmental data...')
   const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
 
-  // Load eco profile dynamically from localStorage
   const [ecoProfile, setEcoProfile] = useState(() => {
     const stored = localStorage.getItem('ecoProfile')
     return stored ? JSON.parse(stored) : null
   })
+
   const [profileUpdated, setProfileUpdated] = useState(false)
-
-  useEffect(() => {
-    // Show animation if user just saved profile and navigated back
-    if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
-      localStorage.removeItem('ecoProfileJustSaved')
-      setProfileUpdated(true)
-      setTimeout(() => setProfileUpdated(false), 3000)
-    }
-
-    const handleStorageChange = () => {
-      const stored = localStorage.getItem('ecoProfile')
-      const newProfile = stored ? JSON.parse(stored) : null
-      setEcoProfile(newProfile)
-      if (newProfile) {
-        setEnvironmentFilter(newProfile.ecoPriority || 'ALL')
-        setProfileUpdated(true)
-        setTimeout(() => setProfileUpdated(false), 3000)
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('ecoProfileUpdated', handleStorageChange)
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('ecoProfileUpdated', handleStorageChange)
-    }
-  }, [])
 
   const [environmentFilter, setEnvironmentFilter] = useState(
     ecoProfile?.ecoPriority || 'ALL'
   )
+
   const [dateFromFilter, setDateFromFilter] = useState('')
   const [dateToFilter, setDateToFilter] = useState('')
 
@@ -203,7 +179,35 @@ function MapPage() {
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
   const [showHeatmap, setShowHeatmap] = useState(false)
 
-  // Heatmap data: environmental hotspots across Slovenia
+  useEffect(() => {
+    if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
+      localStorage.removeItem('ecoProfileJustSaved')
+      setProfileUpdated(true)
+      setTimeout(() => setProfileUpdated(false), 3000)
+    }
+
+    const handleStorageChange = () => {
+      const stored = localStorage.getItem('ecoProfile')
+      const newProfile = stored ? JSON.parse(stored) : null
+
+      setEcoProfile(newProfile)
+
+      if (newProfile) {
+        setEnvironmentFilter(newProfile.ecoPriority || 'ALL')
+        setProfileUpdated(true)
+        setTimeout(() => setProfileUpdated(false), 3000)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('ecoProfileUpdated', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('ecoProfileUpdated', handleStorageChange)
+    }
+  }, [])
+
   const heatmapPoints = [
     { position: [46.5547, 15.6459], intensity: 0.9, label: 'Maribor – Air Quality', color: '#3b82f6' },
     { position: [46.2397, 14.3556], intensity: 0.7, label: 'Gorenjska – Air Quality', color: '#3b82f6' },
@@ -296,6 +300,82 @@ function MapPage() {
     })
   }, [products, environmentFilter, dateFromFilter, dateToFilter])
 
+  const personalizedRecommendations = useMemo(() => {
+    if (!ecoProfile) {
+      return [
+        {
+          title: 'Create your Eco Profile',
+          text: 'Set your activity type, preferred region and environmental priority to get personalised route recommendations.',
+          color: '#f59e0b'
+        }
+      ]
+    }
+
+    const recommendations = []
+
+    const bestUploadedRoute =
+      uploadedRoutes.length > 0
+        ? uploadedRoutes.reduce((best, route) =>
+            (route.ecoScore || 0) > (best.ecoScore || 0) ? route : best
+          )
+        : null
+
+    if (bestUploadedRoute) {
+      recommendations.push({
+        title: `Best saved route: ${bestUploadedRoute.name}`,
+        text: `This route has an eco-score of ${bestUploadedRoute.ecoScore}/100 and is currently the best saved route for your ${ecoProfile.activityType.toLowerCase()} profile.`,
+        color: getScoreColor(bestUploadedRoute.ecoScore)
+      })
+    }
+
+    if (ecoProfile.ecoPriority === 'AIR_QUALITY') {
+      recommendations.push({
+        title: 'Clean air recommendation',
+        text: 'Choose Eco Route and avoid dense city roads when planning walking or running activities.',
+        color: '#3b82f6'
+      })
+    }
+
+    if (ecoProfile.ecoPriority === 'WATER_QUALITY') {
+      recommendations.push({
+        title: 'Water quality recommendation',
+        text: 'Routes near rivers, lakes and coastal areas are recommended because your profile prioritises water quality.',
+        color: '#06b6d4'
+      })
+    }
+
+    if (ecoProfile.ecoPriority === 'LAND_TEMPERATURE') {
+      recommendations.push({
+        title: 'Temperature recommendation',
+        text: 'Prefer shaded and shorter routes during warmer periods to reduce heat exposure.',
+        color: '#f59e0b'
+      })
+    }
+
+    if (routeInfo) {
+      recommendations.push({
+        title: 'Current planned route',
+        text:
+          routeInfo.ecoScore >= 80
+            ? 'Your currently planned route is highly recommended for outdoor activity.'
+            : routeInfo.ecoScore >= 60
+              ? 'Your current route is acceptable, but Eco Route may provide better environmental conditions.'
+              : 'Consider changing the route because environmental conditions are not ideal.',
+        color: getScoreColor(routeInfo.ecoScore)
+      })
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push({
+        title: 'Upload or plan a route',
+        text: 'Upload a GPX route or calculate a route on the map to receive more accurate recommendations.',
+        color: '#6366f1'
+      })
+    }
+
+    return recommendations
+  }, [ecoProfile, uploadedRoutes, routeInfo])
+
   const productLocations = [
     { position: [46.5547, 15.6459], city: 'Maribor' },
     { position: [46.2397, 14.3556], city: 'Gorenjska' },
@@ -382,10 +462,11 @@ function MapPage() {
       if (selectedRouteType === 'FAST') ecoScore -= 8
       if (selectedRouteType === 'BALANCED') ecoScore += 1
 
-      // Apply activity type bonus from eco profile
       if (ecoProfile?.activityType === 'WALKING') ecoScore += 5
       if (ecoProfile?.activityType === 'RUNNING') ecoScore += 3
       if (ecoProfile?.activityType === 'CYCLING') ecoScore += 1
+
+      ecoScore = Math.max(0, Math.min(100, Math.round(ecoScore)))
 
       setRoutePoints(leafletPoints)
 
@@ -574,6 +655,38 @@ function MapPage() {
           )}
         </div>
 
+        <section style={styles.recommendationPanel}>
+          <div style={styles.recommendationHeader}>
+            <div>
+              <h2 style={{ margin: 0 }}>Personalized Route Recommendations</h2>
+              <p style={styles.text}>
+                Recommendations are generated from your Eco Profile, uploaded GPX routes and planned route.
+              </p>
+            </div>
+
+            <Link to="/profile" style={styles.profileButton}>
+              Edit Eco Profile
+            </Link>
+          </div>
+
+          <div style={styles.recommendationGrid}>
+            {personalizedRecommendations.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  ...styles.recommendationCard,
+                  borderLeft: `5px solid ${item.color}`
+                }}
+              >
+                <h3 style={{ marginTop: 0, color: item.color }}>
+                  {item.title}
+                </h3>
+                <p style={styles.text}>{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <div style={styles.filters} className="eco-filters">
           <div>
             <label style={styles.label}>Environmental layer</label>
@@ -655,7 +768,6 @@ function MapPage() {
               )
             })}
 
-            {/* Heatmap layer */}
             {showHeatmap && heatmapPoints.map((point, index) => (
               <CircleMarker
                 key={`heat-${index}`}
@@ -884,6 +996,40 @@ const styles = {
     borderRadius: '14px',
     marginBottom: '20px',
     border: '1px solid #334155'
+  },
+  recommendationPanel: {
+    backgroundColor: '#1e293b',
+    padding: '22px',
+    borderRadius: '14px',
+    marginBottom: '20px',
+    border: '1px solid #334155'
+  },
+  recommendationHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '18px',
+    flexWrap: 'wrap'
+  },
+  recommendationGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: '16px'
+  },
+  recommendationCard: {
+    backgroundColor: '#0f172a',
+    padding: '18px',
+    borderRadius: '12px',
+    border: '1px solid #334155'
+  },
+  profileButton: {
+    padding: '10px 16px',
+    backgroundColor: '#f59e0b',
+    color: '#fff',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontWeight: '700'
   },
   sectionTitle: {
     marginTop: 0,
