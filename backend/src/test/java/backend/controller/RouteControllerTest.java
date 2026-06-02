@@ -57,6 +57,7 @@ class RouteControllerTest {
         route.setEcoScore(85.0);
         route.setEcoScoreLabel("Excellent");
         route.setCoordinates("[]");
+        route.setUploadedAt(java.time.LocalDateTime.now());
 
 
         when(routeRepository.findAll()).thenReturn(List.of(route));
@@ -114,6 +115,6 @@ class RouteControllerTest {
 
         mockMvc.perform(multipart("/api/routes/upload").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("No track points found in GPX file "));
+                .andExpect(jsonPath("$.error").value("No track points found in GPX file."));
     }
 }
