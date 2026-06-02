@@ -305,7 +305,8 @@ function MapPage() {
       return [
         {
           title: 'Create your Eco Profile',
-          text: 'Set your activity type, preferred region and environmental priority to get personalised route recommendations.',
+          text: 'Set your activity type, preferred region and environmental priority to unlock smart route recommendations.',
+          score: null,
           color: '#f59e0b'
         }
       ]
@@ -321,60 +322,104 @@ function MapPage() {
         : null
 
     if (bestUploadedRoute) {
+      let personalScore = bestUploadedRoute.ecoScore || 0
+
+      if (ecoProfile.activityType === 'WALKING') personalScore += 5
+      if (ecoProfile.activityType === 'RUNNING') personalScore += 3
+      if (ecoProfile.activityType === 'CYCLING') personalScore += 2
+
+      if (ecoProfile.ecoPriority === 'AIR_QUALITY') personalScore += 4
+      if (ecoProfile.ecoPriority === 'WATER_QUALITY') personalScore += 3
+      if (ecoProfile.ecoPriority === 'LAND_TEMPERATURE') personalScore += 2
+
+      personalScore = Math.min(100, Math.round(personalScore))
+
       recommendations.push({
-        title: `Best saved route: ${bestUploadedRoute.name}`,
-        text: `This route has an eco-score of ${bestUploadedRoute.ecoScore}/100 and is currently the best saved route for your ${ecoProfile.activityType.toLowerCase()} profile.`,
-        color: getScoreColor(bestUploadedRoute.ecoScore)
+        title: `Best route for your profile: ${bestUploadedRoute.name}`,
+        text: `This uploaded GPX route is recommended for ${ecoProfile.activityType.toLowerCase()} because it has a strong eco-score and matches your selected environmental priority.`,
+        score: personalScore,
+        color: getScoreColor(personalScore)
+      })
+    }
+
+    if (routeInfo) {
+      let plannedScore = routeInfo.ecoScore || 0
+
+      if (selectedRouteType === 'ECO') plannedScore += 6
+      if (selectedRouteType === 'FAST') plannedScore -= 5
+      if (selectedRouteType === 'BALANCED') plannedScore += 2
+
+      plannedScore = Math.max(0, Math.min(100, Math.round(plannedScore)))
+
+      recommendations.push({
+        title: 'Smart recommendation for current planned route',
+        text:
+          plannedScore >= 85
+            ? 'This route is highly recommended. It fits your profile and has excellent environmental conditions.'
+            : plannedScore >= 65
+              ? 'This route is acceptable, but Eco Route may provide better environmental conditions.'
+              : 'This route is not ideal for your profile. Consider changing route type or selecting another area.',
+        score: plannedScore,
+        color: getScoreColor(plannedScore)
       })
     }
 
     if (ecoProfile.ecoPriority === 'AIR_QUALITY') {
       recommendations.push({
-        title: 'Clean air recommendation',
-        text: 'Choose Eco Route and avoid dense city roads when planning walking or running activities.',
+        title: 'Clean air route strategy',
+        text: 'For your profile, EcoFlow recommends choosing green areas, parks and lower-traffic roads whenever possible.',
+        score: 88,
         color: '#3b82f6'
       })
     }
 
     if (ecoProfile.ecoPriority === 'WATER_QUALITY') {
       recommendations.push({
-        title: 'Water quality recommendation',
-        text: 'Routes near rivers, lakes and coastal areas are recommended because your profile prioritises water quality.',
+        title: 'Water quality route strategy',
+        text: 'EcoFlow recommends routes near rivers, lakes and coastal areas because your profile prioritises water quality.',
+        score: 82,
         color: '#06b6d4'
       })
     }
 
     if (ecoProfile.ecoPriority === 'LAND_TEMPERATURE') {
       recommendations.push({
-        title: 'Temperature recommendation',
-        text: 'Prefer shaded and shorter routes during warmer periods to reduce heat exposure.',
+        title: 'Temperature-aware route strategy',
+        text: 'EcoFlow recommends shaded, shorter and less exposed routes to reduce heat stress during outdoor activity.',
+        score: 78,
         color: '#f59e0b'
       })
     }
 
-    if (routeInfo) {
+    if (ecoProfile.activityType === 'WALKING') {
       recommendations.push({
-        title: 'Current planned route',
-        text:
-          routeInfo.ecoScore >= 80
-            ? 'Your currently planned route is highly recommended for outdoor activity.'
-            : routeInfo.ecoScore >= 60
-              ? 'Your current route is acceptable, but Eco Route may provide better environmental conditions.'
-              : 'Consider changing the route because environmental conditions are not ideal.',
-        color: getScoreColor(routeInfo.ecoScore)
+        title: 'Walking recommendation',
+        text: 'Shorter eco-friendly routes are preferred for walking. EcoFlow prioritises comfort, air quality and safety.',
+        score: 90,
+        color: '#22c55e'
       })
     }
 
-    if (recommendations.length === 0) {
+    if (ecoProfile.activityType === 'RUNNING') {
       recommendations.push({
-        title: 'Upload or plan a route',
-        text: 'Upload a GPX route or calculate a route on the map to receive more accurate recommendations.',
-        color: '#6366f1'
+        title: 'Running recommendation',
+        text: 'For running, EcoFlow recommends routes with cleaner air and moderate distance to reduce exposure time.',
+        score: 84,
+        color: '#3b82f6'
+      })
+    }
+
+    if (ecoProfile.activityType === 'CYCLING') {
+      recommendations.push({
+        title: 'Cycling recommendation',
+        text: 'For cycling, EcoFlow recommends longer balanced routes with stable environmental conditions.',
+        score: 80,
+        color: '#06b6d4'
       })
     }
 
     return recommendations
-  }, [ecoProfile, uploadedRoutes, routeInfo])
+  }, [ecoProfile, uploadedRoutes, routeInfo, selectedRouteType])
 
   const productLocations = [
     { position: [46.5547, 15.6459], city: 'Maribor' },
@@ -682,6 +727,19 @@ function MapPage() {
                   {item.title}
                 </h3>
                 <p style={styles.text}>{item.text}</p>
+              {item.score !== null && (
+            <div style={{
+              marginTop: '12px',
+              display: 'inline-block',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              backgroundColor: item.color,
+              color: '#fff',
+              fontWeight: '700'
+            }}>
+              Recommendation score: {item.score}/100
+            </div>
+          )}
               </div>
             ))}
           </div>
