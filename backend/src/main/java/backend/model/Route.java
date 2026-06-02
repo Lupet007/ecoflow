@@ -1,6 +1,9 @@
 package backend.model;
 
 import jakarta.persistence.*;
+import org.springframework.cglib.core.Local;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -81,4 +84,9 @@ public class Route {
     public LocalDateTime getUploadedAt() {
         return uploadedAt;
     }
+
+    public void setUploadedAt(LocalDateTime uploadedAt) {
+        this.uploadedAt = uploadedAt;
+    }
+
 }
