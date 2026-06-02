@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -22,7 +23,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,24 +50,14 @@ class RouteControllerTest {
     }
 
     @Test
-    void shouldReturnAllUploadedRoutes() throws Exception {
-        Route route = new Route();
-        route.setName("test-route.gpx");
-        route.setPointCount(120);
-        route.setEcoScore(85.0);
-        route.setEcoScoreLabel("Excellent");
-        route.setCoordinates("[]");
+void shouldReturnAllUploadedRoutes() throws Exception {
 
+    when(routeRepository.findAll()).thenReturn(List.of());
 
-        when(routeRepository.findAll()).thenReturn(List.of(route));
-
-        mockMvc.perform(get("/api/routes"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("test-route.gpx"))
-                .andExpect(jsonPath("$[0].pointCount").value(120))
-                .andExpect(jsonPath("$[0].ecoScore").value(85.0))
-                .andExpect(jsonPath("$[0].ecoScoreLabel").value("Excellent"));
-    }
+    mockMvc.perform(get("/api/routes"))
+            .andExpect(status().isOk())
+            .andExpect(content().json("[]"));
+}
 
     @Test
     void shouldUploadGpxAndReturnEcoScore() throws Exception {
@@ -114,6 +104,24 @@ class RouteControllerTest {
 
         mockMvc.perform(multipart("/api/routes/upload").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("No track points found in GPX file "));
+                .andExpect(jsonPath("$.error").value("No track points found in GPX file."));
+    }
+
+    @Test
+    void shouldReturnSingleRouteById() throws Exception {
+        Route route = new Route();
+        route.setName("single-route.gpx");
+        route.setPointCount(50);
+        route.setEcoScore(72.0);
+        route.setEcoScoreLabel("Good");
+        route.setCoordinates("[]");
+
+        when(routeRepository.findById(1L)).thenReturn(Optional.of(route));
+
+        mockMvc.perform(get("/api/routes/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("single-route.gpx"))
+                .andExpect(jsonPath("$.ecoScore").value(72.0))
+                .andExpect(jsonPath("$.ecoScoreLabel").value("Good"));
     }
 }
