@@ -93,7 +93,7 @@ class RouteControllerTest {
                 .thenReturn("Excellent");
 
         mockMvc.perform(multipart("/api/routes/upload").file(file))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("walk-route.gpx"))
                 .andExpect(jsonPath("$.pointCount").value(1))
                 .andExpect(jsonPath("$.ecoScore").value(88.0))
@@ -114,6 +114,6 @@ class RouteControllerTest {
 
         mockMvc.perform(multipart("/api/routes/upload").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("No track points found in GPX file."));
+                .andExpect(jsonPath("$.error").value("No track points found in GPX file "));
     }
 }
