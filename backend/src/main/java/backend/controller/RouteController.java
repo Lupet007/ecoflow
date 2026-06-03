@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -75,14 +76,16 @@ public class RouteController {
         try {
             List<Map<String, Object>> summaries = routeRepository.findAll()
                     .stream()
-                    .map(route -> Map.<String, Object>of(
-                            "id", route.getId(),
-                            "name", route.getName(),
-                            "pointCount", route.getPointCount(),
-                            "ecoScore", route.getEcoScore(),
-                            "ecoScoreLabel", route.getEcoScoreLabel(),
-                            "uploadedAt", route.getUploadedAt()
-                    ))
+                    .map(route -> {
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("id", route.getId());           // LinkedHashMap allows nulls
+                        map.put("name", route.getName());
+                        map.put("pointCount", route.getPointCount());
+                        map.put("ecoScore", route.getEcoScore());
+                        map.put("ecoScoreLabel", route.getEcoScoreLabel());
+                        map.put("uploadedAt", route.getUploadedAt());
+                        return map;
+                    })
                     .toList();
             return ResponseEntity.ok(summaries);
         } catch (Exception e) {

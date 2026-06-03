@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
+
 import java.io.InputStream;
 import java.util.List;
 
@@ -52,6 +53,7 @@ class RouteControllerTest {
     @Test
     void shouldReturnAllUploadedRoutes() throws Exception {
         Route route = new Route();
+        route.setId(1L);
         route.setName("test-route.gpx");
         route.setPointCount(120);
         route.setEcoScore(85.0);
