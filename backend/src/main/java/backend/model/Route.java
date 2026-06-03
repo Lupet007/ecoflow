@@ -89,4 +89,7 @@ public class Route {
         this.uploadedAt = uploadedAt;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
 }
