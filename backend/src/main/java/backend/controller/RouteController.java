@@ -8,6 +8,8 @@ import backend.service.GpxParserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,8 +37,10 @@ public class RouteController {
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
             }
-            // Parse GPX
+
+            System.out.println("About to parse, file size: " + file.getSize());
             List<RoutePoint> points = gpxParserService.parse(file.getInputStream());
+            System.out.println("Parse done, points: " + points.size());
 
             if (points.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error","No track points found in GPX file."));
@@ -65,8 +69,10 @@ public class RouteController {
             ));
 
         } catch (Exception e) {
+            System.out.println("CONTROLLER EXCEPTION: " + e.getClass().getName() + ": " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.internalServerError()
-                    .body("Failed to process GPX file: " + e.getMessage());
+                    .body(Map.of("error", "Unexpected error"));
         }
     }
 
