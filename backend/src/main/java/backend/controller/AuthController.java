@@ -44,7 +44,8 @@ public class AuthController {
         }
 
         if (userRepository.findByEmail(email).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already in use.");
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Email already in use."));
         }
 
         User user = new User();
