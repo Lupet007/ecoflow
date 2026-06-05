@@ -11,5 +11,16 @@ services:
     volumes:
       - ecoflow_postgres_data:/var/lib/postgresql/data
 
+  succulent:
+    image: codeberg.org/firefly-cpp/succulent:v6
+    container_name: ecoflow-succulent
+    ports:
+      - "9090:8080"
+    volumes:
+      - ../succulent/run.py:/succulent-app/run.py
+      - ../succulent/configuration.yml:/succulent-app/configuration.yml
+    environment:
+      - GUNICORN_WORKERS=2
+
 volumes:
   ecoflow_postgres_data:

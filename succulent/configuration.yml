@@ -1,0 +1,11 @@
+data:
+  - name: 'latitude'
+  - name: 'longitude'
+  - name: 'air_quality'
+  - name: 'temperature'
+  - name: 'eco_score'
+  - name: 'activity_type'
+results:
+  - enable: true
+  - export: true
+timestamp: true
