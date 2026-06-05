@@ -48,6 +48,8 @@ function BarChart({ data, maxValue }) {
 function StatsDashboardPage() {
   const [products, setProducts] = useState([])
   const [routes, setRoutes] = useState([])
+  const [sensorData, setSensorData] = useState([])
+  const [sensorStatus, setSensorStatus] = useState('loading') // loading | ok | unavailable
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -63,6 +65,20 @@ function StatsDashboardPage() {
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
+
+    // Fetch succulent sensor data separately (non-blocking)
+    axios.get('http://localhost:8080/api/succulent-data', { headers })
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          setSensorData(res.data)
+          setSensorStatus('ok')
+        } else if (res.data?.status === 'unavailable') {
+          setSensorStatus('unavailable')
+        } else {
+          setSensorStatus('ok')
+        }
+      })
+      .catch(() => setSensorStatus('unavailable'))
   }, [])
 
   // Environmental product stats
@@ -189,6 +205,88 @@ function StatsDashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Succulent sensor data section */}
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>🌵 Live sensor data</h2>
+            <p style={styles.sectionDesc}>
+              Real-time environmental measurements collected from IoT devices and smartwatches via the Succulent data collection framework.
+            </p>
+
+            {sensorStatus === 'unavailable' && (
+              <div style={styles.sensorOffline}>
+                <span style={{ fontSize: '20px' }}>📡</span>
+                <div>
+                  <strong>Succulent server offline</strong>
+                  <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '13px' }}>
+                    Start the collector: <code style={styles.code}>cd succulent &amp;&amp; python run.py</code><br />
+                    Then run simulator: <code style={styles.code}>python simulate_data.py</code>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {sensorStatus === 'ok' && sensorData.length === 0 && (
+              <p style={styles.empty}>No sensor measurements yet. Run the simulator to generate data.</p>
+            )}
+
+            {sensorStatus === 'ok' && sensorData.length > 0 && (
+              <>
+                <div style={styles.sensorCards}>
+                  <div style={styles.sensorStat}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e' }}>{sensorData.length}</div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>Total measurements</div>
+                  </div>
+                  <div style={styles.sensorStat}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#3b82f6' }}>
+                      {sensorData.filter(d => d.activity_type === 'WALKING').length}
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>🚶 Walking</div>
+                  </div>
+                  <div style={styles.sensorStat}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#f59e0b' }}>
+                      {sensorData.filter(d => d.activity_type === 'CYCLING').length}
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>🚴 Cycling</div>
+                  </div>
+                  <div style={styles.sensorStat}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#a78bfa' }}>
+                      {sensorData.filter(d => d.activity_type === 'RUNNING').length}
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>🏃 Running</div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '20px' }}>
+                  <div style={styles.tableHeader}>
+                    <span>Latitude</span>
+                    <span>Longitude</span>
+                    <span>Activity</span>
+                    <span>Air quality</span>
+                    <span>Eco-score</span>
+                    <span>Timestamp</span>
+                  </div>
+                  {sensorData.slice(-10).reverse().map((row, i) => (
+                    <div key={i} style={{ ...styles.tableRow, gridTemplateColumns: 'repeat(6, 1fr)' }}>
+                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>{row.latitude}</span>
+                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>{row.longitude}</span>
+                      <span style={{ fontSize: '13px' }}>{row.activity_type}</span>
+                      <span style={{ color: row.air_quality >= 70 ? '#22c55e' : row.air_quality >= 40 ? '#f59e0b' : '#ef4444', fontWeight: 600, fontSize: '13px' }}>
+                        {row.air_quality}
+                      </span>
+                      <span style={{ color: '#3b82f6', fontWeight: 700, fontSize: '13px' }}>{row.eco_score}</span>
+                      <span style={{ color: '#64748b', fontSize: '12px' }}>{row.timestamp || '—'}</span>
+                    </div>
+                  ))}
+                  {sensorData.length > 10 && (
+                    <p style={{ color: '#64748b', fontSize: '13px', marginTop: '8px', textAlign: 'center' }}>
+                      Showing last 10 of {sensorData.length} measurements
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
         </main>
       )}
@@ -359,6 +457,37 @@ const styles = {
     fontSize: '12px',
     fontWeight: '600',
     display: 'inline-block'
+  },
+  sensorOffline: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    backgroundColor: '#1a1a2e',
+    border: '1px solid #334155',
+    borderRadius: '10px',
+    padding: '16px 20px',
+    color: '#e2e8f0'
+  },
+  code: {
+    backgroundColor: '#0f172a',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontFamily: 'monospace',
+    fontSize: '12px',
+    color: '#22c55e'
+  },
+  sensorCards: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: '12px',
+    marginBottom: '4px'
+  },
+  sensorStat: {
+    backgroundColor: '#0f172a',
+    borderRadius: '10px',
+    padding: '16px',
+    textAlign: 'center',
+    border: '1px solid #1e293b'
   }
 }
 
