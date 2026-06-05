@@ -117,7 +117,6 @@ Dodatna arhitekturna dokumentacija in UML diagrami se nahajajo v mapi `/docs`.
 * React
 * Vite
 * Leaflet
-* Tailwind CSS
 
 ### Backend
 
@@ -136,6 +135,10 @@ Dodatna arhitekturna dokumentacija in UML diagrami se nahajajo v mapi `/docs`.
 * Pandas
 * Requests
 
+### Zbiranje podatkov z naprav
+
+* Succulent (Python framework za zbiranje podatkov prek HTTP POST)
+
 ### DevOps in infrastruktura
 
 * Docker
@@ -148,8 +151,8 @@ Dodatna arhitekturna dokumentacija in UML diagrami se nahajajo v mapi `/docs`.
 Projekt uporablja javno dostopne okoljske in geografske vire podatkov:
 
 * Copernicus Data Space Ecosystem API
-* ARSO Open Data API
 * GPX/TCX datoteke
+* Succulent — zbiranje podatkov z IoT naprav (GPS, senzorji okolja)
 
 ---
 
@@ -215,6 +218,11 @@ ecoflow/
 ├── frontend/
 ├── backend/
 ├── pipeline/
+├── succulent/          ← zbiranje podatkov z IoT naprav
+│   ├── configuration.yml
+│   ├── run.py
+│   ├── simulate_data.py
+│   └── requirements.txt
 ├── docs/
 │   ├── diagrams/
 │   ├── architecture/
@@ -243,6 +251,17 @@ Vsa dokumentacija se nahaja v mapi `/docs`.
 ## Namestitev in zagon
 
 Sistem je zasnovan za zagon v Docker okolju z uporabo Docker Compose, kar omogoča lažjo prenosljivost in enostavnejše upravljanje infrastrukture.
+
+### Zagon succulent data collector
+
+```bash
+cd succulent
+pip install -r requirements.txt
+python run.py          # zažene succulent strežnik na portu 9090
+python simulate_data.py  # simulira pošiljanje senzorskih podatkov
+```
+
+Zbrani podatki so dostopni na `http://localhost:9090/data`.
 
 ---
 
