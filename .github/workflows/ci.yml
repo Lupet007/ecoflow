@@ -130,6 +130,6 @@ jobs:
         run: ./mvnw clean compile -DskipTests
 
       - name: Run SonarQube analysis
-        uses: SonarSource/sonarqube-scan-action@1a6d90e
+        uses: SonarSource/sonarqube-scan-action@a31c939
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
