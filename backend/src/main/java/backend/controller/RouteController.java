@@ -8,7 +8,10 @@ import backend.service.GpxParserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,11 +34,16 @@ public class RouteController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadGpx(@RequestParam("file") MultipartFile file) {
         try {
-            // Parse GPX
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
+            }
+
+            System.out.println("About to parse, file size: " + file.getSize());
             List<RoutePoint> points = gpxParserService.parse(file.getInputStream());
+            System.out.println("Parse done, points: " + points.size());
 
             if (points.isEmpty()) {
-                return ResponseEntity.badRequest().body("No track points found in GPX file.");
+                return ResponseEntity.badRequest().body(Map.of("error","No track points found in GPX file."));
             }
 
             // Calculate eco-score
@@ -52,7 +60,7 @@ public class RouteController {
 
             routeRepository.save(route);
 
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.status(201).body(Map.of(
                     "id", route.getId() != null ? route.getId() : 0,
                     "name", route.getName(),
                     "pointCount", points.size(),
@@ -61,16 +69,36 @@ public class RouteController {
             ));
 
         } catch (Exception e) {
+            System.out.println("CONTROLLER EXCEPTION: " + e.getClass().getName() + ": " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.internalServerError()
-                    .body("Failed to process GPX file: " + e.getMessage());
+                    .body(Map.of("error", "Unexpected error"));
         }
     }
 
+    // GET /api/routes — lightweight summary, NO coordinates
     @GetMapping
-    public List<Route> getAllRoutes() {
-        return routeRepository.findAll();
+    public ResponseEntity<?> getAllRoutes() {
+        try {
+            List<Map<String, Object>> summaries = routeRepository.findAll()
+                    .stream()
+                    .map(route -> {
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("id", route.getId());           // LinkedHashMap allows nulls
+                        map.put("name", route.getName());
+                        map.put("pointCount", route.getPointCount());
+                        map.put("ecoScore", route.getEcoScore());
+                        map.put("ecoScoreLabel", route.getEcoScoreLabel());
+                        map.put("uploadedAt", route.getUploadedAt());
+                        return map;
+                    })
+                    .toList();
+            return ResponseEntity.ok(summaries);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to fetch routes."));
+        }
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<?> getRoute(@PathVariable Long id) {
         return routeRepository.findById(id)

@@ -37,8 +37,15 @@ public class AuthController {
         String email = body.get("email");
         String password = body.get("password");
 
+        // Input validation
+        if (email == null || email.isBlank() || password == null || password.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Email and password are required."));
+        }
+
         if (userRepository.findByEmail(email).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already in use.");
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Email already in use."));
         }
 
         User user = new User();
@@ -47,21 +54,31 @@ public class AuthController {
         user.setRole(Role.USER);
         userRepository.save(user);
 
-        return ResponseEntity.ok("User registered successfully.");
+        return ResponseEntity.status(201)
+                .body(Map.of("message", "User registered successfully."));
     }
 
     // --- LOGIN ---
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            body.get("email"), body.get("password")));
-        } catch (Exception e) {
-            return ResponseEntity.status(401).body("Invalid email or password.");
+        String email = body.get("email");
+        String password = body.get("password");
+
+        // Input validation
+        if (email == null || email.isBlank() || password == null || password.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Email and password are required."));
         }
 
-        String token = jwtUtil.generateToken(body.get("email"));
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, password));
+        } catch (Exception e) {
+            return ResponseEntity.status(401)
+                    .body(Map.of("error","Invalid email or password."));
+        }
+
+        String token = jwtUtil.generateToken(email);
         return ResponseEntity.ok(Map.of("token", token));
     }
 }
