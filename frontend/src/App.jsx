@@ -489,7 +489,7 @@ function MapPage() {
                   : (
                     <>
                       🌿 Eco Profile active: <strong>{ecoProfile.activityType}</strong> ·{' '}
-                      <strong>{ecoProfile.ecoPriority.replace(/_/g, ' ')}</strong> ·{' '}
+                      <strong>{ecoProfile.ecoPriority.replaceAll('_', ' ')}</strong> ·{' '}
                       <strong>{ecoProfile.preferredRegion}</strong>
                       <Link to="/profile" style={styles.inlineLink}>Edit profile →</Link>
                     </>
