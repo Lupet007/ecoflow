@@ -13,12 +13,15 @@ function getEnvironmentalType(name) {
   return 'AIR_QUALITY'
 }
 
-function StatCard({ label, value, color, icon }) {
+function StatCard({ label, value, color, icon, description }) {
   return (
-    <div style={{ ...styles.statCard, borderTop: `4px solid ${color}` }}>
-      <div style={styles.statIcon}>{icon}</div>
-      <div style={{ ...styles.statValue, color }}>{value}</div>
-      <div style={styles.statLabel}>{label}</div>
+    <div style={{ ...styles.statCard, borderColor: `${color}55` }}>
+      <div style={{ ...styles.statIcon, background: `${color}22`, color }}>{icon}</div>
+      <div>
+        <div style={{ ...styles.statValue, color }}>{value}</div>
+        <div style={styles.statLabel}>{label}</div>
+        {description && <div style={styles.statDescription}>{description}</div>}
+      </div>
     </div>
   )
 }
@@ -33,8 +36,8 @@ function BarChart({ data, maxValue }) {
             <div
               style={{
                 ...styles.barFill,
-                width: maxValue > 0 ? `${(item.value / maxValue) * 100}%` : '0%',
-                backgroundColor: item.color
+                width: maxValue > 0 ? `${Math.max(4, (item.value / maxValue) * 100)}%` : '0%',
+                background: `linear-gradient(135deg, ${item.color}, ${item.color}cc)`
               }}
             />
           </div>
@@ -49,7 +52,7 @@ function StatsDashboardPage() {
   const [products, setProducts] = useState([])
   const [routes, setRoutes] = useState([])
   const [sensorData, setSensorData] = useState([])
-  const [sensorStatus, setSensorStatus] = useState('loading') // loading | ok | unavailable
+  const [sensorStatus, setSensorStatus] = useState('loading')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -66,7 +69,6 @@ function StatsDashboardPage() {
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
 
-    // Fetch succulent sensor data separately (non-blocking)
     axios.get('http://localhost:8080/api/succulent-data', { headers })
       .then(res => {
         if (Array.isArray(res.data)) {
@@ -81,13 +83,11 @@ function StatsDashboardPage() {
       .catch(() => setSensorStatus('unavailable'))
   }, [])
 
-  // Environmental product stats
   const airCount = products.filter(p => getEnvironmentalType(p.name) === 'AIR_QUALITY').length
   const waterCount = products.filter(p => getEnvironmentalType(p.name) === 'WATER_QUALITY').length
   const tempCount = products.filter(p => getEnvironmentalType(p.name) === 'LAND_TEMPERATURE').length
   const otherCount = products.length - airCount - waterCount - tempCount
 
-  // Route stats
   const avgScore = routes.length > 0
     ? (routes.reduce((sum, r) => sum + (r.ecoScore || 0), 0) / routes.length).toFixed(1)
     : 0
@@ -116,75 +116,107 @@ function StatsDashboardPage() {
 
   return (
     <div style={styles.page}>
+      <div style={styles.glowOne} />
+      <div style={styles.glowTwo} />
+
       <header style={styles.header} className="eco-header">
         <div>
-          <h1 style={styles.title}>📊 Environmental Dashboard</h1>
-          <p style={styles.subtitle}>Overview of environmental data and route statistics.</p>
+          <p style={styles.eyebrow}>Analytics center</p>
+          <h1 style={styles.title}>Environmental Dashboard</h1>
+          <p style={styles.subtitle}>
+            Real-time overview of satellite products, GPX routes and environmental measurements.
+          </p>
         </div>
-        <div className="eco-header-buttons">
-          <Link to="/" style={styles.backButton}>← Back to map</Link>
-        </div>
+
+        <Link to="/" style={styles.backButton}>← Back to map</Link>
       </header>
 
       {loading ? (
-        <div style={styles.loading}>Loading dashboard data...</div>
+        <div style={styles.loadingCard}>
+          <div style={styles.spinner}>🌿</div>
+          <strong>Loading dashboard data...</strong>
+          <span>Fetching environmental products and uploaded routes.</span>
+        </div>
       ) : (
         <main style={styles.container} className="eco-container">
-
-          {/* Summary cards */}
           <div style={styles.cardsGrid} className="eco-cards-grid">
             <StatCard
-              label="Total environmental products"
+              label="Environmental products"
               value={products.length}
               color="#3b82f6"
               icon="🌍"
+              description="Copernicus records"
             />
             <StatCard
               label="Uploaded GPX routes"
               value={routes.length}
               color="#22c55e"
               icon="🗺️"
+              description="Stored route files"
             />
             <StatCard
               label="Average eco-score"
               value={`${avgScore}/100`}
               color="#f59e0b"
               icon="⭐"
+              description="Across saved routes"
             />
             <StatCard
               label="Excellent routes"
               value={excellentRoutes}
               color="#10b981"
               icon="✅"
+              description="Routes above 80"
             />
           </div>
 
-          {/* Environmental products chart */}
-          <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>Environmental data by type</h2>
-            <p style={styles.sectionDesc}>
-              Distribution of Copernicus satellite products currently stored in the database.
-            </p>
-            <BarChart data={envBarData} maxValue={maxEnv} />
+          <div style={styles.gridTwo}>
+            <section style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <div>
+                  <p style={styles.eyebrow}>Satellite data</p>
+                  <h2 style={styles.sectionTitle}>Environmental data by type</h2>
+                </div>
+                <span style={styles.pill}>{products.length} products</span>
+              </div>
+
+              <p style={styles.sectionDesc}>
+                Distribution of Copernicus satellite products currently stored in the database.
+              </p>
+
+              <BarChart data={envBarData} maxValue={maxEnv} />
+            </section>
+
+            <section style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <div>
+                  <p style={styles.eyebrow}>Route quality</p>
+                  <h2 style={styles.sectionTitle}>Routes by eco-score</h2>
+                </div>
+                <span style={styles.pill}>{routes.length} routes</span>
+              </div>
+
+              <p style={styles.sectionDesc}>
+                Eco-score distribution across all uploaded GPX routes.
+              </p>
+
+              {routes.length === 0 ? (
+                <p style={styles.empty}>No routes uploaded yet. Upload a GPX file to see stats.</p>
+              ) : (
+                <BarChart data={scoreBarData} maxValue={maxScore} />
+              )}
+            </section>
           </div>
 
-          {/* Route eco-score chart */}
-          <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>Routes by eco-score</h2>
-            <p style={styles.sectionDesc}>
-              Eco-score distribution across all uploaded GPX routes.
-            </p>
-            {routes.length === 0 ? (
-              <p style={styles.empty}>No routes uploaded yet. Upload a GPX file to see stats.</p>
-            ) : (
-              <BarChart data={scoreBarData} maxValue={maxScore} />
-            )}
-          </div>
-
-          {/* Route list */}
           {routes.length > 0 && (
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Uploaded routes</h2>
+            <section style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <div>
+                  <p style={styles.eyebrow}>Route archive</p>
+                  <h2 style={styles.sectionTitle}>Uploaded routes</h2>
+                </div>
+              </div>
+
               <div style={styles.routeTable}>
                 <div style={styles.tableHeader}>
                   <span>Name</span>
@@ -192,33 +224,45 @@ function StatsDashboardPage() {
                   <span>Eco-score</span>
                   <span>Status</span>
                 </div>
+
                 {routes.map(route => (
                   <div key={route.id} style={styles.tableRow}>
                     <span style={styles.routeName}>{route.name}</span>
                     <span>{route.pointCount}</span>
-                    <span style={{ color: route.ecoScore >= 80 ? '#22c55e' : route.ecoScore >= 60 ? '#3b82f6' : '#f59e0b', fontWeight: 700 }}>
+                    <span style={{
+                      color: route.ecoScore >= 80 ? '#22c55e' : route.ecoScore >= 60 ? '#3b82f6' : '#f59e0b',
+                      fontWeight: 900
+                    }}>
                       {route.ecoScore}/100
                     </span>
                     <span style={styles.badge}>{route.ecoScoreLabel}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Succulent sensor data section */}
-          <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>🌵 Live sensor data</h2>
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <div>
+                <p style={styles.eyebrow}>IoT integration</p>
+                <h2 style={styles.sectionTitle}>Live sensor data</h2>
+              </div>
+              <span style={sensorStatus === 'ok' ? styles.pillSuccess : styles.pillWarning}>
+                {sensorStatus === 'ok' ? 'Online' : 'Unavailable'}
+              </span>
+            </div>
+
             <p style={styles.sectionDesc}>
               Real-time environmental measurements collected from IoT devices and smartwatches via the Succulent data collection framework.
             </p>
 
             {sensorStatus === 'unavailable' && (
               <div style={styles.sensorOffline}>
-                <span style={{ fontSize: '20px' }}>📡</span>
+                <span style={styles.offlineIcon}>📡</span>
                 <div>
                   <strong>Succulent server offline</strong>
-                  <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '13px' }}>
+                  <p style={styles.offlineText}>
                     Start the collector: <code style={styles.code}>cd succulent &amp;&amp; python run.py</code><br />
                     Then run simulator: <code style={styles.code}>python simulate_data.py</code>
                   </p>
@@ -234,31 +278,34 @@ function StatsDashboardPage() {
               <>
                 <div style={styles.sensorCards}>
                   <div style={styles.sensorStat}>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e' }}>{sensorData.length}</div>
-                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>Total measurements</div>
+                    <strong style={{ color: '#22c55e' }}>{sensorData.length}</strong>
+                    <span>Total measurements</span>
                   </div>
+
                   <div style={styles.sensorStat}>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#3b82f6' }}>
+                    <strong style={{ color: '#3b82f6' }}>
                       {sensorData.filter(d => d.activity_type === 'WALKING').length}
-                    </div>
-                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>🚶 Walking</div>
+                    </strong>
+                    <span>🚶 Walking</span>
                   </div>
+
                   <div style={styles.sensorStat}>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#f59e0b' }}>
+                    <strong style={{ color: '#f59e0b' }}>
                       {sensorData.filter(d => d.activity_type === 'CYCLING').length}
-                    </div>
-                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>🚴 Cycling</div>
+                    </strong>
+                    <span>🚴 Cycling</span>
                   </div>
+
                   <div style={styles.sensorStat}>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#a78bfa' }}>
+                    <strong style={{ color: '#a78bfa' }}>
                       {sensorData.filter(d => d.activity_type === 'RUNNING').length}
-                    </div>
-                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>🏃 Running</div>
+                    </strong>
+                    <span>🏃 Running</span>
                   </div>
                 </div>
 
-                <div style={{ marginTop: '20px' }}>
-                  <div style={styles.tableHeader}>
+                <div style={styles.sensorTableWrap}>
+                  <div style={styles.sensorTableHeader}>
                     <span>Latitude</span>
                     <span>Longitude</span>
                     <span>Activity</span>
@@ -266,120 +313,237 @@ function StatsDashboardPage() {
                     <span>Eco-score</span>
                     <span>Timestamp</span>
                   </div>
+
                   {sensorData.slice(-10).reverse().map((row, i) => (
-                    <div key={i} style={{ ...styles.tableRow, gridTemplateColumns: 'repeat(6, 1fr)' }}>
-                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>{row.latitude}</span>
-                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>{row.longitude}</span>
-                      <span style={{ fontSize: '13px' }}>{row.activity_type}</span>
-                      <span style={{ color: row.air_quality >= 70 ? '#22c55e' : row.air_quality >= 40 ? '#f59e0b' : '#ef4444', fontWeight: 600, fontSize: '13px' }}>
+                    <div key={i} style={styles.sensorTableRow}>
+                      <span>{row.latitude}</span>
+                      <span>{row.longitude}</span>
+                      <span>{row.activity_type}</span>
+                      <span style={{
+                        color: row.air_quality >= 70 ? '#22c55e' : row.air_quality >= 40 ? '#f59e0b' : '#ef4444',
+                        fontWeight: 800
+                      }}>
                         {row.air_quality}
                       </span>
-                      <span style={{ color: '#3b82f6', fontWeight: 700, fontSize: '13px' }}>{row.eco_score}</span>
-                      <span style={{ color: '#64748b', fontSize: '12px' }}>{row.timestamp || '—'}</span>
+                      <span style={{ color: '#3b82f6', fontWeight: 900 }}>{row.eco_score}</span>
+                      <span style={{ color: '#64748b' }}>{row.timestamp || '—'}</span>
                     </div>
                   ))}
-                  {sensorData.length > 10 && (
-                    <p style={{ color: '#64748b', fontSize: '13px', marginTop: '8px', textAlign: 'center' }}>
-                      Showing last 10 of {sensorData.length} measurements
-                    </p>
-                  )}
                 </div>
+
+                {sensorData.length > 10 && (
+                  <p style={styles.showingText}>
+                    Showing last 10 of {sensorData.length} measurements
+                  </p>
+                )}
               </>
             )}
-          </div>
-
+          </section>
         </main>
       )}
     </div>
   )
 }
 
+const glassCard = {
+  background: 'linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.96))',
+  border: '1px solid rgba(148,163,184,0.22)',
+  boxShadow: '0 26px 90px rgba(0,0,0,0.36)',
+  backdropFilter: 'blur(16px)'
+}
+
 const styles = {
   page: {
     minHeight: '100vh',
-    backgroundColor: '#0f172a',
+    position: 'relative',
+    overflow: 'hidden',
+    background:
+      'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 15%, rgba(56,189,248,0.12), transparent 28%), linear-gradient(135deg, #020617, #0f172a)',
     color: '#e5e7eb',
-    fontFamily: 'Arial, sans-serif'
+    fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
+  },
+  glowOne: {
+    position: 'fixed',
+    width: '420px',
+    height: '420px',
+    borderRadius: '50%',
+    background: 'rgba(34,197,94,0.14)',
+    filter: 'blur(90px)',
+    top: '-130px',
+    left: '-130px'
+  },
+  glowTwo: {
+    position: 'fixed',
+    width: '420px',
+    height: '420px',
+    borderRadius: '50%',
+    background: 'rgba(59,130,246,0.14)',
+    filter: 'blur(90px)',
+    right: '-130px',
+    bottom: '-130px'
   },
   header: {
-    maxWidth: '1200px',
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: '1240px',
     margin: '0 auto',
-    padding: '24px',
+    padding: '32px 24px 22px',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '20px'
+  },
+  eyebrow: {
+    margin: 0,
+    color: '#38bdf8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+    fontSize: '11px',
+    fontWeight: 900
   },
   title: {
-    margin: 0,
-    fontSize: '32px',
+    margin: '5px 0 0',
+    fontSize: '44px',
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: '-0.06em',
     color: '#f8fafc'
   },
   subtitle: {
-    marginTop: '8px',
-    color: '#94a3b8'
+    marginTop: '10px',
+    color: '#94a3b8',
+    fontSize: '16px'
   },
   backButton: {
-    padding: '10px 16px',
-    backgroundColor: '#334155',
+    padding: '11px 16px',
+    background: 'linear-gradient(135deg, #334155, #475569)',
     color: '#fff',
     textDecoration: 'none',
-    borderRadius: '8px',
-    fontWeight: '600'
+    borderRadius: '12px',
+    fontWeight: 800,
+    boxShadow: '0 14px 34px rgba(0,0,0,0.24)'
   },
-  loading: {
-    textAlign: 'center',
-    padding: '60px',
-    color: '#94a3b8',
-    fontSize: '18px'
+  loadingCard: {
+    ...glassCard,
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: '520px',
+    margin: '80px auto',
+    padding: '34px',
+    borderRadius: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    alignItems: 'center',
+    color: '#cbd5e1'
+  },
+  spinner: {
+    fontSize: '38px'
   },
   container: {
-    maxWidth: '1200px',
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: '1240px',
     margin: '0 auto',
-    padding: '0 24px 40px',
+    padding: '0 24px 44px',
     display: 'flex',
     flexDirection: 'column',
     gap: '24px'
   },
   cardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
     gap: '16px'
   },
   statCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: '12px',
+    ...glassCard,
+    borderRadius: '20px',
     padding: '20px',
-    border: '1px solid #334155',
-    textAlign: 'center'
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
   },
   statIcon: {
-    fontSize: '28px',
-    marginBottom: '10px'
+    width: '52px',
+    height: '52px',
+    borderRadius: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '24px'
   },
   statValue: {
     fontSize: '32px',
-    fontWeight: '700',
-    marginBottom: '6px'
+    lineHeight: 1,
+    fontWeight: 900
   },
   statLabel: {
+    color: '#f8fafc',
+    fontSize: '14px',
+    fontWeight: 800,
+    marginTop: '5px'
+  },
+  statDescription: {
     color: '#94a3b8',
-    fontSize: '14px'
+    fontSize: '12px',
+    marginTop: '2px'
+  },
+  gridTwo: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '24px'
   },
   section: {
-    backgroundColor: '#1e293b',
-    borderRadius: '14px',
-    padding: '24px',
-    border: '1px solid #334155'
+    ...glassCard,
+    borderRadius: '24px',
+    padding: '24px'
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '16px',
+    marginBottom: '12px'
   },
   sectionTitle: {
-    margin: '0 0 8px 0',
+    margin: '5px 0 0',
     color: '#f8fafc',
-    fontSize: '20px'
+    fontSize: '24px',
+    fontWeight: 850,
+    letterSpacing: '-0.04em'
   },
   sectionDesc: {
     color: '#94a3b8',
-    marginBottom: '20px',
-    fontSize: '14px'
+    marginBottom: '22px',
+    fontSize: '14px',
+    lineHeight: 1.6
+  },
+  pill: {
+    padding: '7px 10px',
+    borderRadius: '999px',
+    background: 'rgba(59,130,246,0.12)',
+    border: '1px solid rgba(59,130,246,0.35)',
+    color: '#93c5fd',
+    fontSize: '12px',
+    fontWeight: 900
+  },
+  pillSuccess: {
+    padding: '7px 10px',
+    borderRadius: '999px',
+    background: 'rgba(34,197,94,0.12)',
+    border: '1px solid rgba(34,197,94,0.35)',
+    color: '#86efac',
+    fontSize: '12px',
+    fontWeight: 900
+  },
+  pillWarning: {
+    padding: '7px 10px',
+    borderRadius: '999px',
+    background: 'rgba(245,158,11,0.12)',
+    border: '1px solid rgba(245,158,11,0.35)',
+    color: '#fde68a',
+    fontSize: '12px',
+    fontWeight: 900
   },
   barChart: {
     display: 'flex',
@@ -388,7 +552,7 @@ const styles = {
   },
   barRow: {
     display: 'grid',
-    gridTemplateColumns: '160px 1fr 50px',
+    gridTemplateColumns: '160px 1fr 52px',
     alignItems: 'center',
     gap: '12px'
   },
@@ -398,19 +562,20 @@ const styles = {
     textAlign: 'right'
   },
   barTrack: {
-    height: '28px',
-    backgroundColor: '#0f172a',
-    borderRadius: '6px',
-    overflow: 'hidden'
+    height: '30px',
+    backgroundColor: 'rgba(2,6,23,0.7)',
+    borderRadius: '999px',
+    overflow: 'hidden',
+    border: '1px solid rgba(148,163,184,0.12)'
   },
   barFill: {
     height: '100%',
-    borderRadius: '6px',
+    borderRadius: '999px',
     transition: 'width 0.6s ease'
   },
   barValue: {
     color: '#f8fafc',
-    fontWeight: '700',
+    fontWeight: 900,
     fontSize: '15px'
   },
   empty: {
@@ -425,69 +590,119 @@ const styles = {
   tableHeader: {
     display: 'grid',
     gridTemplateColumns: '2fr 1fr 1fr 1fr',
-    padding: '10px 14px',
-    backgroundColor: '#0f172a',
-    borderRadius: '8px',
+    padding: '12px 14px',
+    backgroundColor: 'rgba(15,23,42,0.8)',
+    borderRadius: '12px',
     color: '#64748b',
-    fontWeight: '700',
+    fontWeight: 900,
     fontSize: '13px'
   },
   tableRow: {
     display: 'grid',
     gridTemplateColumns: '2fr 1fr 1fr 1fr',
-    padding: '12px 14px',
-    backgroundColor: '#0f172a',
-    borderRadius: '8px',
+    padding: '14px',
+    backgroundColor: 'rgba(15,23,42,0.68)',
+    borderRadius: '12px',
     alignItems: 'center',
-    border: '1px solid #1e293b'
+    border: '1px solid rgba(148,163,184,0.12)'
   },
   routeName: {
     color: '#e2e8f0',
-    fontWeight: '500',
+    fontWeight: 700,
     fontSize: '14px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
   },
   badge: {
-    backgroundColor: '#1e3a5f',
+    backgroundColor: 'rgba(59,130,246,0.14)',
+    border: '1px solid rgba(59,130,246,0.28)',
     color: '#93c5fd',
-    padding: '3px 8px',
-    borderRadius: '6px',
+    padding: '5px 9px',
+    borderRadius: '999px',
     fontSize: '12px',
-    fontWeight: '600',
+    fontWeight: 800,
     display: 'inline-block'
   },
   sensorOffline: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '12px',
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #334155',
-    borderRadius: '10px',
-    padding: '16px 20px',
+    gap: '14px',
+    backgroundColor: 'rgba(15,23,42,0.72)',
+    border: '1px solid rgba(245,158,11,0.28)',
+    borderRadius: '18px',
+    padding: '18px',
     color: '#e2e8f0'
   },
+  offlineIcon: {
+    width: '46px',
+    height: '46px',
+    borderRadius: '16px',
+    background: 'rgba(245,158,11,0.14)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '22px'
+  },
+  offlineText: {
+    margin: '6px 0 0',
+    color: '#94a3b8',
+    fontSize: '13px',
+    lineHeight: 1.6
+  },
   code: {
-    backgroundColor: '#0f172a',
-    padding: '2px 6px',
-    borderRadius: '4px',
+    backgroundColor: '#020617',
+    padding: '3px 7px',
+    borderRadius: '6px',
     fontFamily: 'monospace',
     fontSize: '12px',
     color: '#22c55e'
   },
   sensorCards: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: '12px',
-    marginBottom: '4px'
+    marginBottom: '18px'
   },
   sensorStat: {
-    backgroundColor: '#0f172a',
-    borderRadius: '10px',
+    backgroundColor: 'rgba(15,23,42,0.72)',
+    borderRadius: '16px',
     padding: '16px',
-    textAlign: 'center',
-    border: '1px solid #1e293b'
+    border: '1px solid rgba(148,163,184,0.12)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  sensorTableWrap: {
+    overflowX: 'auto'
+  },
+  sensorTableHeader: {
+    minWidth: '760px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, 1fr)',
+    padding: '12px 14px',
+    backgroundColor: 'rgba(15,23,42,0.8)',
+    borderRadius: '12px',
+    color: '#64748b',
+    fontWeight: 900,
+    fontSize: '13px'
+  },
+  sensorTableRow: {
+    minWidth: '760px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, 1fr)',
+    padding: '12px 14px',
+    backgroundColor: 'rgba(15,23,42,0.62)',
+    borderRadius: '12px',
+    marginTop: '8px',
+    fontSize: '13px',
+    border: '1px solid rgba(148,163,184,0.10)'
+  },
+  showingText: {
+    color: '#64748b',
+    fontSize: '13px',
+    marginTop: '10px',
+    textAlign: 'center'
   }
 }
 
