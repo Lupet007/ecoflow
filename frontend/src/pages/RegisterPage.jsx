@@ -47,13 +47,20 @@ function RegisterPage() {
 
   return (
     <div style={styles.page}>
+      <div style={styles.glowOne} />
+      <div style={styles.glowTwo} />
+
       <div style={styles.card}>
         <div style={styles.logo}>
-          <span style={styles.logoIcon}>🌿</span>
-          <h1 style={styles.logoText}>EcoFlow</h1>
+          <div style={styles.logoIcon}>🌿</div>
+          <div>
+            <h1 style={styles.logoText}>EcoFlow</h1>
+            <p style={styles.logoSub}>Create your environmental account</p>
+          </div>
         </div>
 
-        <h2 style={styles.title}>Create your account</h2>
+        <h2 style={styles.title}>Create account</h2>
+        <p style={styles.subtitle}>Join the EcoFlow route recommendation platform.</p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.row}>
@@ -87,7 +94,7 @@ function RegisterPage() {
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label} htmlFor="email">Email</label>
+            <label style={styles.label} htmlFor="email">Email address</label>
             <input
               id="email"
               name="email"
@@ -147,106 +154,148 @@ function RegisterPage() {
 const styles = {
   page: {
     minHeight: '100vh',
+    position: 'relative',
+    overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'var(--bg)',
     padding: '24px',
+    background:
+      'radial-gradient(circle at 20% 10%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 80% 20%, rgba(168,85,247,0.14), transparent 28%), linear-gradient(135deg, #020617, #0f172a)'
+  },
+  glowOne: {
+    position: 'fixed',
+    width: '360px',
+    height: '360px',
+    borderRadius: '50%',
+    background: 'rgba(34,197,94,0.16)',
+    filter: 'blur(90px)',
+    top: '-100px',
+    left: '-100px'
+  },
+  glowTwo: {
+    position: 'fixed',
+    width: '360px',
+    height: '360px',
+    borderRadius: '50%',
+    background: 'rgba(168,85,247,0.14)',
+    filter: 'blur(90px)',
+    right: '-100px',
+    bottom: '-100px'
   },
   card: {
+    position: 'relative',
+    zIndex: 1,
     width: '100%',
-    maxWidth: '460px',
-    background: 'var(--bg)',
-    border: '1px solid var(--border)',
-    borderRadius: '12px',
-    padding: '40px',
-    boxShadow: 'var(--shadow)',
+    maxWidth: '520px',
+    background: 'linear-gradient(180deg, rgba(30,41,59,0.95), rgba(15,23,42,0.96))',
+    border: '1px solid rgba(148,163,184,0.22)',
+    borderRadius: '24px',
+    padding: '42px',
+    boxShadow: '0 30px 100px rgba(0,0,0,0.45)',
+    backdropFilter: 'blur(16px)'
   },
   logo: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10px',
-    marginBottom: '24px',
+    gap: '14px',
+    marginBottom: '28px'
   },
   logoIcon: {
-    fontSize: '28px',
+    width: '54px',
+    height: '54px',
+    borderRadius: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, rgba(34,197,94,0.28), rgba(168,85,247,0.18))',
+    border: '1px solid rgba(134,239,172,0.35)',
+    fontSize: '28px'
   },
   logoText: {
     margin: 0,
-    fontSize: '24px',
-    fontWeight: '600',
-    color: 'var(--text-h)',
+    color: '#f8fafc',
+    fontSize: '30px',
+    fontWeight: 900,
+    letterSpacing: '-0.05em'
+  },
+  logoSub: {
+    margin: '3px 0 0',
+    color: '#93c5fd',
+    fontSize: '13px'
   },
   title: {
-    textAlign: 'center',
-    color: 'var(--text-h)',
-    fontSize: '18px',
-    fontWeight: '500',
-    marginBottom: '28px',
+    margin: 0,
+    color: '#f8fafc',
+    fontSize: '28px',
+    fontWeight: 850
+  },
+  subtitle: {
+    margin: '8px 0 28px',
+    color: '#94a3b8',
+    fontSize: '15px'
   },
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '16px'
   },
   row: {
-    display: 'flex',
-    gap: '12px',
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '14px'
   },
   field: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
-    flex: 1,
+    gap: '7px'
   },
   label: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: 'var(--text-h)',
-    textAlign: 'left',
+    color: '#e2e8f0',
+    fontSize: '13px',
+    fontWeight: 800
   },
   input: {
-    padding: '10px 14px',
-    border: '1px solid var(--border)',
-    borderRadius: '8px',
+    minHeight: '48px',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148,163,184,0.28)',
+    background: '#0f172a',
+    color: '#f8fafc',
     fontSize: '15px',
-    color: 'var(--text-h)',
-    background: 'var(--bg)',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
+    width: '100%'
   },
   error: {
-    color: '#e53e3e',
-    fontSize: '14px',
-    margin: '0',
-    textAlign: 'center',
+    margin: 0,
+    padding: '10px 12px',
+    borderRadius: '12px',
+    background: 'rgba(239,68,68,0.12)',
+    border: '1px solid rgba(239,68,68,0.35)',
+    color: '#fecaca',
+    fontSize: '14px'
   },
   button: {
-    padding: '11px',
-    background: 'var(--accent)',
-    color: '#fff',
+    minHeight: '50px',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '14px',
+    background: 'linear-gradient(135deg, #10b981, #22c55e)',
+    color: '#fff',
     fontSize: '15px',
-    fontWeight: '500',
+    fontWeight: 900,
     cursor: 'pointer',
-    marginTop: '4px',
-    transition: 'opacity 0.2s',
+    boxShadow: '0 18px 40px rgba(34,197,94,0.22)'
   },
   footer: {
+    marginTop: '22px',
     textAlign: 'center',
-    marginTop: '20px',
-    fontSize: '14px',
-    color: 'var(--text)',
+    color: '#94a3b8',
+    fontSize: '14px'
   },
   link: {
-    color: 'var(--accent)',
+    color: '#86efac',
     textDecoration: 'none',
-    fontWeight: '500',
-  },
+    fontWeight: 900
+  }
 }
 
 export default RegisterPage
