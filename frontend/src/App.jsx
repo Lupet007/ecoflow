@@ -119,11 +119,13 @@ function parseRouteCoordinates(route) {
 
 function FlyToRegion({ center }) {
   const map = useMap()
+
   useEffect(() => {
     if (center) {
       map.flyTo(center, 9, { duration: 1.5 })
     }
   }, [center, map])
+
   return null
 }
 
@@ -153,15 +155,14 @@ function MapPage() {
   const [status, setStatus] = useState('Loading environmental data...')
   const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
 
-  // Load eco profile dynamically from localStorage
   const [ecoProfile, setEcoProfile] = useState(() => {
     const stored = localStorage.getItem('ecoProfile')
     return stored ? JSON.parse(stored) : null
   })
+
   const [profileUpdated, setProfileUpdated] = useState(false)
 
   useEffect(() => {
-    // Show animation if user just saved profile and navigated back
     if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
       localStorage.removeItem('ecoProfileJustSaved')
       setProfileUpdated(true)
@@ -172,6 +173,7 @@ function MapPage() {
       const stored = localStorage.getItem('ecoProfile')
       const newProfile = stored ? JSON.parse(stored) : null
       setEcoProfile(newProfile)
+
       if (newProfile) {
         setEnvironmentFilter(newProfile.ecoPriority || 'ALL')
         setProfileUpdated(true)
@@ -181,6 +183,7 @@ function MapPage() {
 
     window.addEventListener('storage', handleStorageChange)
     window.addEventListener('ecoProfileUpdated', handleStorageChange)
+
     return () => {
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('ecoProfileUpdated', handleStorageChange)
@@ -203,7 +206,6 @@ function MapPage() {
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
   const [showHeatmap, setShowHeatmap] = useState(false)
 
-  // Heatmap data: environmental hotspots across Slovenia
   const heatmapPoints = [
     { position: [46.5547, 15.6459], intensity: 0.9, label: 'Maribor – Air Quality', color: '#3b82f6' },
     { position: [46.2397, 14.3556], intensity: 0.7, label: 'Gorenjska – Air Quality', color: '#3b82f6' },
@@ -382,7 +384,6 @@ function MapPage() {
       if (selectedRouteType === 'FAST') ecoScore -= 8
       if (selectedRouteType === 'BALANCED') ecoScore += 1
 
-      // Apply activity type bonus from eco profile
       if (ecoProfile?.activityType === 'WALKING') ecoScore += 5
       if (ecoProfile?.activityType === 'RUNNING') ecoScore += 3
       if (ecoProfile?.activityType === 'CYCLING') ecoScore += 1
@@ -430,148 +431,230 @@ function MapPage() {
 
   return (
     <div style={styles.page}>
+      <div style={styles.backgroundGlowOne} />
+      <div style={styles.backgroundGlowTwo} />
+
       <header style={styles.header} className="eco-header">
-        <div>
-          <h1 style={styles.title} className="eco-title">🌿 EcoFlow</h1>
-          <p style={styles.status}>{status}</p>
-          <p style={styles.description}>
-            Plan eco-friendly walking routes using environmental and GPX data.
-          </p>
+        <div style={styles.brandBlock}>
+          <div style={styles.logoRow}>
+            <div style={styles.logoBadge}>🌿</div>
+            <div>
+              <h1 style={styles.title} className="eco-title">EcoFlow</h1>
+              <p style={styles.description}>
+                Intelligent environmental route planning with satellite, GPX and sensor data.
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.statusPill}>
+            <span style={status.includes('Failed') ? styles.statusDotError : styles.statusDot} />
+            {status}
+          </div>
         </div>
 
-        <div className="eco-header-buttons">
-          <Link to="/gpx-upload" style={styles.secondaryButton}>
+        <nav style={styles.nav} className="eco-header-buttons">
+          <Link to="/gpx-upload" style={styles.navButtonGreen}>
             Upload GPX
           </Link>
 
-          <Link to="/dashboard" style={{ ...styles.secondaryButton, backgroundColor: '#6366f1' }}>
+          <Link to="/dashboard" style={styles.navButtonBlue}>
             Dashboard
           </Link>
 
-          <Link to="/profile" style={{ ...styles.secondaryButton, backgroundColor: '#f59e0b' }}>
+          <Link to="/profile" style={styles.navButtonOrange}>
             Eco Profile
           </Link>
 
           <button onClick={handleLogout} style={styles.logoutButton}>
             Sign out
           </button>
-        </div>
+        </nav>
       </header>
 
       <section style={styles.container} className="eco-container">
-        <div style={styles.routePanel}>
-          <h2 style={styles.sectionTitle}>Route planner</h2>
-
-          {ecoProfile && (
-            <div style={{
-              backgroundColor: profileUpdated ? '#14532d' : '#0f2a1a',
-              border: `1px solid ${profileUpdated ? '#4ade80' : '#22c55e'}`,
-              borderRadius: '8px',
-              padding: '10px 14px',
-              marginBottom: '12px',
-              fontSize: '13px',
-              color: '#86efac',
-              transition: 'all 0.4s ease',
-              boxShadow: profileUpdated ? '0 0 16px rgba(34,197,94,0.4)' : 'none'
-            }}>
-              {profileUpdated
-                ? '✅ Eco Profile updated! Map filter and settings applied.'
-                : <>🌿 Eco Profile active: <strong>{ecoProfile.activityType}</strong> · <strong>{ecoProfile.ecoPriority.replace(/_/g, ' ')}</strong> · <strong>{ecoProfile.preferredRegion}</strong>
-                  {' '}<Link to="/profile" style={{ color: '#22c55e', marginLeft: '8px' }}>Edit profile →</Link></>
-              }
+        <div style={styles.topGrid}>
+          <div style={styles.routePanel}>
+            <div style={styles.panelHeader}>
+              <div>
+                <p style={styles.eyebrow}>Route intelligence</p>
+                <h2 style={styles.sectionTitle}>Plan your route</h2>
+              </div>
+              <div style={styles.routeTypeBadge}>{selectedRouteType}</div>
             </div>
-          )}
 
-          <p style={styles.text}>
-            Select points directly on the map and compare route options.
-          </p>
+            {ecoProfile && (
+              <div style={profileUpdated ? styles.profileNoticeActive : styles.profileNotice}>
+                {profileUpdated
+                  ? '✅ Eco Profile updated. Map filters and route preferences were applied.'
+                  : (
+                    <>
+                      🌿 Eco Profile active: <strong>{ecoProfile.activityType}</strong> ·{' '}
+                      <strong>{ecoProfile.ecoPriority.replaceAll('_', ' ')}</strong> ·{' '}
+                      <strong>{ecoProfile.preferredRegion}</strong>
+                      <Link to="/profile" style={styles.inlineLink}>Edit profile →</Link>
+                    </>
+                  )}
+              </div>
+            )}
 
-          <div style={styles.buttonRow} className="eco-button-row">
-            <button
-              onClick={() => {
-                setSelectionMode('START')
-                setRouteStatus('Click on the map to select start point.')
-              }}
-              style={styles.primaryButton}
-            >
-              Select start
-            </button>
+            {!ecoProfile && (
+              <div style={styles.profileNoticeWarning}>
+                Create an Eco Profile to unlock personalized route recommendations.
+                <Link to="/profile" style={styles.inlineLinkWarning}>Create profile →</Link>
+              </div>
+            )}
 
-            <button
-              onClick={() => {
-                setSelectionMode('END')
-                setRouteStatus('Click on the map to select destination point.')
-              }}
-              style={styles.primaryButton}
-            >
-              Select destination
-            </button>
+            <p style={styles.text}>
+              Select start and destination points directly on the Leaflet map, compare route options and evaluate environmental suitability.
+            </p>
 
-            <button onClick={calculateRoute} style={styles.greenButton}>
-              Calculate route
-            </button>
-
-            <button onClick={useDemoRoute} style={styles.secondaryDarkButton}>
-              Demo route
-            </button>
-
-            <button onClick={clearRoute} style={styles.dangerButton}>
-              Clear route
-            </button>
-
-            <button
-              onClick={() => setShowHeatmap(h => !h)}
-              style={{
-                ...styles.primaryButton,
-                backgroundColor: showHeatmap ? '#0ea5e9' : '#334155'
-              }}
-            >
-              {showHeatmap ? '🌡️ Hide heatmap' : '🌡️ Show heatmap'}
-            </button>
-          </div>
-
-          <div style={styles.optionRow} className="eco-option-row">
-            {routeOptions.map(route => (
+            <div style={styles.buttonRow} className="eco-button-row">
               <button
-                key={route.id}
-                onClick={() => setSelectedRouteType(route.id)}
-                style={{
-                  ...styles.routeOptionButton,
-                  backgroundColor:
-                    selectedRouteType === route.id
-                      ? route.color
-                      : '#334155'
+                onClick={() => {
+                  setSelectionMode('START')
+                  setRouteStatus('Click on the map to select start point.')
                 }}
+                style={styles.primaryButton}
               >
-                {route.name}
+                Select start
               </button>
-            ))}
+
+              <button
+                onClick={() => {
+                  setSelectionMode('END')
+                  setRouteStatus('Click on the map to select destination point.')
+                }}
+                style={styles.primaryButton}
+              >
+                Select destination
+              </button>
+
+              <button onClick={calculateRoute} style={styles.greenButton}>
+                Calculate route
+              </button>
+
+              <button onClick={useDemoRoute} style={styles.secondaryDarkButton}>
+                Demo route
+              </button>
+
+              <button onClick={clearRoute} style={styles.dangerButton}>
+                Clear route
+              </button>
+
+              <button
+                onClick={() => setShowHeatmap(h => !h)}
+                style={showHeatmap ? styles.heatmapButtonActive : styles.heatmapButton}
+              >
+                {showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
+              </button>
+            </div>
+
+            <div style={styles.optionRow} className="eco-option-row">
+              {routeOptions.map(route => (
+                <button
+                  key={route.id}
+                  onClick={() => setSelectedRouteType(route.id)}
+                  style={{
+                    ...styles.routeOptionButton,
+                    borderColor:
+                      selectedRouteType === route.id
+                        ? route.color
+                        : 'rgba(148, 163, 184, 0.18)',
+                    background:
+                      selectedRouteType === route.id
+                        ? `linear-gradient(135deg, ${route.color}, ${route.color}cc)`
+                        : 'rgba(15, 23, 42, 0.72)'
+                  }}
+                >
+                  <span>{route.name}</span>
+                  <small style={styles.routeOptionDesc}>{route.description}</small>
+                </button>
+              ))}
+            </div>
+
+            <p style={styles.routeStatus}>{routeStatus}</p>
+
+            {routeInfo && (
+              <div style={styles.insightGrid}>
+                <div style={styles.routeSummary}>
+                  <p style={styles.eyebrow}>Recommendation</p>
+                  <h3 style={styles.cardTitle}>Route analysis</h3>
+
+                  <div style={styles.metricGrid}>
+                    <div style={styles.metricBox}>
+                      <span style={styles.metricLabel}>Distance</span>
+                      <strong style={styles.metricValue}>{routeInfo.distanceKm} km</strong>
+                    </div>
+                    <div style={styles.metricBox}>
+                      <span style={styles.metricLabel}>Duration</span>
+                      <strong style={styles.metricValue}>{routeInfo.durationMin} min</strong>
+                    </div>
+                    <div style={styles.metricBox}>
+                      <span style={styles.metricLabel}>Eco-score</span>
+                      <strong style={{ ...styles.metricValue, color: getScoreColor(routeInfo.ecoScore) }}>
+                        {routeInfo.ecoScore}/100
+                      </strong>
+                    </div>
+                  </div>
+
+                  <p style={styles.text}>
+                    <strong>Layer:</strong> {formatEnvironmentalType(routeInfo.environmentType)}
+                  </p>
+                  <p style={styles.text}>{routeInfo.recommendation}</p>
+                </div>
+
+                <div style={styles.conditionsPanel}>
+                  <p style={styles.eyebrow}>Live preview</p>
+                  <h3 style={styles.cardTitle}>Environmental conditions</h3>
+                  <p style={styles.text}><strong>Air quality:</strong> Good</p>
+                  <p style={styles.text}><strong>Temperature:</strong> 21°C</p>
+                  <p style={styles.text}><strong>Humidity:</strong> 48%</p>
+                  <p style={styles.successText}>
+                    Recommendation: Excellent for walking and outdoor activity.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          <p style={styles.routeStatus}>{routeStatus}</p>
+          <div style={styles.infoPanel}>
+            <p style={styles.eyebrow}>System status</p>
+            <h2 style={styles.sectionTitle}>Project modules</h2>
 
-          {routeInfo && (
-            <>
-              <div style={styles.routeSummary}>
-                <h3 style={{ marginTop: 0 }}>Route recommendation</h3>
-                <p><strong>Distance:</strong> {routeInfo.distanceKm} km</p>
-                <p><strong>Estimated duration:</strong> {routeInfo.durationMin} min</p>
-                <p><strong>Environmental layer:</strong> {formatEnvironmentalType(routeInfo.environmentType)}</p>
-                <p><strong>Eco-score:</strong> {routeInfo.ecoScore}/100</p>
-                <p>{routeInfo.recommendation}</p>
+            <div style={styles.moduleList}>
+              <div style={styles.moduleItem}>
+                <span style={styles.moduleIcon}>🛰️</span>
+                <div>
+                  <strong>Copernicus data</strong>
+                  <p>{filteredProducts.length} visible products</p>
+                </div>
               </div>
 
-              <div style={styles.conditionsPanel}>
-                <h3 style={{ marginTop: 0 }}>Current environmental conditions</h3>
-                <p><strong>Air quality:</strong> Good</p>
-                <p><strong>Temperature:</strong> 21°C</p>
-                <p><strong>Humidity:</strong> 48%</p>
-                <p style={{ color: '#22c55e', fontWeight: '700' }}>
-                  Recommendation: Excellent for walking and outdoor activity.
-                </p>
+              <div style={styles.moduleItem}>
+                <span style={styles.moduleIcon}>🗺️</span>
+                <div>
+                  <strong>GPX routes</strong>
+                  <p>{uploadedRoutes.length} uploaded route(s)</p>
+                </div>
               </div>
-            </>
-          )}
+
+              <div style={styles.moduleItem}>
+                <span style={styles.moduleIcon}>🔥</span>
+                <div>
+                  <strong>Heatmap</strong>
+                  <p>{showHeatmap ? 'Enabled' : 'Disabled'}</p>
+                </div>
+              </div>
+
+              <div style={styles.moduleItem}>
+                <span style={styles.moduleIcon}>👤</span>
+                <div>
+                  <strong>Eco Profile</strong>
+                  <p>{ecoProfile ? 'Active' : 'Not configured'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div style={styles.filters} className="eco-filters">
@@ -610,12 +693,24 @@ function MapPage() {
             />
           </div>
 
-          <button onClick={resetFilters} style={styles.dangerButton}>
+          <button onClick={resetFilters} style={styles.dangerButtonLarge}>
             Reset filters
           </button>
         </div>
 
         <div style={styles.mapBox}>
+          <div style={styles.mapHeader}>
+            <div>
+              <p style={styles.eyebrow}>Interactive GIS map</p>
+              <h2 style={styles.mapTitle}>Environmental route visualization</h2>
+            </div>
+            <div style={styles.mapLegend}>
+              <span><i style={{ ...styles.legendDot, backgroundColor: '#22c55e' }} /> Eco</span>
+              <span><i style={{ ...styles.legendDot, backgroundColor: '#3b82f6' }} /> Fast</span>
+              <span><i style={{ ...styles.legendDot, backgroundColor: '#f59e0b' }} /> Balanced</span>
+            </div>
+          </div>
+
           <MapContainer
             center={ecoProfile?.preferredRegion ? regionCoordinates[ecoProfile.preferredRegion] : [46.1512, 14.9955]}
             zoom={8}
@@ -655,7 +750,6 @@ function MapPage() {
               )
             })}
 
-            {/* Heatmap layer */}
             {showHeatmap && heatmapPoints.map((point, index) => (
               <CircleMarker
                 key={`heat-${index}`}
@@ -749,7 +843,8 @@ function MapPage() {
         <section style={styles.uploadedRoutesSection}>
           <div style={styles.uploadedRoutesHeader} className="eco-uploaded-header">
             <div>
-              <h2 style={{ margin: 0 }}>Uploaded GPX Routes</h2>
+              <p style={styles.eyebrow}>Route archive</p>
+              <h2 style={styles.sectionTitle}>Uploaded GPX Routes</h2>
               <p style={styles.text}>{routesStatus}</p>
             </div>
 
@@ -759,29 +854,34 @@ function MapPage() {
           </div>
 
           {uploadedRoutes.length === 0 ? (
-            <p style={styles.text}>
-              No GPX routes uploaded yet. Upload a GPX file to display it on the map.
-            </p>
+            <div style={styles.emptyState}>
+              <div style={styles.emptyIcon}>🗺️</div>
+              <h3>No GPX routes uploaded yet</h3>
+              <p>Upload a GPX route to analyse its eco-score and display it on the map.</p>
+              <Link to="/gpx-upload" style={styles.emptyButton}>Upload GPX route</Link>
+            </div>
           ) : (
             <div style={styles.routeCardsGrid} className="eco-route-cards">
               {uploadedRoutes.map(route => (
                 <div key={route.id} style={styles.gpxCard}>
-                  <h3 style={{ marginTop: 0 }}>{route.name}</h3>
+                  <div style={styles.gpxCardHeader}>
+                    <h3 style={styles.cardTitle}>{route.name}</h3>
 
-                  <div
-                    style={{
-                      ...styles.scoreBadge,
-                      backgroundColor: getScoreColor(route.ecoScore)
-                    }}
-                  >
-                    Eco-score: {route.ecoScore}/100
+                    <div
+                      style={{
+                        ...styles.scoreBadge,
+                        backgroundColor: getScoreColor(route.ecoScore)
+                      }}
+                    >
+                      {route.ecoScore}/100
+                    </div>
                   </div>
 
-                  <p><strong>Status:</strong> {route.ecoScoreLabel}</p>
-                  <p><strong>Track points:</strong> {route.pointCount}</p>
-                  <p><strong>Uploaded:</strong> {route.uploadedAt || 'N/A'}</p>
+                  <p style={styles.text}><strong>Status:</strong> {route.ecoScoreLabel}</p>
+                  <p style={styles.text}><strong>Track points:</strong> {route.pointCount}</p>
+                  <p style={styles.text}><strong>Uploaded:</strong> {route.uploadedAt || 'N/A'}</p>
 
-                  <p style={styles.text}>
+                  <p style={styles.mutedText}>
                     This uploaded GPX route is drawn on the map using stored route coordinates from the backend.
                   </p>
                 </div>
@@ -845,185 +945,471 @@ function App() {
   )
 }
 
+const glassCard = {
+  background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.94))',
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+  boxShadow: '0 24px 80px rgba(0, 0, 0, 0.28)',
+  backdropFilter: 'blur(14px)'
+}
+
+const baseButton = {
+  padding: '11px 16px',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '12px',
+  cursor: 'pointer',
+  fontWeight: '800',
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
+  boxShadow: '0 12px 30px rgba(0,0,0,0.24)'
+}
+
 const styles = {
   page: {
+    position: 'relative',
     minHeight: '100vh',
-    backgroundColor: '#0f172a',
+    overflow: 'hidden',
+    background:
+      'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 10%, rgba(56,189,248,0.12), transparent 26%), linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%)',
     color: '#e5e7eb',
-    fontFamily: 'Arial, sans-serif'
+    fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
+  },
+  backgroundGlowOne: {
+    position: 'fixed',
+    width: '420px',
+    height: '420px',
+    borderRadius: '50%',
+    background: 'rgba(34,197,94,0.14)',
+    filter: 'blur(90px)',
+    top: '-120px',
+    left: '-120px',
+    pointerEvents: 'none'
+  },
+  backgroundGlowTwo: {
+    position: 'fixed',
+    width: '420px',
+    height: '420px',
+    borderRadius: '50%',
+    background: 'rgba(59,130,246,0.12)',
+    filter: 'blur(90px)',
+    right: '-140px',
+    top: '180px',
+    pointerEvents: 'none'
   },
   header: {
-    maxWidth: '1200px',
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: '1280px',
     margin: '0 auto',
-    padding: '24px',
+    padding: '30px 28px 22px',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '24px'
+  },
+  brandBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
+  },
+  logoBadge: {
+    width: '58px',
+    height: '58px',
+    borderRadius: '18px',
+    background: 'linear-gradient(135deg, rgba(34,197,94,0.28), rgba(56,189,248,0.18))',
+    border: '1px solid rgba(134,239,172,0.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '28px',
+    boxShadow: '0 18px 50px rgba(34,197,94,0.18)'
   },
   title: {
     margin: 0,
-    fontSize: '40px',
+    fontSize: '48px',
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: '-0.06em',
     color: '#f8fafc'
-  },
-  status: {
-    color: '#cbd5e1',
-    margin: '6px 0'
   },
   description: {
-    color: '#94a3b8',
-    margin: 0
+    color: '#93c5fd',
+    marginTop: '8px',
+    fontSize: '17px'
+  },
+  statusPill: {
+    alignSelf: 'flex-start',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    borderRadius: '999px',
+    background: 'rgba(15, 23, 42, 0.72)',
+    border: '1px solid rgba(148, 163, 184, 0.22)',
+    color: '#cbd5e1',
+    fontSize: '13px',
+    fontWeight: 700
+  },
+  statusDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: '#22c55e',
+    boxShadow: '0 0 16px rgba(34,197,94,0.8)'
+  },
+  statusDotError: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: '#ef4444',
+    boxShadow: '0 0 16px rgba(239,68,68,0.8)'
+  },
+  nav: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
+  },
+  navButtonGreen: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #10b981, #22c55e)'
+  },
+  navButtonBlue: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #4f46e5, #38bdf8)'
+  },
+  navButtonOrange: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #f59e0b, #f97316)'
+  },
+  logoutButton: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #a855f7, #ec4899)'
   },
   container: {
-    maxWidth: '1200px',
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: '1280px',
     margin: '0 auto',
-    padding: '0 24px 32px'
+    padding: '0 28px 52px'
+  },
+  topGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 0.8fr)',
+    gap: '22px',
+    marginBottom: '22px'
   },
   routePanel: {
-    backgroundColor: '#1e293b',
-    padding: '22px',
-    borderRadius: '14px',
-    marginBottom: '20px',
-    border: '1px solid #334155'
+    ...glassCard,
+    padding: '24px',
+    borderRadius: '22px'
+  },
+  infoPanel: {
+    ...glassCard,
+    padding: '24px',
+    borderRadius: '22px'
+  },
+  panelHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '16px',
+    alignItems: 'flex-start',
+    marginBottom: '12px'
+  },
+  eyebrow: {
+    margin: 0,
+    color: '#38bdf8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+    fontSize: '11px',
+    fontWeight: 900
   },
   sectionTitle: {
-    marginTop: 0,
-    color: '#f8fafc'
+    margin: '5px 0 0',
+    color: '#f8fafc',
+    fontSize: '26px',
+    fontWeight: 850,
+    letterSpacing: '-0.04em'
+  },
+  mapTitle: {
+    margin: '5px 0 0',
+    color: '#f8fafc',
+    fontSize: '22px',
+    fontWeight: 850,
+    letterSpacing: '-0.04em'
+  },
+  cardTitle: {
+    margin: '6px 0 12px',
+    color: '#f8fafc',
+    fontSize: '20px',
+    fontWeight: 800
+  },
+  routeTypeBadge: {
+    padding: '8px 12px',
+    borderRadius: '999px',
+    background: 'rgba(34,197,94,0.12)',
+    border: '1px solid rgba(34,197,94,0.35)',
+    color: '#86efac',
+    fontWeight: 900,
+    fontSize: '12px'
   },
   text: {
-    color: '#cbd5e1'
+    color: '#cbd5e1',
+    lineHeight: 1.65
+  },
+  mutedText: {
+    color: '#94a3b8',
+    lineHeight: 1.55,
+    marginTop: '12px'
+  },
+  profileNotice: {
+    background: 'rgba(20, 83, 45, 0.34)',
+    border: '1px solid rgba(34,197,94,0.35)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    marginBottom: '14px',
+    fontSize: '13px',
+    color: '#bbf7d0'
+  },
+  profileNoticeActive: {
+    background: 'rgba(20, 83, 45, 0.72)',
+    border: '1px solid rgba(74,222,128,0.8)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    marginBottom: '14px',
+    fontSize: '13px',
+    color: '#dcfce7',
+    boxShadow: '0 0 28px rgba(34,197,94,0.24)'
+  },
+  profileNoticeWarning: {
+    background: 'rgba(245,158,11,0.12)',
+    border: '1px solid rgba(245,158,11,0.36)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    marginBottom: '14px',
+    fontSize: '13px',
+    color: '#fde68a'
+  },
+  inlineLink: {
+    color: '#86efac',
+    marginLeft: '10px',
+    fontWeight: 800,
+    textDecoration: 'none'
+  },
+  inlineLinkWarning: {
+    color: '#fbbf24',
+    marginLeft: '10px',
+    fontWeight: 800,
+    textDecoration: 'none'
   },
   buttonRow: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '10px',
-    marginTop: '16px'
+    marginTop: '18px',
+    marginBottom: '14px'
   },
   optionRow: {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
     gap: '10px',
-    marginTop: '16px',
-    flexWrap: 'wrap'
+    marginTop: '14px'
   },
   primaryButton: {
-    padding: '10px 16px',
-    backgroundColor: '#6366f1',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700'
+    ...baseButton,
+    background: 'linear-gradient(135deg, #6366f1, #818cf8)'
   },
   greenButton: {
-    padding: '10px 16px',
-    backgroundColor: '#10b981',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700'
-  },
-  secondaryButton: {
-    padding: '10px 16px',
-    backgroundColor: '#10b981',
-    color: '#fff',
-    textDecoration: 'none',
-    borderRadius: '8px',
-    marginRight: '10px',
-    fontWeight: '700'
+    ...baseButton,
+    background: 'linear-gradient(135deg, #10b981, #22c55e)'
   },
   secondaryDarkButton: {
-    padding: '10px 16px',
-    backgroundColor: '#334155',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700'
+    ...baseButton,
+    background: 'linear-gradient(135deg, #334155, #475569)'
   },
   dangerButton: {
-    padding: '10px 16px',
-    backgroundColor: '#ef4444',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700'
+    ...baseButton,
+    background: 'linear-gradient(135deg, #ef4444, #fb7185)'
   },
-  logoutButton: {
-    padding: '10px 16px',
-    backgroundColor: '#a855f7',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700'
+  dangerButtonLarge: {
+    ...baseButton,
+    minHeight: '48px',
+    background: 'linear-gradient(135deg, #ef4444, #fb7185)'
+  },
+  heatmapButton: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #334155, #475569)'
+  },
+  heatmapButtonActive: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #0284c7, #38bdf8)'
   },
   routeOptionButton: {
-    padding: '10px 16px',
-    borderRadius: '8px',
-    border: 'none',
+    padding: '14px',
+    borderRadius: '16px',
+    border: '1px solid',
     cursor: 'pointer',
-    fontWeight: '700',
-    color: '#fff'
+    color: '#fff',
+    fontWeight: 850,
+    textAlign: 'left',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  routeOptionDesc: {
+    color: 'rgba(226,232,240,0.78)',
+    fontWeight: 500,
+    lineHeight: 1.35
   },
   routeStatus: {
-    marginTop: '14px',
+    marginTop: '16px',
     color: '#86efac',
-    fontWeight: '600'
+    fontWeight: 800,
+    textAlign: 'center'
+  },
+  insightGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+    marginTop: '18px'
   },
   routeSummary: {
-    backgroundColor: '#0f172a',
-    border: '1px solid #22c55e',
-    padding: '16px',
-    borderRadius: '12px',
-    marginTop: '16px',
-    color: '#cbd5e1'
+    background: 'rgba(15, 23, 42, 0.78)',
+    border: '1px solid rgba(34,197,94,0.35)',
+    padding: '18px',
+    borderRadius: '18px'
   },
   conditionsPanel: {
-    marginTop: '16px',
-    backgroundColor: '#0f172a',
-    padding: '16px',
-    borderRadius: '12px',
-    border: '1px solid #334155'
+    background: 'rgba(15, 23, 42, 0.78)',
+    padding: '18px',
+    borderRadius: '18px',
+    border: '1px solid rgba(148, 163, 184, 0.22)'
+  },
+  metricGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '10px',
+    marginBottom: '14px'
+  },
+  metricBox: {
+    background: 'rgba(2, 6, 23, 0.7)',
+    border: '1px solid rgba(148,163,184,0.14)',
+    borderRadius: '14px',
+    padding: '12px'
+  },
+  metricLabel: {
+    display: 'block',
+    color: '#94a3b8',
+    fontSize: '12px',
+    marginBottom: '4px'
+  },
+  metricValue: {
+    color: '#f8fafc',
+    fontSize: '18px'
+  },
+  successText: {
+    color: '#22c55e',
+    fontWeight: 900,
+    marginTop: '8px'
+  },
+  moduleList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginTop: '18px'
+  },
+  moduleItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    background: 'rgba(15, 23, 42, 0.66)',
+    border: '1px solid rgba(148, 163, 184, 0.16)',
+    borderRadius: '16px',
+    padding: '14px'
+  },
+  moduleIcon: {
+    width: '42px',
+    height: '42px',
+    borderRadius: '14px',
+    background: 'rgba(34,197,94,0.12)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '20px'
   },
   filters: {
-    backgroundColor: '#1e293b',
+    ...glassCard,
     padding: '20px',
-    borderRadius: '14px',
-    marginBottom: '20px',
+    borderRadius: '22px',
+    marginBottom: '22px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr)) auto',
     gap: '16px',
-    border: '1px solid #334155'
+    alignItems: 'end'
   },
   label: {
     display: 'block',
     marginBottom: '8px',
-    fontWeight: '700'
+    color: '#e2e8f0',
+    fontWeight: 850,
+    fontSize: '13px'
   },
   input: {
     width: '100%',
-    padding: '10px',
-    borderRadius: '8px',
-    border: '1px solid #475569'
+    minHeight: '48px',
+    padding: '10px 12px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148,163,184,0.28)',
+    backgroundColor: '#0f172a',
+    color: '#f8fafc'
   },
   mapBox: {
-    backgroundColor: '#1e293b',
-    padding: '12px',
-    borderRadius: '14px',
-    border: '1px solid #334155'
+    ...glassCard,
+    padding: '14px',
+    borderRadius: '24px'
+  },
+  mapHeader: {
+    padding: '8px 8px 14px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '14px',
+    flexWrap: 'wrap'
+  },
+  mapLegend: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    color: '#cbd5e1',
+    fontSize: '13px',
+    fontWeight: 700
+  },
+  legendDot: {
+    display: 'inline-block',
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    marginRight: '5px'
   },
   map: {
-    height: '550px',
+    height: '570px',
     width: '100%',
-    borderRadius: '10px'
+    borderRadius: '18px',
+    overflow: 'hidden'
   },
   uploadedRoutesSection: {
+    ...glassCard,
     marginTop: '24px',
-    backgroundColor: '#1e293b',
-    padding: '22px',
-    borderRadius: '14px',
-    border: '1px solid #334155'
+    padding: '24px',
+    borderRadius: '22px'
   },
   uploadedRoutesHeader: {
     display: 'flex',
@@ -1034,22 +1420,46 @@ const styles = {
   },
   routeCardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '16px'
   },
   gpxCard: {
-    backgroundColor: '#0f172a',
+    background: 'rgba(15, 23, 42, 0.78)',
     padding: '18px',
-    borderRadius: '12px',
-    border: '1px solid #334155'
+    borderRadius: '18px',
+    border: '1px solid rgba(148, 163, 184, 0.18)'
+  },
+  gpxCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '12px',
+    marginBottom: '10px'
   },
   scoreBadge: {
     display: 'inline-block',
     padding: '8px 12px',
-    borderRadius: '8px',
+    borderRadius: '999px',
     color: '#fff',
-    fontWeight: '700',
-    marginBottom: '12px'
+    fontWeight: '900',
+    fontSize: '13px',
+    whiteSpace: 'nowrap'
+  },
+  emptyState: {
+    background: 'rgba(15,23,42,0.72)',
+    border: '1px dashed rgba(148,163,184,0.28)',
+    borderRadius: '20px',
+    padding: '34px',
+    textAlign: 'center'
+  },
+  emptyIcon: {
+    fontSize: '40px',
+    marginBottom: '10px'
+  },
+  emptyButton: {
+    ...baseButton,
+    marginTop: '16px',
+    background: 'linear-gradient(135deg, #10b981, #22c55e)'
   }
 }
 
