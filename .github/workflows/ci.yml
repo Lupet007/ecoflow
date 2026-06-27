@@ -3,11 +3,11 @@ name: EcoFlow CI Pipeline
 on:
   push:
     branches:
-      - main
-      - sprint-*
+      - '**'
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   backend-tests:
