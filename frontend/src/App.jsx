@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import {
   MapContainer,
@@ -99,7 +99,7 @@ function parseRouteCoordinates(route) {
   if (!route.coordinates) return []
 
   try {
-    const parsed = JSON.parse(route.coordinates)
+    const parsed = JSON.parse(route.coordinates || '[]')
 
     return parsed
       .map(point => {
@@ -129,6 +129,28 @@ function FlyToRegion({ center }) {
   return null
 }
 
+function FlyToRoute({ routeCoordinates }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (routeCoordinates && routeCoordinates.length > 0) {
+      const bounds = [
+        [
+          Math.min(...routeCoordinates.map(c => c[0])),
+          Math.min(...routeCoordinates.map(c => c[1]))
+        ],
+        [
+          Math.max(...routeCoordinates.map(c => c[0])),
+          Math.max(...routeCoordinates.map(c => c[1]))
+        ]
+      ]
+      map.fitBounds(bounds, { padding: [50, 50] })
+    }
+  }, [routeCoordinates, map])
+
+  return null
+}
+
 function RouteClickHandler({ selectionMode, onSelectPoint }) {
   useMapEvents({
     click(event) {
@@ -149,6 +171,9 @@ const regionCoordinates = {
 }
 
 function MapPage() {
+  const [searchParams] = useSearchParams()
+  const routeIdParam = searchParams.get('routeId')
+
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
 
@@ -161,6 +186,10 @@ function MapPage() {
   })
 
   const [profileUpdated, setProfileUpdated] = useState(false)
+
+  // Route from recommendations
+  const [selectedRouteFromRecommendations, setSelectedRouteFromRecommendations] = useState(null)
+  const [selectedRouteCoordinates, setSelectedRouteCoordinates] = useState([])
 
   useEffect(() => {
     if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
@@ -189,6 +218,24 @@ function MapPage() {
       window.removeEventListener('ecoProfileUpdated', handleStorageChange)
     }
   }, [])
+
+  // Detektuj routeId iz query parametra i učitaj rutu
+  useEffect(() => {
+    if (routeIdParam) {
+      axios.get(`http://localhost:8080/api/routes/${routeIdParam}`, {
+        headers: getAuthHeaders()
+      })
+        .then(response => {
+          const route = response.data
+          setSelectedRouteFromRecommendations(route)
+          const coords = parseRouteCoordinates(route)
+          setSelectedRouteCoordinates(coords)
+        })
+        .catch(error => {
+          console.error('Failed to load route:', error)
+        })
+    }
+  }, [routeIdParam])
 
   const [environmentFilter, setEnvironmentFilter] = useState(
     ecoProfile?.ecoPriority || 'ALL'
@@ -508,6 +555,14 @@ function MapPage() {
               </div>
             )}
 
+            {selectedRouteFromRecommendations && (
+              <div style={styles.loadedRouteNotice}>
+                ✅ Route loaded: <strong>{selectedRouteFromRecommendations.name}</strong>
+                <br />
+                <small>Eco-score: {selectedRouteFromRecommendations.ecoScore}/100</small>
+              </div>
+            )}
+
             <p style={styles.text}>
               Select start and destination points directly on the Leaflet map, compare route options and evaluate environmental suitability.
             </p>
@@ -732,6 +787,10 @@ function MapPage() {
                 : null}
             />
 
+            {selectedRouteCoordinates.length > 0 && (
+              <FlyToRoute routeCoordinates={selectedRouteCoordinates} />
+            )}
+
             <TileLayer
               attribution='&copy; OpenStreetMap contributors'
               url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -812,6 +871,48 @@ function MapPage() {
                   opacity: 0.9
                 }}
               />
+            )}
+
+            {selectedRouteCoordinates.length > 0 && (
+              <>
+                <Polyline
+                  positions={selectedRouteCoordinates}
+                  pathOptions={{
+                    color: '#22c55e',
+                    weight: 5,
+                    opacity: 0.85,
+                    dashArray: '5, 5'
+                  }}
+                />
+                {selectedRouteCoordinates.length > 0 && (
+                  <CircleMarker
+                    center={selectedRouteCoordinates[0]}
+                    radius={6}
+                    pathOptions={{
+                      color: '#10b981',
+                      fillColor: '#86efac',
+                      fillOpacity: 0.8,
+                      weight: 2
+                    }}
+                  >
+                    <Popup>Start</Popup>
+                  </CircleMarker>
+                )}
+                {selectedRouteCoordinates.length > 0 && (
+                  <CircleMarker
+                    center={selectedRouteCoordinates[selectedRouteCoordinates.length - 1]}
+                    radius={6}
+                    pathOptions={{
+                      color: '#ef4444',
+                      fillColor: '#fca5a5',
+                      fillOpacity: 0.8,
+                      weight: 2
+                    }}
+                  >
+                    <Popup>End</Popup>
+                  </CircleMarker>
+                )}
+              </>
             )}
 
             {uploadedRoutes.map(route => {
@@ -1206,6 +1307,15 @@ const styles = {
     color: '#dcfce7',
     boxShadow: '0 0 28px rgba(34,197,94,0.24)'
   },
+  loadedRouteNotice: {
+    background: 'rgba(34,197,94,0.15)',
+    border: '1px solid rgba(74,222,128,0.6)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    marginBottom: '14px',
+    fontSize: '13px',
+    color: '#86efac'
+  },
   profileNoticeWarning: {
     background: 'rgba(245,158,11,0.12)',
     border: '1px solid rgba(245,158,11,0.36)',
@@ -1391,7 +1501,8 @@ const styles = {
   mapBox: {
     ...glassCard,
     padding: '14px',
-    borderRadius: '24px'
+    borderRadius: '24px',
+    position: 'relative'
   },
   mapHeader: {
     padding: '8px 8px 14px',
