@@ -74,11 +74,11 @@ graph TD
     end
 
     subgraph "Backend – Spring Boot :8080"
-        AuthAPI[/api/auth]
-        RoutesAPI[/api/routes]
-        ProductsAPI[/api/copernicus-products]
-        SucculentAPI[/api/succulent-data]
-        HealthAPI[/api/health]
+        AuthAPI[""/api/auth""]
+        RoutesAPI[""/api/routes""]
+        ProductsAPI[""/api/copernicus-products""]
+        SucculentAPI[""/api/succulent-data""]
+        HealthAPI[""/api/health""]
     end
 
     subgraph "Podatkovna baza"
