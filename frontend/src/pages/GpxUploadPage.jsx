@@ -8,9 +8,11 @@ function GpxUploadPage() {
   const [uploadedRoute, setUploadedRoute] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // Load eco profile from localStorage
+  const ecoProfile = JSON.parse(localStorage.getItem('ecoProfile') || 'null')
+
   const handleFileChange = (event) => {
     const file = event.target.files[0]
-
     if (!file) return
 
     if (!file.name.toLowerCase().endsWith('.gpx')) {
@@ -39,6 +41,14 @@ function GpxUploadPage() {
       const formData = new FormData()
       formData.append('file', selectedFile)
 
+      // Send eco profile with upload for personalized scoring
+      if (ecoProfile?.activityType) {
+        formData.append('activityType', ecoProfile.activityType)
+      }
+      if (ecoProfile?.ecoPriority) {
+        formData.append('ecoPriority', ecoProfile.ecoPriority)
+      }
+
       const response = await axios.post(
         'http://localhost:8080/api/routes/upload',
         formData,
@@ -54,7 +64,7 @@ function GpxUploadPage() {
       setUploadStatus('GPX route uploaded and analysed successfully.')
     } catch (error) {
       console.error(error)
-      setUploadStatus(error.response?.data || 'Failed to upload GPX route.')
+      setUploadStatus(error.response?.data?.error || 'Failed to upload GPX route.')
     } finally {
       setLoading(false)
     }
@@ -80,6 +90,23 @@ function GpxUploadPage() {
       </header>
 
       <main style={styles.container}>
+
+        {/* Eco Profile indicator */}
+        {ecoProfile ? (
+          <div style={styles.profileBanner}>
+            🌿 Eco Profile active — score will be personalized for:
+            <strong> {ecoProfile.activityType}</strong> ·
+            <strong> {ecoProfile.ecoPriority?.replaceAll('_', ' ')}</strong> ·
+            <strong> {ecoProfile.preferredRegion}</strong>
+            <Link to="/profile" style={styles.profileLink}>Edit →</Link>
+          </div>
+        ) : (
+          <div style={styles.profileBannerWarning}>
+            ⚠️ No Eco Profile set — score will use default settings.
+            <Link to="/profile" style={styles.profileLinkWarning}>Create profile →</Link>
+          </div>
+        )}
+
         <section style={styles.heroCard}>
           <div>
             <p style={styles.eyebrow}>Route file</p>
@@ -114,16 +141,17 @@ function GpxUploadPage() {
           <button
             onClick={handleUpload}
             disabled={loading}
-            style={{
-              ...styles.uploadButton,
-              opacity: loading ? 0.7 : 1
-            }}
+            style={{ ...styles.uploadButton, opacity: loading ? 0.7 : 1 }}
           >
             {loading ? 'Analysing route...' : 'Upload and analyse route'}
           </button>
 
           {uploadStatus && (
-            <p style={uploadStatus.includes('Failed') || uploadStatus.includes('valid') ? styles.errorStatus : styles.status}>
+            <p style={
+              uploadStatus.includes('Failed') || uploadStatus.includes('valid') || uploadStatus.includes('first')
+                ? styles.errorStatus
+                : styles.status
+            }>
               {uploadStatus}
             </p>
           )}
@@ -150,20 +178,29 @@ function GpxUploadPage() {
                     <span>Status</span>
                     <strong>{uploadedRoute.ecoScoreLabel}</strong>
                   </div>
-
                   <div style={styles.statBox}>
                     <span>Track points</span>
                     <strong>{uploadedRoute.pointCount}</strong>
                   </div>
+                  {uploadedRoute.activityType && uploadedRoute.activityType !== 'DEFAULT' && (
+                    <div style={styles.statBox}>
+                      <span>Activity</span>
+                      <strong>{uploadedRoute.activityType}</strong>
+                    </div>
+                  )}
+                  {uploadedRoute.ecoPriority && uploadedRoute.ecoPriority !== 'DEFAULT' && (
+                    <div style={styles.statBox}>
+                      <span>Priority</span>
+                      <strong>{uploadedRoute.ecoPriority?.replaceAll('_', ' ')}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <p style={styles.text}>
-                  The route is now stored in PostgreSQL and can be displayed on the Leaflet map.
+                  The route is now stored in PostgreSQL and displayed on the Leaflet map.
                 </p>
 
-                <Link to="/" style={styles.mapButton}>
-                  View route on map
-                </Link>
+                <Link to="/" style={styles.mapButton}>View route on map</Link>
               </div>
             </div>
           </section>
@@ -185,223 +222,105 @@ const styles = {
     minHeight: '100vh',
     position: 'relative',
     overflow: 'hidden',
-    background:
-      'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 15%, rgba(56,189,248,0.12), transparent 28%), linear-gradient(135deg, #020617, #0f172a)',
+    background: 'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 15%, rgba(56,189,248,0.12), transparent 28%), linear-gradient(135deg, #020617, #0f172a)',
     color: '#e5e7eb',
     fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
   },
   glowOne: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(34,197,94,0.14)',
-    filter: 'blur(90px)',
-    top: '-130px',
-    left: '-130px'
+    position: 'fixed', width: '420px', height: '420px', borderRadius: '50%',
+    background: 'rgba(34,197,94,0.14)', filter: 'blur(90px)', top: '-130px', left: '-130px'
   },
   glowTwo: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(59,130,246,0.14)',
-    filter: 'blur(90px)',
-    right: '-130px',
-    bottom: '-130px'
+    position: 'fixed', width: '420px', height: '420px', borderRadius: '50%',
+    background: 'rgba(59,130,246,0.14)', filter: 'blur(90px)', right: '-130px', bottom: '-130px'
   },
   header: {
-    position: 'relative',
-    zIndex: 1,
-    maxWidth: '1120px',
-    margin: '0 auto',
-    padding: '32px 24px 22px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '20px'
+    position: 'relative', zIndex: 1, maxWidth: '1120px', margin: '0 auto',
+    padding: '32px 24px 22px', display: 'flex', justifyContent: 'space-between',
+    alignItems: 'center', gap: '20px'
   },
   eyebrow: {
-    margin: 0,
-    color: '#38bdf8',
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontSize: '11px',
-    fontWeight: 900
+    margin: 0, color: '#38bdf8', textTransform: 'uppercase',
+    letterSpacing: '0.12em', fontSize: '11px', fontWeight: 900
   },
   title: {
-    margin: '5px 0 0',
-    fontSize: '44px',
-    lineHeight: 1,
-    fontWeight: 900,
-    letterSpacing: '-0.06em',
-    color: '#f8fafc'
+    margin: '5px 0 0', fontSize: '44px', lineHeight: 1,
+    fontWeight: 900, letterSpacing: '-0.06em', color: '#f8fafc'
   },
-  subtitle: {
-    marginTop: '10px',
-    color: '#94a3b8',
-    fontSize: '16px'
-  },
+  subtitle: { marginTop: '10px', color: '#94a3b8', fontSize: '16px' },
   backButton: {
-    padding: '11px 16px',
-    background: 'linear-gradient(135deg, #334155, #475569)',
-    color: '#fff',
-    textDecoration: 'none',
-    borderRadius: '12px',
-    fontWeight: 800,
-    boxShadow: '0 14px 34px rgba(0,0,0,0.24)'
+    padding: '11px 16px', background: 'linear-gradient(135deg, #334155, #475569)',
+    color: '#fff', textDecoration: 'none', borderRadius: '12px',
+    fontWeight: 800, boxShadow: '0 14px 34px rgba(0,0,0,0.24)'
   },
   container: {
-    position: 'relative',
-    zIndex: 1,
-    maxWidth: '1120px',
-    margin: '0 auto',
-    padding: '0 24px 44px',
-    display: 'grid',
-    gap: '24px'
+    position: 'relative', zIndex: 1, maxWidth: '1120px',
+    margin: '0 auto', padding: '0 24px 44px', display: 'grid', gap: '24px'
   },
-  heroCard: {
-    ...glassCard,
-    borderRadius: '24px',
-    padding: '28px'
+  profileBanner: {
+    background: 'rgba(20,83,45,0.34)', border: '1px solid rgba(34,197,94,0.35)',
+    borderRadius: '14px', padding: '12px 16px', fontSize: '13px', color: '#bbf7d0'
   },
-  resultCard: {
-    ...glassCard,
-    borderRadius: '24px',
-    padding: '28px'
+  profileBannerWarning: {
+    background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.36)',
+    borderRadius: '14px', padding: '12px 16px', fontSize: '13px', color: '#fde68a'
   },
-  sectionTitle: {
-    margin: '5px 0 0',
-    color: '#f8fafc',
-    fontSize: '28px',
-    fontWeight: 850,
-    letterSpacing: '-0.04em'
-  },
-  text: {
-    color: '#cbd5e1',
-    lineHeight: 1.65,
-    marginTop: '10px'
-  },
+  profileLink: { color: '#86efac', marginLeft: '10px', fontWeight: 800, textDecoration: 'none' },
+  profileLinkWarning: { color: '#fbbf24', marginLeft: '10px', fontWeight: 800, textDecoration: 'none' },
+  heroCard: { ...glassCard, borderRadius: '24px', padding: '28px' },
+  resultCard: { ...glassCard, borderRadius: '24px', padding: '28px' },
+  sectionTitle: { margin: '5px 0 0', color: '#f8fafc', fontSize: '28px', fontWeight: 850, letterSpacing: '-0.04em' },
+  text: { color: '#cbd5e1', lineHeight: 1.65, marginTop: '10px' },
   dropZone: {
-    marginTop: '22px',
-    minHeight: '190px',
-    border: '1px dashed rgba(134,239,172,0.48)',
-    borderRadius: '22px',
-    background: 'rgba(15,23,42,0.72)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-    color: '#e5e7eb'
+    marginTop: '22px', minHeight: '190px', border: '1px dashed rgba(134,239,172,0.48)',
+    borderRadius: '22px', background: 'rgba(15,23,42,0.72)', display: 'flex',
+    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    gap: '8px', cursor: 'pointer', color: '#e5e7eb'
   },
-  hiddenInput: {
-    display: 'none'
-  },
-  dropIcon: {
-    fontSize: '42px',
-    marginBottom: '4px'
-  },
+  hiddenInput: { display: 'none' },
+  dropIcon: { fontSize: '42px', marginBottom: '4px' },
   fileInfo: {
-    marginTop: '18px',
-    padding: '16px',
-    borderRadius: '16px',
-    background: 'rgba(15,23,42,0.78)',
-    border: '1px solid rgba(148,163,184,0.18)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '14px'
+    marginTop: '18px', padding: '16px', borderRadius: '16px',
+    background: 'rgba(15,23,42,0.78)', border: '1px solid rgba(148,163,184,0.18)',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px'
   },
   fileBadge: {
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: 'rgba(34,197,94,0.16)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    color: '#86efac',
-    fontWeight: 900,
-    fontSize: '12px'
+    padding: '6px 10px', borderRadius: '999px', background: 'rgba(34,197,94,0.16)',
+    border: '1px solid rgba(34,197,94,0.35)', color: '#86efac', fontWeight: 900, fontSize: '12px'
   },
   uploadButton: {
-    marginTop: '18px',
-    minHeight: '50px',
-    width: '100%',
-    border: 'none',
-    borderRadius: '14px',
-    background: 'linear-gradient(135deg, #10b981, #22c55e)',
-    color: '#fff',
-    fontSize: '15px',
-    fontWeight: 900,
-    cursor: 'pointer',
+    marginTop: '18px', minHeight: '50px', width: '100%', border: 'none',
+    borderRadius: '14px', background: 'linear-gradient(135deg, #10b981, #22c55e)',
+    color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer',
     boxShadow: '0 18px 40px rgba(34,197,94,0.22)'
   },
   status: {
-    marginTop: '14px',
-    padding: '12px 14px',
-    borderRadius: '14px',
-    background: 'rgba(34,197,94,0.12)',
-    border: '1px solid rgba(34,197,94,0.32)',
-    color: '#bbf7d0',
-    fontWeight: 800
+    marginTop: '14px', padding: '12px 14px', borderRadius: '14px',
+    background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.32)',
+    color: '#bbf7d0', fontWeight: 800
   },
   errorStatus: {
-    marginTop: '14px',
-    padding: '12px 14px',
-    borderRadius: '14px',
-    background: 'rgba(239,68,68,0.12)',
-    border: '1px solid rgba(239,68,68,0.32)',
-    color: '#fecaca',
-    fontWeight: 800
+    marginTop: '14px', padding: '12px 14px', borderRadius: '14px',
+    background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.32)',
+    color: '#fecaca', fontWeight: 800
   },
-  resultGrid: {
-    marginTop: '22px',
-    display: 'grid',
-    gridTemplateColumns: '150px 1fr',
-    gap: '24px',
-    alignItems: 'center'
-  },
+  resultGrid: { marginTop: '22px', display: 'grid', gridTemplateColumns: '150px 1fr', gap: '24px', alignItems: 'center' },
   scoreCircle: {
-    width: '140px',
-    height: '140px',
-    borderRadius: '50%',
-    border: '7px solid #22c55e',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'rgba(34,197,94,0.08)'
+    width: '140px', height: '140px', borderRadius: '50%', border: '7px solid #22c55e',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    justifyContent: 'center', background: 'rgba(34,197,94,0.08)'
   },
-  resultContent: {
-    minWidth: 0
-  },
-  routeName: {
-    margin: 0,
-    color: '#f8fafc',
-    fontSize: '24px',
-    wordBreak: 'break-word'
-  },
-  resultStats: {
-    marginTop: '16px',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-    gap: '12px'
-  },
+  resultContent: { minWidth: 0 },
+  routeName: { margin: 0, color: '#f8fafc', fontSize: '24px', wordBreak: 'break-word' },
+  resultStats: { marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' },
   statBox: {
-    background: 'rgba(15,23,42,0.78)',
-    border: '1px solid rgba(148,163,184,0.18)',
-    borderRadius: '16px',
-    padding: '14px'
+    background: 'rgba(15,23,42,0.78)', border: '1px solid rgba(148,163,184,0.18)',
+    borderRadius: '16px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '4px'
   },
   mapButton: {
-    display: 'inline-flex',
-    marginTop: '18px',
-    padding: '11px 16px',
-    background: 'linear-gradient(135deg, #3b82f6, #38bdf8)',
-    color: '#fff',
-    textDecoration: 'none',
-    borderRadius: '12px',
-    fontWeight: 900
+    display: 'inline-flex', marginTop: '18px', padding: '11px 16px',
+    background: 'linear-gradient(135deg, #3b82f6, #38bdf8)', color: '#fff',
+    textDecoration: 'none', borderRadius: '12px', fontWeight: 900
   }
 }
 
