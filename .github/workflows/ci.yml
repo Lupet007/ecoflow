@@ -109,6 +109,21 @@ jobs:
       - frontend-build
       - python-pipeline-check
 
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: ecoflow
+          POSTGRES_USER: ecoflow
+          POSTGRES_PASSWORD: ecoflow
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U ecoflow -d ecoflow"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -126,24 +141,15 @@ jobs:
         working-directory: backend
         run: chmod +x mvnw
 
-      - name: Build backend with coverage for SonarQube
+      - name: Build and test backend with coverage for SonarQube
         working-directory: backend
         run: ./mvnw clean verify -Dspring.profiles.active=test
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v3.1.0
+      - name: Run SonarQube analysis
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
+        with:
+          projectBaseDir: backend
+          args: >
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=Lupet007_ecoflow
-            -Dsonar.organization=lupet007
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.sources=backend/src/main/java,frontend/src,pipeline
-            -Dsonar.tests=backend/src/test/java
-            -Dsonar.java.binaries=backend/target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/target/**,**/.mvn/**,**/mvnw,**/mvnw.cmd,**/*.drawio,**/coverage/**,**/package-lock.json
-            -Dsonar.coverage.exclusions=frontend/src/**,pipeline/**
-            -Dsonar.cpd.exclusions=frontend/src/**
