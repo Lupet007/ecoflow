@@ -12,7 +12,7 @@ import {
   useMap
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-
+import RecommendationsPage from './pages/RecommendationsPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import GpxUploadPage from './pages/GpxUploadPage'
@@ -463,6 +463,10 @@ function MapPage() {
 
           <Link to="/profile" style={styles.navButtonOrange}>
             Eco Profile
+          </Link>
+
+          <Link to="/recommendations" style={styles.navButtonPurple}>
+            Recommendations
           </Link>
 
           <button onClick={handleLogout} style={styles.logoutButton}>
@@ -933,6 +937,15 @@ function App() {
         />
 
         <Route
+          path="/recommendations"
+          element={
+            <PrivateRoute>
+              <RecommendationsPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
           path="/"
           element={
             <PrivateRoute>
@@ -1089,6 +1102,10 @@ const styles = {
   navButtonOrange: {
     ...baseButton,
     background: 'linear-gradient(135deg, #f59e0b, #f97316)'
+  },
+  navButtonPurple: {
+    ...baseButton,
+    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)'
   },
   logoutButton: {
     ...baseButton,

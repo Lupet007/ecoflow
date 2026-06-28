@@ -8,8 +8,6 @@ import backend.service.GpxParserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,25 +30,31 @@ public class RouteController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadGpx(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadGpx(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "activityType", required = false) String activityType,
+            @RequestParam(value = "ecoPriority", required = false) String ecoPriority) {
+
         try {
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
             }
 
-            System.out.println("About to parse, file size: " + file.getSize());
+            System.out.println("Uploading GPX, size: " + file.getSize());
+            System.out.println("Activity type: " + activityType);
+            System.out.println("Eco priority: " + ecoPriority);
+
             List<RoutePoint> points = gpxParserService.parse(file.getInputStream());
-            System.out.println("Parse done, points: " + points.size());
+            System.out.println("Parsed points: " + points.size());
 
             if (points.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error","No track points found in GPX file."));
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "No track points found in GPX file."));
             }
 
-            // Calculate eco-score
-            double score = ecoScoreService.calculate(points);
+            double score = ecoScoreService.calculate(points, activityType, ecoPriority);
             String label = ecoScoreService.getLabel(score);
 
-            // Save route
             Route route = new Route();
             route.setName(file.getOriginalFilename());
             route.setCoordinates(gpxParserService.toJson(points));
@@ -60,23 +64,26 @@ public class RouteController {
 
             routeRepository.save(route);
 
+            System.out.println("Eco score: " + score + " (" + label + ")");
+
             return ResponseEntity.status(201).body(Map.of(
                     "id", route.getId() != null ? route.getId() : 0,
                     "name", route.getName(),
                     "pointCount", points.size(),
                     "ecoScore", score,
-                    "ecoScoreLabel", label
+                    "ecoScoreLabel", label,
+                    "activityType", activityType != null ? activityType : "DEFAULT",
+                    "ecoPriority", ecoPriority != null ? ecoPriority : "DEFAULT"
             ));
 
         } catch (Exception e) {
-            System.out.println("CONTROLLER EXCEPTION: " + e.getClass().getName() + ": " + e.getMessage());
+            System.out.println("Upload error: " + e.getClass().getName() + ": " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Unexpected error"));
+                    .body(Map.of("error", "Unexpected error during upload"));
         }
     }
 
-    // GET /api/routes — lightweight summary, NO coordinates
     @GetMapping
     public ResponseEntity<?> getAllRoutes() {
         try {
@@ -84,7 +91,7 @@ public class RouteController {
                     .stream()
                     .map(route -> {
                         Map<String, Object> map = new LinkedHashMap<>();
-                        map.put("id", route.getId());           // LinkedHashMap allows nulls
+                        map.put("id", route.getId());
                         map.put("name", route.getName());
                         map.put("pointCount", route.getPointCount());
                         map.put("ecoScore", route.getEcoScore());
@@ -99,6 +106,7 @@ public class RouteController {
                     .body(Map.of("error", "Failed to fetch routes."));
         }
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getRoute(@PathVariable Long id) {
         return routeRepository.findById(id)

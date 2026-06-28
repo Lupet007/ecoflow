@@ -13,11 +13,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
-
 import java.io.InputStream;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -61,7 +61,6 @@ class RouteControllerTest {
         route.setCoordinates("[]");
         route.setUploadedAt(java.time.LocalDateTime.now());
 
-
         when(routeRepository.findAll()).thenReturn(List.of(route));
 
         mockMvc.perform(get("/api/routes"))
@@ -89,7 +88,8 @@ class RouteControllerTest {
         when(gpxParserService.toJson(any()))
                 .thenReturn("[{\"lat\":46.55,\"lon\":15.64}]");
 
-        when(ecoScoreService.calculate(any()))
+        // Updated: calculate now takes 3 parameters (points, activityType, ecoPriority)
+        when(ecoScoreService.calculate(any(), isNull(), isNull()))
                 .thenReturn(88.0);
 
         when(ecoScoreService.getLabel(88.0))
