@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
 function RecommendationsPage() {
+  const navigate = useNavigate()
   const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -43,7 +44,11 @@ function RecommendationsPage() {
     fetchRecommendations()
   }, [])
 
-  // Colour of the match ring depends on the score
+  // KLIK NA PREPORUKU → navigira na home s routeId
+  const handleRouteClick = (routeId) => {
+    navigate(`/?routeId=${routeId}`)
+  }
+
   const ringColor = (match) => {
     if (match >= 80) return '#22c55e'
     if (match >= 60) return '#3b82f6'
@@ -51,7 +56,6 @@ function RecommendationsPage() {
     return '#ef4444'
   }
 
-  // Turn the file-name into something friendlier
   const prettyName = (name) => {
     if (!name) return 'Unnamed route'
     return name
@@ -60,14 +64,12 @@ function RecommendationsPage() {
       .replace(/\b\w/g, (c) => c.toUpperCase())
   }
 
-  // Human label for the activity
   const activityLabel = (a) => {
     if (!a) return 'Any activity'
     const map = { WALKING: 'Walking', RUNNING: 'Running', CYCLING: 'Cycling' }
     return map[a] || a
   }
 
-  // Human label for the priority
   const priorityLabel = (p) => {
     if (!p) return 'No priority'
     const map = {
@@ -88,7 +90,7 @@ function RecommendationsPage() {
           <p style={styles.eyebrow}>Personalized for you</p>
           <h1 style={styles.title}>Routes picked for you</h1>
           <p style={styles.subtitle}>
-            EcoFlow finds the routes that best fit your preferences.
+            EcoFlow finds the routes that best fit your preferences. Click any route to view it on the map.
           </p>
         </div>
         <Link to="/" style={styles.backButton}>← Back to map</Link>
@@ -96,7 +98,7 @@ function RecommendationsPage() {
 
       <div style={styles.container}>
 
-        {/* HOW IT WORKS - explainer so anyone understands instantly */}
+        {/* HOW IT WORKS */}
         <div style={styles.explainerCard}>
           <p style={styles.explainerEyebrow}>How this works</p>
           <div style={styles.steps}>
@@ -130,8 +132,7 @@ function RecommendationsPage() {
               <div>
                 <div style={styles.stepTitle}>3. Your best matches</div>
                 <div style={styles.stepText}>
-                  The routes that fit you best appear first, each with a match score
-                  and the reason it was picked.
+                  The routes that fit you best appear first. Click any route to view it on the map.
                 </div>
               </div>
             </div>
@@ -178,7 +179,7 @@ function RecommendationsPage() {
           <>
             <div style={styles.resultsHeader}>
               <span style={styles.resultsCount}>{recommendations.length} routes matched</span>
-              <span style={styles.resultsHint}>ranked best to worst for your profile</span>
+              <span style={styles.resultsHint}>click any route to view on map</span>
             </div>
 
             <div style={styles.cardGrid}>
@@ -187,14 +188,25 @@ function RecommendationsPage() {
                 return (
                   <div
                     key={rec.routeId}
+                    onClick={() => handleRouteClick(rec.routeId)}
                     style={{
                       ...styles.recCard,
                       border: index === 0
                         ? '2px solid rgba(34,197,94,0.65)'
-                        : '1px solid rgba(148,163,184,0.18)'
+                        : '1px solid rgba(148,163,184,0.18)',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = '0 20px 50px rgba(34,197,94,0.2)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)'
+                      e.currentTarget.style.boxShadow = '0 26px 90px rgba(0,0,0,0.36)'
                     }}
                   >
-                    {/* fixed-width left column keeps every ring perfectly aligned */}
+                    {/* Ring column */}
                     <div style={styles.ringColumn}>
                       <div style={styles.ringWrap}>
                         <svg width="72" height="72" viewBox="0 0 72 72" style={styles.ringSvg}>
@@ -221,7 +233,7 @@ function RecommendationsPage() {
                       <span style={styles.matchLabel}>match</span>
                     </div>
 
-                    {/* middle: route info */}
+                    {/* Info column */}
                     <div style={styles.infoColumn}>
                       <div style={styles.nameRow}>
                         <h3 style={styles.recName}>{prettyName(rec.routeName)}</h3>
@@ -327,7 +339,6 @@ const styles = {
     margin: '0 auto', padding: '0 24px 44px', display: 'grid', gap: '18px'
   },
 
-  /* explainer */
   explainerCard: { ...glassCard, borderRadius: '20px', padding: '20px 22px' },
   explainerEyebrow: {
     margin: '0 0 14px', color: '#86efac', textTransform: 'uppercase',
@@ -344,7 +355,6 @@ const styles = {
   stepText: { color: '#94a3b8', fontSize: '12.5px', lineHeight: 1.5, marginTop: '3px' },
   stepArrow: { color: '#475569', fontSize: '20px', display: 'flex', alignItems: 'center', fontWeight: 900 },
 
-  /* profile */
   profileBanner: {
     display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
     background: 'rgba(20,83,45,0.30)', border: '1px solid rgba(34,197,94,0.32)',
@@ -363,19 +373,16 @@ const styles = {
   },
   profileLinkWarning: { color: '#fbbf24', marginLeft: '10px', fontWeight: 800, textDecoration: 'none' },
 
-  /* results header */
   resultsHeader: { display: 'flex', alignItems: 'baseline', gap: '12px', marginTop: '4px' },
   resultsCount: { color: '#f8fafc', fontSize: '16px', fontWeight: 850 },
   resultsHint: { color: '#64748b', fontSize: '13px' },
 
-  /* cards */
   cardGrid: { display: 'grid', gap: '12px' },
   recCard: {
     ...glassCard, borderRadius: '18px', padding: '18px 20px',
     display: 'flex', alignItems: 'stretch', gap: '18px'
   },
 
-  /* ring column - FIXED WIDTH so all rings align perfectly */
   ringColumn: {
     width: '78px', flexShrink: 0, display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', gap: '4px'
@@ -387,10 +394,8 @@ const styles = {
     alignItems: 'center', justifyContent: 'center'
   },
   ringNum: { fontSize: '19px', fontWeight: 900, color: '#f8fafc', lineHeight: 1, letterSpacing: '-0.02em' },
-  ringPct: { fontSize: '12px', fontWeight: 800, color: '#94a3b8', marginLeft: '1px' },
   matchLabel: { fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' },
 
-  /* info column */
   infoColumn: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' },
   nameRow: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
   recName: { margin: 0, color: '#f8fafc', fontSize: '17px', fontWeight: 850, wordBreak: 'break-word' },
@@ -417,7 +422,6 @@ const styles = {
   },
   reasonText: { color: '#cbd5e1', fontSize: '13px', lineHeight: 1.5 },
 
-  /* states */
   stateCard: {
     ...glassCard, borderRadius: '18px', padding: '40px 24px',
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px'
