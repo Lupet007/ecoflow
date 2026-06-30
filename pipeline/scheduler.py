@@ -1,12 +1,30 @@
-import time
 import subprocess
+import sys
+import time
 
-print("EcoFlow scheduler started")
+INTERVAL_SECONDS = 300
 
-while True:
+
+def run_pipeline():
     print("Running pipeline...")
 
-    subprocess.run(["python", "main.py"])
+    result = subprocess.run(
+        [sys.executable, "main.py"],
+        check=False
+    )
 
-    print("Waiting 300 seconds...")
-    time.sleep(300)
+    if result.returncode != 0:
+        print(f"Pipeline finished with error code: {result.returncode}")
+
+
+def main():
+    print("EcoFlow scheduler started")
+
+    while True:
+        run_pipeline()
+        print(f"Waiting {INTERVAL_SECONDS} seconds...")
+        time.sleep(INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
