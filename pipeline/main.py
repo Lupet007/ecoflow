@@ -1,16 +1,18 @@
-import requests
-import psycopg2
 import json
-from datetime import datetime
+import os
+from datetime import datetime, timezone
+
+import psycopg2
+import requests
 
 COPERNICUS_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$top=5"
 
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5433,
-    "database": "ecoflow",
-    "user": "ecoflow",
-    "password": "ecoflow"
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", "5433")),
+    "database": os.getenv("DB_NAME", "ecoflow"),
+    "user": os.getenv("DB_USER", "ecoflow"),
+    "password": os.getenv("DB_PASSWORD", "ecoflow")
 }
 
 
@@ -120,7 +122,6 @@ def save_to_database(products):
                     ))
 
         connection.commit()
-
         print("Processed records:", len(products))
 
     finally:
@@ -129,11 +130,13 @@ def save_to_database(products):
 
 def save_to_json(data):
     output = {
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "source": "Copernicus Data Space Ecosystem API",
         "records_count": len(data),
         "records": data
     }
+
+    os.makedirs("data", exist_ok=True)
 
     with open("data/copernicus_products.json", "w", encoding="utf-8") as file:
         json.dump(output, file, ensure_ascii=False, indent=4)
@@ -143,7 +146,7 @@ def save_to_json(data):
 
 def main():
     print("EcoFlow data pipeline started")
-    print("Started at:", datetime.now().isoformat())
+    print("Started at:", datetime.now(timezone.utc).isoformat())
 
     raw_data = fetch_copernicus_products()
     transformed_data = transform_products(raw_data)
