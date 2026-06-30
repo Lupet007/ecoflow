@@ -1,3 +1,220 @@
 #root {
   isolation: isolate;
 }
+
+.eco-trends {
+  overflow: hidden;
+}
+
+.trend-period-control {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.trend-period-button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #f8fafc;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.trend-period-button.active {
+  background: #166534;
+  color: #dcfce7;
+}
+
+.trend-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  margin-bottom: 14px;
+}
+
+.trend-summary-row > div {
+  padding: 10px 14px;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.trend-summary-row > div:last-child {
+  border-right: 0;
+}
+
+.trend-summary-row strong,
+.trend-summary-row span {
+  display: block;
+}
+
+.trend-summary-row strong {
+  color: #f8fafc;
+  font-size: 20px;
+}
+
+.trend-summary-row span {
+  margin-top: 2px;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.trend-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.trend-chart-panel {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.28);
+  border-radius: 8px;
+  background: #1e293b;
+}
+
+.trend-chart-heading {
+  min-height: 52px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.trend-chart-heading h3,
+.trend-chart-heading p {
+  margin: 0;
+}
+
+.trend-chart-heading h3 {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.trend-chart-heading p {
+  margin-top: 3px;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.trend-legend {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  color: #ffffff;
+  font-size: 10px;
+}
+
+.trend-legend span {
+  white-space: nowrap;
+}
+
+.trend-legend i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 2px;
+}
+
+.trend-average {
+  padding: 6px 9px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 6px;
+  color: #86efac;
+  background: rgba(22, 101, 52, 0.24);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.trend-chart-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.trend-chart-scroll svg {
+  display: block;
+  width: 100%;
+  min-width: 360px;
+  height: auto;
+}
+
+.trend-grid-line {
+  stroke: rgba(255, 255, 255, 0.24);
+  stroke-width: 1;
+}
+
+.trend-axis-label {
+  fill: #ffffff;
+  font-size: 9px;
+}
+
+.route-trend-line {
+  stroke: #ffffff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.route-trend-point {
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.trend-empty {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .trend-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-summary-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .trend-summary-row > div:nth-child(2) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .eco-trends > div:first-child {
+    flex-direction: column;
+  }
+
+  .trend-period-control {
+    width: 100%;
+  }
+
+  .trend-period-button {
+    flex: 1;
+  }
+
+  .trend-summary-row strong {
+    font-size: 20px;
+  }
+
+  .trend-summary-row > div {
+    padding: 13px 10px;
+  }
+
+  .trend-chart-heading {
+    flex-direction: column;
+  }
+
+  .trend-legend {
+    justify-content: flex-start;
+  }
+}
