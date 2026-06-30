@@ -1,28 +1,31 @@
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 
 INTERVAL_SECONDS = 300
 
 
 def run_pipeline():
-    print("Running pipeline...")
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Running EcoFlow pipeline...")
 
     result = subprocess.run(
         [sys.executable, "main.py"],
         check=False
     )
 
-    if result.returncode != 0:
-        print(f"Pipeline finished with error code: {result.returncode}")
+    if result.returncode == 0:
+        print("Pipeline finished successfully.")
+    else:
+        print(f"Pipeline failed with exit code: {result.returncode}")
 
 
 def main():
-    print("EcoFlow scheduler started")
+    print("EcoFlow periodic scheduler started")
 
     while True:
         run_pipeline()
-        print(f"Waiting {INTERVAL_SECONDS} seconds...")
+        print(f"Next refresh in {INTERVAL_SECONDS} seconds.")
         time.sleep(INTERVAL_SECONDS)
 
 

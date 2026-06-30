@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import {
@@ -185,7 +185,13 @@ function MapPage() {
     return stored ? JSON.parse(stored) : null
   })
 
-  const [profileUpdated, setProfileUpdated] = useState(false)
+    const [profileUpdated, setProfileUpdated] = useState(false)
+
+  const [environmentFilter, setEnvironmentFilter] = useState(
+    ecoProfile?.ecoPriority || 'ALL'
+  )
+  const [dateFromFilter, setDateFromFilter] = useState('')
+  const [dateToFilter, setDateToFilter] = useState('')
 
   // Route from recommendations
   const [selectedRouteFromRecommendations, setSelectedRouteFromRecommendations] = useState(null)
@@ -194,8 +200,14 @@ function MapPage() {
   useEffect(() => {
     if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
       localStorage.removeItem('ecoProfileJustSaved')
-      setProfileUpdated(true)
-      setTimeout(() => setProfileUpdated(false), 3000)
+
+      setTimeout(() => {
+        setProfileUpdated(true)
+
+        setTimeout(() => {
+          setProfileUpdated(false)
+        }, 3000)
+      }, 0)
     }
 
     const handleStorageChange = () => {
@@ -205,8 +217,14 @@ function MapPage() {
 
       if (newProfile) {
         setEnvironmentFilter(newProfile.ecoPriority || 'ALL')
-        setProfileUpdated(true)
-        setTimeout(() => setProfileUpdated(false), 3000)
+
+        setTimeout(() => {
+          setProfileUpdated(true)
+
+          setTimeout(() => {
+            setProfileUpdated(false)
+          }, 3000)
+        }, 0)
       }
     }
 
@@ -236,12 +254,6 @@ function MapPage() {
         })
     }
   }, [routeIdParam])
-
-  const [environmentFilter, setEnvironmentFilter] = useState(
-    ecoProfile?.ecoPriority || 'ALL'
-  )
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
 
   const [selectionMode, setSelectionMode] = useState(null)
   const [startPoint, setStartPoint] = useState(null)
@@ -301,13 +313,14 @@ function MapPage() {
       })
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const loadEnvironmentalData = () => {
     axios.get('http://localhost:8080/api/copernicus-products', {
       headers: getAuthHeaders()
     })
       .then(response => {
         setProducts(response.data)
-        setStatus('Environmental data loaded successfully')
+        setStatus(`Environmental data refreshed at ${new Date().toLocaleTimeString()}`)
       })
       .catch(error => {
         console.error(error)
@@ -315,7 +328,16 @@ function MapPage() {
       })
 
     loadUploadedRoutes()
-  }, [])
+  }
+
+  loadEnvironmentalData()
+
+  const refreshInterval = setInterval(() => {
+    loadEnvironmentalData()
+  }, 300000)
+
+  return () => clearInterval(refreshInterval)
+}, [])
 
   const environmentalTypes = useMemo(() => {
     return ['ALL', 'AIR_QUALITY', 'LAND_TEMPERATURE', 'WATER_QUALITY']

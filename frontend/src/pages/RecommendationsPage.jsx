@@ -86,7 +86,6 @@ useEffect(() => {
   }
 }, [])
 
-  // KLIK NA PREPORUKU → navigira na home s routeId
   const handleRouteClick = (routeId) => {
     navigate(`/?routeId=${routeId}`)
   }
