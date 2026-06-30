@@ -5,7 +5,7 @@ import axios from 'axios'
 function RecommendationsPage() {
   const navigate = useNavigate()
   const [recommendations, setRecommendations] = useState([])
-  const [loading, setLoading] = useState(false)
+const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const ecoProfile = JSON.parse(localStorage.getItem('ecoProfile') || 'null')
@@ -40,9 +40,51 @@ function RecommendationsPage() {
     }
   }
 
-  useEffect(() => {
-    fetchRecommendations()
-  }, [])
+useEffect(() => {
+  let cancelled = false
+
+  const loadInitialRecommendations = async () => {
+    try {
+      const params = {}
+      if (ecoProfile?.activityType) params.activityType = ecoProfile.activityType
+      if (ecoProfile?.ecoPriority) params.ecoPriority = ecoProfile.ecoPriority
+      params.limit = 6
+
+      const response = await axios.get(
+        'http://localhost:8080/api/routes/recommend',
+        {
+          params,
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      )
+
+      if (!cancelled) {
+        setRecommendations(response.data)
+      }
+    } catch (err) {
+      console.error(err)
+
+      if (!cancelled) {
+        setError(
+          err.response?.data?.error ||
+          'Could not load recommendations. Check that you are signed in and the server is running.'
+        )
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false)
+      }
+    }
+  }
+
+  loadInitialRecommendations()
+
+  return () => {
+    cancelled = true
+  }
+}, [])
 
   // KLIK NA PREPORUKU → navigira na home s routeId
   const handleRouteClick = (routeId) => {
@@ -186,8 +228,9 @@ function RecommendationsPage() {
               {recommendations.map((rec, index) => {
                 const color = ringColor(rec.matchPercent)
                 return (
-                  <div
+                  <button
                     key={rec.routeId}
+                    type="button"
                     onClick={() => handleRouteClick(rec.routeId)}
                     style={{
                       ...styles.recCard,
@@ -266,7 +309,7 @@ function RecommendationsPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -377,11 +420,25 @@ const styles = {
   resultsCount: { color: '#f8fafc', fontSize: '16px', fontWeight: 850 },
   resultsHint: { color: '#64748b', fontSize: '13px' },
 
-  cardGrid: { display: 'grid', gap: '12px' },
-  recCard: {
-    ...glassCard, borderRadius: '18px', padding: '18px 20px',
-    display: 'flex', alignItems: 'stretch', gap: '18px'
-  },
+cardGrid: {
+  display: 'grid',
+  gap: '12px'
+},
+
+recCard: {
+  ...glassCard,
+  borderRadius: '18px',
+  padding: '18px 20px',
+  display: 'flex',
+  alignItems: 'stretch',
+  gap: '18px',
+
+  border: '1px solid rgba(148,163,184,0.18)',
+  color: 'inherit',
+  textAlign: 'left',
+  fontFamily: 'inherit',
+  cursor: 'pointer',
+},
 
   ringColumn: {
     width: '78px', flexShrink: 0, display: 'flex', flexDirection: 'column',

@@ -12,7 +12,7 @@ DB_CONFIG = {
     "port": int(os.getenv("DB_PORT", "5433")),
     "database": os.getenv("DB_NAME", "ecoflow"),
     "user": os.getenv("DB_USER", "ecoflow"),
-    "password": os.getenv("DB_PASSWORD", "ecoflow")
+    "password": os.getenv("DB_PASSWORD")
 }
 
 
@@ -85,6 +85,10 @@ def create_table_if_not_exists(connection):
 
 def save_to_database(products):
     print("Saving transformed data to PostgreSQL...")
+
+    if not DB_CONFIG["password"]:
+        print("DB_PASSWORD environment variable is not set. Skipping database save.")
+        return
 
     connection = psycopg2.connect(**DB_CONFIG)
 
