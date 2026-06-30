@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import {
@@ -12,6 +12,7 @@ import {
   useMap
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import './App.css'
 import RecommendationsPage from './pages/RecommendationsPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -170,6 +171,212 @@ const regionCoordinates = {
   Kranj: [46.2397, 14.3556],
 }
 
+const trendColors = {
+  AIR_QUALITY: '#60a5fa',
+  LAND_TEMPERATURE: '#fbbf24',
+  WATER_QUALITY: '#34d399'
+}
+
+function formatShortDate(value) {
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value)
+}
+
+function getProductDate(product) {
+  const value = product.publicationDate || product.originDate || product.createdAt
+  const date = value ? new Date(value) : null
+  return date && !Number.isNaN(date.getTime()) ? date : null
+}
+
+function HistoricalTrends({ products, routes }) {
+  const [period, setPeriod] = useState('90')
+
+  const cutoff = useMemo(() => {
+    if (period === 'ALL') return null
+    const date = new Date()
+    date.setDate(date.getDate() - Number(period))
+    return date
+  }, [period])
+
+  const productTrend = useMemo(() => {
+    const days = new Map()
+
+    products.forEach(product => {
+      const date = getProductDate(product)
+      if (!date || (cutoff && date < cutoff)) return
+
+      const key = date.toISOString().slice(0, 10)
+      const day = days.get(key) || {
+        date,
+        AIR_QUALITY: 0,
+        LAND_TEMPERATURE: 0,
+        WATER_QUALITY: 0
+      }
+      const type = getEnvironmentalType(product.name)
+      if (trendColors[type]) day[type] += 1
+      days.set(key, day)
+    })
+
+    return [...days.values()].sort((a, b) => a.date - b.date)
+  }, [products, cutoff])
+
+  const routeTrend = useMemo(() => routes
+    .map(route => ({
+      name: route.name,
+      score: Number(route.ecoScore),
+      date: route.uploadedAt ? new Date(route.uploadedAt) : null
+    }))
+    .filter(item => item.date && !Number.isNaN(item.date.getTime()) && Number.isFinite(item.score))
+    .filter(item => !cutoff || item.date >= cutoff)
+    .sort((a, b) => a.date - b.date), [routes, cutoff])
+
+  const maxDailyCount = Math.max(1, ...productTrend.map(day =>
+    day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY
+  ))
+  const chartWidth = 720
+  const chartHeight = 190
+  const plot = { left: 38, right: 12, top: 12, bottom: 34 }
+  const plotWidth = chartWidth - plot.left - plot.right
+  const plotHeight = chartHeight - plot.top - plot.bottom
+  const barSlot = productTrend.length ? plotWidth / productTrend.length : plotWidth
+  const barWidth = Math.min(38, Math.max(8, barSlot * 0.62))
+  const routePoints = routeTrend.map((item, index) => ({
+    ...item,
+    x: plot.left + (routeTrend.length === 1 ? plotWidth / 2 : (index / (routeTrend.length - 1)) * plotWidth),
+    y: plot.top + ((100 - item.score) / 100) * plotHeight
+  }))
+  const averageScore = routeTrend.length
+    ? Math.round(routeTrend.reduce((sum, item) => sum + item.score, 0) / routeTrend.length)
+    : null
+
+  const renderGrid = (maxValue) => [0, 0.25, 0.5, 0.75, 1].map(step => {
+    const y = plot.top + plotHeight - step * plotHeight
+    return (
+      <g key={step}>
+        <line x1={plot.left} x2={chartWidth - plot.right} y1={y} y2={y} className="trend-grid-line" />
+        <text x={plot.left - 9} y={y + 4} textAnchor="end" className="trend-axis-label">
+          {Math.round(maxValue * step)}
+        </text>
+      </g>
+    )
+  })
+
+  return (
+    <section style={styles.trendsSection} className="eco-trends">
+      <div style={styles.trendsHeader}>
+        <div>
+          <p style={styles.eyebrow}>Historical overview</p>
+          <h2 style={styles.sectionTitle}>Environmental trends</h2>
+          <p style={styles.text}>Publication activity and route quality over time.</p>
+        </div>
+        <div className="trend-period-control" aria-label="Historical period">
+          {[['30', '30 days'], ['90', '90 days'], ['ALL', 'All time']].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={period === value ? 'trend-period-button active' : 'trend-period-button'}
+              onClick={() => setPeriod(value)}
+              aria-pressed={period === value}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="trend-summary-row">
+        <div><strong>{productTrend.length}</strong><span>active data days</span></div>
+        <div><strong>{productTrend.reduce((sum, day) => sum + day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY, 0)}</strong><span>published records</span></div>
+        <div><strong>{routeTrend.length}</strong><span>routes tracked</span></div>
+        <div><strong>{averageScore ?? '--'}</strong><span>average eco-score</span></div>
+      </div>
+
+      <div className="trend-chart-grid">
+        <article className="trend-chart-panel">
+          <div className="trend-chart-heading">
+            <div>
+              <h3>Environmental data activity</h3>
+              <p>Published records per day</p>
+            </div>
+            <div className="trend-legend">
+              {Object.entries(trendColors).map(([type, color]) => (
+                <span key={type}><i style={{ background: color }} />{formatEnvironmentalType(type)}</span>
+              ))}
+            </div>
+          </div>
+          {productTrend.length ? (
+            <div className="trend-chart-scroll">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Daily environmental records by category">
+                {renderGrid(maxDailyCount)}
+                {productTrend.map((day, index) => {
+                  const x = plot.left + index * barSlot + (barSlot - barWidth) / 2
+                  let stackedHeight = 0
+                  const total = day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY
+                  return (
+                    <g key={day.date.toISOString()}>
+                      {Object.keys(trendColors).map(type => {
+                        const height = (day[type] / maxDailyCount) * plotHeight
+                        const y = plot.top + plotHeight - stackedHeight - height
+                        stackedHeight += height
+                        return day[type] > 0 ? (
+                          <rect key={type} x={x} y={y} width={barWidth} height={height} fill={trendColors[type]} rx="2">
+                            <title>{`${formatShortDate(day.date)}: ${day[type]} ${formatEnvironmentalType(type).toLowerCase()} record(s)`}</title>
+                          </rect>
+                        ) : null
+                      })}
+                      {(index === 0 || index === productTrend.length - 1 || productTrend.length <= 6) && (
+                        <text x={x + barWidth / 2} y={chartHeight - 17} textAnchor="middle" className="trend-axis-label">
+                          {formatShortDate(day.date)}
+                        </text>
+                      )}
+                      <title>{`${formatShortDate(day.date)}: ${total} total records`}</title>
+                    </g>
+                  )
+                })}
+              </svg>
+            </div>
+          ) : <div className="trend-empty">No environmental history in this period.</div>}
+        </article>
+
+        <article className="trend-chart-panel">
+          <div className="trend-chart-heading">
+            <div>
+              <h3>Route eco-score history</h3>
+              <p>Score at upload, out of 100</p>
+            </div>
+            {averageScore !== null && <span className="trend-average">Average {averageScore}</span>}
+          </div>
+          {routePoints.length ? (
+            <div className="trend-chart-scroll">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Uploaded route eco-scores over time">
+                {renderGrid(100)}
+                {routePoints.length > 1 && (
+                  <polyline
+                    points={routePoints.map(point => `${point.x},${point.y}`).join(' ')}
+                    className="route-trend-line"
+                    fill="none"
+                  />
+                )}
+                {routePoints.map((point, index) => (
+                  <g key={`${point.name}-${point.date.toISOString()}-${index}`}>
+                    <circle cx={point.x} cy={point.y} r="6" fill={getScoreColor(point.score)} className="route-trend-point">
+                      <title>{`${point.name}: ${point.score}/100 on ${formatShortDate(point.date)}`}</title>
+                    </circle>
+                    {(index === 0 || index === routePoints.length - 1 || routePoints.length <= 6) && (
+                      <text x={point.x} y={chartHeight - 17} textAnchor="middle" className="trend-axis-label">
+                        {formatShortDate(point.date)}
+                      </text>
+                    )}
+                  </g>
+                ))}
+              </svg>
+            </div>
+          ) : <div className="trend-empty">Upload a GPX route to start an eco-score history.</div>}
+        </article>
+      </div>
+    </section>
+  )
+}
+
 function MapPage() {
   const [searchParams] = useSearchParams()
   const routeIdParam = searchParams.get('routeId')
@@ -186,6 +393,11 @@ function MapPage() {
   })
 
   const [profileUpdated, setProfileUpdated] = useState(false)
+  const [environmentFilter, setEnvironmentFilter] = useState(
+    ecoProfile?.ecoPriority || 'ALL'
+  )
+  const [dateFromFilter, setDateFromFilter] = useState('')
+  const [dateToFilter, setDateToFilter] = useState('')
 
   // Route from recommendations
   const [selectedRouteFromRecommendations, setSelectedRouteFromRecommendations] = useState(null)
@@ -194,7 +406,7 @@ function MapPage() {
   useEffect(() => {
     if (localStorage.getItem('ecoProfileJustSaved') === 'true') {
       localStorage.removeItem('ecoProfileJustSaved')
-      setProfileUpdated(true)
+      setTimeout(() => setProfileUpdated(true), 0)
       setTimeout(() => setProfileUpdated(false), 3000)
     }
 
@@ -236,12 +448,6 @@ function MapPage() {
         })
     }
   }, [routeIdParam])
-
-  const [environmentFilter, setEnvironmentFilter] = useState(
-    ecoProfile?.ecoPriority || 'ALL'
-  )
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
 
   const [selectionMode, setSelectionMode] = useState(null)
   const [startPoint, setStartPoint] = useState(null)
@@ -945,6 +1151,8 @@ function MapPage() {
           </MapContainer>
         </div>
 
+        <HistoricalTrends products={filteredProducts} routes={uploadedRoutes} />
+
         <section style={styles.uploadedRoutesSection}>
           <div style={styles.uploadedRoutesHeader} className="eco-uploaded-header">
             <div>
@@ -1538,6 +1746,19 @@ const styles = {
     marginTop: '24px',
     padding: '24px',
     borderRadius: '22px'
+  },
+  trendsSection: {
+    ...glassCard,
+    marginTop: '18px',
+    padding: '18px',
+    borderRadius: '22px'
+  },
+  trendsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '16px',
+    marginBottom: '12px'
   },
   uploadedRoutesHeader: {
     display: 'flex',
