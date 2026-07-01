@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
 function predictEcoScore(profile) {
@@ -11,8 +11,6 @@ function predictEcoScore(profile) {
   if (profile.ecoPriority === 'AIR_QUALITY') score += 8
   if (profile.ecoPriority === 'WATER_QUALITY') score += 5
   if (profile.ecoPriority === 'LAND_TEMPERATURE') score += 3
-
-  if (profile.alertsEnabled) score += 4
 
   return Math.min(100, score)
 }
@@ -48,20 +46,16 @@ const ACTIVITY_TYPES = [
 function EcoProfilePage() {
   const [saved, setSaved] = useState(false)
 
-  const [profile, setProfile] = useState({
-    ecoPriority: 'AIR_QUALITY',
-    activityType: 'WALKING',
-    preferredRegion: 'Ljubljana',
-    alertsEnabled: false,
-    alertThreshold: 'MODERATE',
-  })
-
-  useEffect(() => {
+  const [profile, setProfile] = useState(() => {
     const stored = localStorage.getItem('ecoProfile')
-    if (stored) {
-      setProfile(JSON.parse(stored))
+    return stored ? JSON.parse(stored) : {
+      ecoPriority: 'AIR_QUALITY',
+      activityType: 'WALKING',
+      preferredRegion: 'Ljubljana',
+      alertsEnabled: false,
+      alertThreshold: 'MODERATE',
     }
-  }, [])
+  })
 
   const completeness = useMemo(() => {
     let score = 0
@@ -92,6 +86,16 @@ function EcoProfilePage() {
     }
     setProfile(defaults)
     localStorage.removeItem('ecoProfile')
+  }
+
+  const handleAlertsToggle = async () => {
+    const enabling = !profile.alertsEnabled
+
+    if (enabling && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      await Notification.requestPermission()
+    }
+
+    setProfile(current => ({ ...current, alertsEnabled: enabling }))
   }
 
   return (
@@ -274,8 +278,11 @@ function EcoProfilePage() {
               <h2 style={styles.sectionTitle}>Alert preferences</h2>
             </div>
 
-            <div
-              onClick={() => setProfile(p => ({ ...p, alertsEnabled: !p.alertsEnabled }))}
+            <button
+              type="button"
+              aria-label={profile.alertsEnabled ? 'Disable environmental alerts' : 'Enable environmental alerts'}
+              aria-pressed={profile.alertsEnabled}
+              onClick={handleAlertsToggle}
               style={{
                 ...styles.toggle,
                 background: profile.alertsEnabled ? '#22c55e' : '#334155'
@@ -285,7 +292,7 @@ function EcoProfilePage() {
                 ...styles.toggleThumb,
                 transform: profile.alertsEnabled ? 'translateX(24px)' : 'translateX(2px)'
               }} />
-            </div>
+            </button>
           </div>
 
           <p style={styles.sectionDesc}>
@@ -568,6 +575,8 @@ const styles = {
     borderRadius: '999px',
     cursor: 'pointer',
     position: 'relative',
+    border: 0,
+    padding: 0,
     transition: 'background-color 0.2s',
     flexShrink: 0
   },
