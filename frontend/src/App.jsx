@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import {
@@ -20,6 +20,13 @@ import GpxUploadPage from './pages/GpxUploadPage'
 import StatsDashboardPage from './pages/StatsDashboardPage'
 import EcoProfilePage from './pages/EcoProfilePage'
 import { isLoggedIn, logout } from './services/authService'
+import {
+  buildRouteWaypoints,
+  calculateRouteExposure,
+  evaluateEnvironmentalAlert,
+  normalizeSensorData,
+  selectRouteByStrategy
+} from './utils/environment'
 
 function getAuthHeaders() {
   return {
@@ -383,6 +390,8 @@ function MapPage() {
 
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
+  const [sensorData, setSensorData] = useState([])
+  const [sensorStatus, setSensorStatus] = useState('Loading live sensor data...')
 
   const [status, setStatus] = useState('Loading environmental data...')
   const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
@@ -393,12 +402,6 @@ function MapPage() {
   })
 
   const [profileUpdated, setProfileUpdated] = useState(false)
-
-  const [environmentFilter, setEnvironmentFilter] = useState(
-    ecoProfile?.ecoPriority || 'ALL'
-  )
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
 
   const [environmentFilter, setEnvironmentFilter] = useState(
     ecoProfile?.ecoPriority || 'ALL'
@@ -465,11 +468,47 @@ function MapPage() {
   const [startPoint, setStartPoint] = useState(null)
   const [endPoint, setEndPoint] = useState(null)
   const [routePoints, setRoutePoints] = useState([])
+  const [routeAlternatives, setRouteAlternatives] = useState([])
   const [routeStatus, setRouteStatus] = useState('Select start and destination points on the map.')
   const [routeInfo, setRouteInfo] = useState(null)
 
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
   const [showHeatmap, setShowHeatmap] = useState(false)
+  const [alertTestScenario, setAlertTestScenario] = useState(null)
+  const lastNotification = useRef(null)
+
+  const environmentalAlert = useMemo(() => {
+    if (!ecoProfile?.alertsEnabled) return null
+    const regionCenter = regionCoordinates[ecoProfile.preferredRegion]
+
+    if (alertTestScenario) {
+      const critical = alertTestScenario === 'POOR'
+      return evaluateEnvironmentalAlert([{
+        id: `alert-test-${alertTestScenario}`,
+        latitude: regionCenter[0],
+        longitude: regionCenter[1],
+        airQuality: critical ? 20 : 50,
+        ecoScore: critical ? 25 : 55,
+        temperature: critical ? 32 : 28,
+        timestamp: new Date()
+      }], regionCenter, alertTestScenario)
+    }
+
+    return evaluateEnvironmentalAlert(
+      sensorData,
+      regionCenter,
+      ecoProfile.alertThreshold
+    )
+  }, [alertTestScenario, ecoProfile, sensorData])
+
+  useEffect(() => {
+    if (!environmentalAlert || typeof Notification === 'undefined') return
+    const notificationKey = `${environmentalAlert.title}-${environmentalAlert.message}`
+    if (Notification.permission !== 'granted' || lastNotification.current === notificationKey) return
+
+    new Notification(environmentalAlert.title, { body: environmentalAlert.message })
+    lastNotification.current = notificationKey
+  }, [environmentalAlert])
 
   const heatmapPoints = [
     { position: [46.5547, 15.6459], intensity: 0.9, label: 'Maribor – Air Quality', color: '#3b82f6' },
@@ -530,7 +569,11 @@ function MapPage() {
         })
         .catch(error => {
           console.error(error)
-          setStatus('Failed to load environmental data')
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            setStatus('Session invalid. Sign in again to load environmental data.')
+          } else {
+            setStatus('Failed to load environmental data')
+          }
         })
 
       loadUploadedRoutes()
@@ -543,6 +586,27 @@ function MapPage() {
     }, 300000)
 
     return () => clearInterval(refreshInterval)
+  }, [])
+
+  useEffect(() => {
+    const loadSensorData = () => {
+      axios.get('http://localhost:8080/api/succulent-data', { headers: getAuthHeaders() })
+        .then(response => {
+          const readings = normalizeSensorData(response.data).slice(-500)
+          setSensorData(readings)
+          setSensorStatus(readings.length
+            ? `${readings.length} recent live measurements`
+            : 'No live measurements available')
+        })
+        .catch(error => {
+          console.error(error)
+          setSensorStatus('Live sensor service unavailable')
+        })
+    }
+
+    loadSensorData()
+    const sensorInterval = setInterval(loadSensorData, 15000)
+    return () => clearInterval(sensorInterval)
   }, [])
 
   const environmentalTypes = useMemo(() => {
@@ -608,6 +672,7 @@ function MapPage() {
     setStartPoint(null)
     setEndPoint(null)
     setRoutePoints([])
+    setRouteAlternatives([])
     setRouteInfo(null)
     setSelectionMode(null)
     setRouteStatus('Select start and destination points on the map.')
@@ -617,6 +682,7 @@ function MapPage() {
     setStartPoint([46.5547, 15.6459])
     setEndPoint([46.5602, 15.6487])
     setRoutePoints([])
+    setRouteAlternatives([])
     setRouteInfo(null)
     setSelectionMode(null)
     setRouteStatus('Demo route selected. Click Calculate route.')
@@ -631,54 +697,79 @@ function MapPage() {
     setRouteStatus('Calculating route...')
 
     try {
-      const url =
-        `https://router.project-osrm.org/route/v1/foot/` +
-        `${startPoint[1]},${startPoint[0]};${endPoint[1]},${endPoint[0]}` +
-        `?overview=full&geometries=geojson`
+      const corridorRequests = buildRouteWaypoints(startPoint, endPoint).map(async waypoints => {
+        try {
+          const routingService = ecoProfile?.activityType === 'CYCLING' ? 'routed-bike' : 'routed-foot'
+          const coordinates = [startPoint, ...waypoints, endPoint]
+            .map(point => `${point[1]},${point[0]}`)
+            .join(';')
+          const response = await fetch(
+            `https://routing.openstreetmap.de/${routingService}/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+          )
+          if (!response.ok) return null
+          const data = await response.json()
+          return data.routes?.[0] ?? null
+        } catch (error) {
+          console.error('Route candidate failed:', error)
+          return null
+        }
+      })
+      const routeResponses = await Promise.all(corridorRequests)
+      const availableRoutes = routeResponses.filter(Boolean)
 
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error('Route service unavailable')
+      if (availableRoutes.length === 0) {
+        throw new Error('No routes returned by route service')
       }
-
-      const data = await response.json()
-      const coordinates = data.routes[0].geometry.coordinates
-      const leafletPoints = coordinates.map(point => [point[1], point[0]])
-
-      const distanceKm = data.routes[0].distance / 1000
 
       const selectedEnvironment =
         environmentFilter === 'ALL'
           ? 'AIR_QUALITY'
           : environmentFilter
 
-      let ecoScore = calculateEcoScore(distanceKm, selectedEnvironment)
+      const candidates = availableRoutes.map((route, index) => {
+        const points = route.geometry.coordinates.map(point => [point[1], point[0]])
+        const distanceKm = route.distance / 1000
+        const exposure = calculateRouteExposure(points, sensorData)
 
-      if (selectedRouteType === 'ECO') ecoScore += 5
-      if (selectedRouteType === 'FAST') ecoScore -= 8
-      if (selectedRouteType === 'BALANCED') ecoScore += 1
+        return {
+          id: index,
+          points,
+          distanceKm,
+          durationMin: route.duration / 60,
+          exposure,
+          environmentScore: exposure?.score ?? calculateEcoScore(distanceKm, selectedEnvironment)
+        }
+      })
 
-      if (ecoProfile?.activityType === 'WALKING') ecoScore += 5
-      if (ecoProfile?.activityType === 'RUNNING') ecoScore += 3
-      if (ecoProfile?.activityType === 'CYCLING') ecoScore += 1
+      const selectedRoute = selectRouteByStrategy(candidates, selectedRouteType)
+      const strategyReason = selectedRouteType === 'FAST'
+        ? 'Selected the shortest-duration candidate.'
+        : selectedRouteType === 'ECO'
+          ? 'Selected the candidate with the strongest nearby sensor conditions.'
+          : 'Selected the best balance of duration and environmental conditions.'
 
-      setRoutePoints(leafletPoints)
+      setRouteAlternatives(candidates.map(candidate => candidate.points))
+      setRoutePoints(selectedRoute.points)
 
       setRouteInfo({
-        distanceKm: distanceKm.toFixed(2),
-        durationMin: Math.round(data.routes[0].duration / 60),
-        ecoScore,
+        distanceKm: selectedRoute.distanceKm.toFixed(2),
+        durationMin: Math.round(selectedRoute.durationMin),
+        ecoScore: selectedRoute.environmentScore,
         environmentType: selectedEnvironment,
+        alternativeCount: candidates.length,
+        sensorCount: selectedRoute.exposure?.sensorCount ?? 0,
+        airQuality: selectedRoute.exposure?.airQuality ?? null,
+        temperature: selectedRoute.exposure?.temperature ?? null,
+        strategyReason,
         recommendation:
-          ecoScore >= 85
+          selectedRoute.environmentScore >= 85
             ? 'Excellent route for outdoor activity.'
-            : ecoScore >= 70
+            : selectedRoute.environmentScore >= 70
               ? 'Good route with acceptable environmental conditions.'
               : 'Environmental conditions are less suitable.'
       })
 
-      setRouteStatus('Route calculated successfully.')
+      setRouteStatus(`${routeOptions.find(option => option.id === selectedRouteType)?.name} selected from ${candidates.length} candidate route(s).`)
     } catch (error) {
       console.error(error)
 
@@ -691,12 +782,18 @@ function MapPage() {
           : environmentFilter
 
       setRoutePoints(fallbackRoute)
+      setRouteAlternatives([fallbackRoute])
 
       setRouteInfo({
         distanceKm: distanceKm.toFixed(2),
         durationMin: Math.round(distanceKm * 12),
         ecoScore: calculateEcoScore(distanceKm, selectedEnvironment),
         environmentType: selectedEnvironment,
+        alternativeCount: 1,
+        sensorCount: 0,
+        airQuality: null,
+        temperature: null,
+        strategyReason: 'The routing service was unavailable, so a direct preview was used.',
         recommendation: 'Fallback route preview generated.'
       })
 
@@ -751,6 +848,35 @@ function MapPage() {
       </header>
 
       <section style={styles.container} className="eco-container">
+        {ecoProfile?.alertsEnabled && (
+          <div
+            style={environmentalAlert ? styles.environmentAlert : styles.environmentAlertClear}
+            role={environmentalAlert ? 'alert' : 'status'}
+          >
+            <div>
+              <strong>
+                {alertTestScenario ? 'TEST MODE: ' : ''}
+                {environmentalAlert?.title || `Conditions near ${ecoProfile.preferredRegion} are within your threshold`}
+              </strong>
+              <p>{environmentalAlert?.message || `${sensorStatus}. Alert level: ${ecoProfile.alertThreshold}.`}</p>
+            </div>
+            <div style={styles.alertActions}>
+              <button type="button" onClick={() => setAlertTestScenario('MODERATE')} style={styles.alertTestButton}>
+                Test warning
+              </button>
+              <button type="button" onClick={() => setAlertTestScenario('POOR')} style={styles.alertTestButton}>
+                Test critical
+              </button>
+              {alertTestScenario && (
+                <button type="button" onClick={() => setAlertTestScenario(null)} style={styles.alertTestButton}>
+                  Use live data
+                </button>
+              )}
+              <Link to="/profile" style={styles.alertSettingsLink}>Alert settings</Link>
+            </div>
+          </div>
+        )}
+
         <div style={styles.topGrid}>
           <div style={styles.routePanel}>
             <div style={styles.panelHeader}>
@@ -887,17 +1013,29 @@ function MapPage() {
                   <p style={styles.text}>
                     <strong>Layer:</strong> {formatEnvironmentalType(routeInfo.environmentType)}
                   </p>
+                  <p style={styles.text}>
+                    <strong>Selection:</strong> {routeInfo.strategyReason}
+                  </p>
+                  <p style={styles.mutedText}>
+                    Compared {routeInfo.alternativeCount} candidate route(s) using {routeInfo.sensorCount} nearby live sensor(s).
+                  </p>
                   <p style={styles.text}>{routeInfo.recommendation}</p>
                 </div>
 
                 <div style={styles.conditionsPanel}>
-                  <p style={styles.eyebrow}>Live preview</p>
+                  <p style={styles.eyebrow}>Live measurements</p>
                   <h3 style={styles.cardTitle}>Environmental conditions</h3>
-                  <p style={styles.text}><strong>Air quality:</strong> Good</p>
-                  <p style={styles.text}><strong>Temperature:</strong> 21°C</p>
-                  <p style={styles.text}><strong>Humidity:</strong> 48%</p>
-                  <p style={styles.successText}>
-                    Recommendation: Excellent for walking and outdoor activity.
+                  <p style={styles.text}>
+                    <strong>Air quality:</strong> {routeInfo.airQuality ?? 'No nearby reading'}
+                  </p>
+                  <p style={styles.text}>
+                    <strong>Temperature:</strong> {routeInfo.temperature !== null ? `${routeInfo.temperature} C` : 'No nearby reading'}
+                  </p>
+                  <p style={styles.text}><strong>Sensor status:</strong> {sensorStatus}</p>
+                  <p style={routeInfo.sensorCount ? styles.successText : styles.mutedText}>
+                    {routeInfo.sensorCount
+                      ? 'Eco-score includes live measurements near this route.'
+                      : 'Eco-score uses route characteristics because no nearby sensor was available.'}
                   </p>
                 </div>
               </div>
@@ -938,6 +1076,14 @@ function MapPage() {
                 <div>
                   <strong>Eco Profile</strong>
                   <p>{ecoProfile ? 'Active' : 'Not configured'}</p>
+                </div>
+              </div>
+
+              <div style={styles.moduleItem}>
+                <span style={styles.moduleIcon}>LIVE</span>
+                <div>
+                  <strong>Sensor measurements</strong>
+                  <p>{sensorStatus}</p>
                 </div>
               </div>
             </div>
@@ -1084,6 +1230,19 @@ function MapPage() {
                 <Popup>Destination point</Popup>
               </Marker>
             )}
+
+            {routeAlternatives.map((alternative, index) => (
+              <Polyline
+                key={`alternative-${index}`}
+                positions={alternative}
+                pathOptions={{
+                  color: '#94a3b8',
+                  weight: 3,
+                  opacity: 0.38,
+                  dashArray: '7, 8'
+                }}
+              />
+            ))}
 
             {routePoints.length > 0 && (
               <Polyline
@@ -1454,6 +1613,52 @@ const styles = {
     gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 0.8fr)',
     gap: '22px',
     marginBottom: '22px'
+  },
+  environmentAlert: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '18px',
+    marginBottom: '18px',
+    padding: '16px 18px',
+    borderRadius: '8px',
+    border: '1px solid rgba(251, 146, 60, 0.6)',
+    background: 'rgba(124, 45, 18, 0.72)',
+    color: '#fff7ed'
+  },
+  environmentAlertClear: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '18px',
+    marginBottom: '18px',
+    padding: '16px 18px',
+    borderRadius: '8px',
+    border: '1px solid rgba(34, 197, 94, 0.45)',
+    background: 'rgba(20, 83, 45, 0.65)',
+    color: '#f0fdf4'
+  },
+  alertSettingsLink: {
+    color: '#ffffff',
+    fontWeight: 800,
+    whiteSpace: 'nowrap'
+  },
+  alertActions: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  alertTestButton: {
+    padding: '8px 10px',
+    borderRadius: '6px',
+    border: '1px solid rgba(255, 255, 255, 0.42)',
+    background: 'rgba(15, 23, 42, 0.52)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontWeight: 750,
+    whiteSpace: 'nowrap'
   },
   routePanel: {
     ...glassCard,
