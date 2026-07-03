@@ -116,19 +116,30 @@ export function calculateRouteExposure(points, readings) {
 export function selectRouteByStrategy(routes, strategy) {
   if (!routes.length) return null
   const fastestDuration = Math.min(...routes.map(route => route.durationMin))
+  const ranked = routes.map(route => ({
+    ...route,
+    speedScore: fastestDuration > 0 ? Math.min(100, (fastestDuration / route.durationMin) * 100) : 100,
+    environmentScore: route.environmentScore ?? 50
+  }))
 
-  const ranked = routes.map(route => {
-    const speedScore = fastestDuration > 0 ? Math.min(100, (fastestDuration / route.durationMin) * 100) : 100
-    const environmentScore = route.environmentScore ?? 50
-    let strategyScore = speedScore
+  if (strategy === 'FAST') {
+    return [...ranked].sort((a, b) => a.durationMin - b.durationMin)[0]
+  }
 
-    if (strategy === 'ECO') strategyScore = environmentScore * 0.85 + speedScore * 0.15
-    if (strategy === 'BALANCED') strategyScore = environmentScore * 0.5 + speedScore * 0.5
+  if (strategy === 'ECO') {
+    // Prefer the cleanest air/conditions; when candidates tie on environment
+    // data (e.g. no live sensor coverage yet), favour the road less travelled
+    // over silently collapsing to the fastest route.
+    return [...ranked].sort((a, b) => {
+      if (b.environmentScore !== a.environmentScore) return b.environmentScore - a.environmentScore
+      return b.durationMin - a.durationMin
+    })[0]
+  }
 
-    return { ...route, speedScore, strategyScore }
-  }).sort((a, b) => b.strategyScore - a.strategyScore)
-
-  return ranked[0]
+  // BALANCED: the candidate with the median duration is a genuine middle
+  // ground between the fastest and the most eco-friendly option.
+  const sortedByDuration = [...ranked].sort((a, b) => a.durationMin - b.durationMin)
+  return sortedByDuration[Math.floor((sortedByDuration.length - 1) / 2)]
 }
 
 export function evaluateEnvironmentalAlert(readings, regionCenter, threshold = 'MODERATE') {
