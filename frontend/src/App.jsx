@@ -688,7 +688,9 @@ function MapPage() {
     setRouteStatus('Demo route selected. Click Calculate route.')
   }
 
-  const calculateRoute = async () => {
+  const calculateRoute = async (routeTypeOverride) => {
+    const routeType = routeTypeOverride ?? selectedRouteType
+
     if (!startPoint || !endPoint) {
       setRouteStatus('Please select start and destination points first.')
       return
@@ -697,14 +699,16 @@ function MapPage() {
     setRouteStatus('Calculating route...')
 
     try {
+      const routingService = ecoProfile?.activityType === 'CYCLING' ? 'routed-bike' : 'routed-foot'
+      const routingProfile = routingService === 'routed-bike' ? 'bike' : 'foot'
+
       const corridorRequests = buildRouteWaypoints(startPoint, endPoint).map(async waypoints => {
         try {
-          const routingService = ecoProfile?.activityType === 'CYCLING' ? 'routed-bike' : 'routed-foot'
           const coordinates = [startPoint, ...waypoints, endPoint]
             .map(point => `${point[1]},${point[0]}`)
             .join(';')
           const response = await fetch(
-            `https://routing.openstreetmap.de/${routingService}/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+            `https://routing.openstreetmap.de/${routingService}/route/v1/${routingProfile}/${coordinates}?overview=full&geometries=geojson`
           )
           if (!response.ok) return null
           const data = await response.json()
@@ -741,10 +745,10 @@ function MapPage() {
         }
       })
 
-      const selectedRoute = selectRouteByStrategy(candidates, selectedRouteType)
-      const strategyReason = selectedRouteType === 'FAST'
+      const selectedRoute = selectRouteByStrategy(candidates, routeType)
+      const strategyReason = routeType === 'FAST'
         ? 'Selected the shortest-duration candidate.'
-        : selectedRouteType === 'ECO'
+        : routeType === 'ECO'
           ? 'Selected the candidate with the strongest nearby sensor conditions.'
           : 'Selected the best balance of duration and environmental conditions.'
 
@@ -769,7 +773,7 @@ function MapPage() {
               : 'Environmental conditions are less suitable.'
       })
 
-      setRouteStatus(`${routeOptions.find(option => option.id === selectedRouteType)?.name} selected from ${candidates.length} candidate route(s).`)
+      setRouteStatus(`${routeOptions.find(option => option.id === routeType)?.name} selected from ${candidates.length} candidate route(s).`)
     } catch (error) {
       console.error(error)
 
@@ -798,6 +802,14 @@ function MapPage() {
       })
 
       setRouteStatus('Fallback route generated.')
+    }
+  }
+
+  const selectRouteType = (routeTypeId) => {
+    setSelectedRouteType(routeTypeId)
+
+    if (startPoint && endPoint) {
+      calculateRoute(routeTypeId)
     }
   }
 
@@ -942,7 +954,7 @@ function MapPage() {
                 Select destination
               </button>
 
-              <button onClick={calculateRoute} style={styles.greenButton}>
+              <button onClick={() => calculateRoute()} style={styles.greenButton}>
                 Calculate route
               </button>
 
@@ -966,7 +978,7 @@ function MapPage() {
               {routeOptions.map(route => (
                 <button
                   key={route.id}
-                  onClick={() => setSelectedRouteType(route.id)}
+                  onClick={() => selectRouteType(route.id)}
                   style={{
                     ...styles.routeOptionButton,
                     borderColor:
