@@ -2,6 +2,7 @@ package backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.ResourceAccessException;
@@ -13,6 +14,7 @@ import java.util.*;
 public class SucculentDataController {
 
     private static final String SUCCULENT_URL = "http://localhost:9090/data";
+    private static final int SUCCULENT_TIMEOUT_MS = 3000;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -22,7 +24,14 @@ public class SucculentDataController {
     @GetMapping
     public ResponseEntity<?> getSucculentData() {
         try {
-            RestTemplate restTemplate = new RestTemplate();
+            // Without an explicit timeout, RestTemplate hangs indefinitely when
+            // the succulent container is unreachable or stuck, instead of
+            // falling through to the "unavailable" response below.
+            SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+            requestFactory.setConnectTimeout(SUCCULENT_TIMEOUT_MS);
+            requestFactory.setReadTimeout(SUCCULENT_TIMEOUT_MS);
+
+            RestTemplate restTemplate = new RestTemplate(requestFactory);
             String jsonResponse = restTemplate.getForObject(SUCCULENT_URL, String.class);
 
             if (jsonResponse == null || jsonResponse.isBlank()) {
