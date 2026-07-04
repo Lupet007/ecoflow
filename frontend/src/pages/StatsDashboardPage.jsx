@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { calculateRouteAirQuality, normalizeAirQualityStations } from '../utils/environment'
+import { useRealGeolocation } from '../hooks/useRealGeolocation'
 
 function getAuthHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -54,6 +56,23 @@ function StatsDashboardPage() {
   const [sensorData, setSensorData] = useState([])
   const [sensorStatus, setSensorStatus] = useState('loading')
   const [loading, setLoading] = useState(true)
+  const [selectedActivity, setSelectedActivity] = useState('WALKING')
+  const [locationState, setLocationState] = useState({ status: 'idle', message: '' })
+
+  const loadSensorData = () => {
+    axios.get('http://localhost:8080/api/succulent-data', { headers: getAuthHeaders() })
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          setSensorData(res.data)
+          setSensorStatus('ok')
+        } else if (res.data?.status === 'unavailable') {
+          setSensorStatus('unavailable')
+        } else {
+          setSensorStatus('ok')
+        }
+      })
+      .catch(() => setSensorStatus('unavailable'))
+  }
 
   useEffect(() => {
     const headers = getAuthHeaders()
@@ -69,19 +88,74 @@ function StatsDashboardPage() {
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
 
-    axios.get('http://localhost:8080/api/succulent-data', { headers })
-      .then(res => {
-        if (Array.isArray(res.data)) {
-          setSensorData(res.data)
-          setSensorStatus('ok')
-        } else if (res.data?.status === 'unavailable') {
-          setSensorStatus('unavailable')
-        } else {
-          setSensorStatus('ok')
-        }
-      })
-      .catch(() => setSensorStatus('unavailable'))
+    loadSensorData()
   }, [])
+
+  // Looks up real ARSO air quality and real Open-Meteo temperature for a
+  // real GPS position - reusing the same nearest-station EAQI logic already
+  // built and tested for route scoring, rather than duplicating it or
+  // fabricating a reading.
+  const recordMeasurementForPosition = async ({ latitude, longitude }) => {
+    setLocationState({ status: 'requesting', message: 'Looking up real air quality and weather for your location...' })
+
+    try {
+      const [airQualityRes, weatherRes] = await Promise.all([
+        axios.get('http://localhost:8080/api/air-quality', { headers: getAuthHeaders() }),
+        axios.get('https://api.open-meteo.com/v1/forecast', {
+          params: { latitude, longitude, current: 'temperature_2m' }
+        })
+      ])
+
+      const stations = normalizeAirQualityStations(airQualityRes.data)
+      const airQuality = calculateRouteAirQuality([[latitude, longitude]], stations)
+      const temperature = weatherRes.data?.current?.temperature_2m
+
+      // ARSO only monitors Slovenia, while Open-Meteo is global - so outside
+      // Slovenia, air quality alone is expected to be unavailable. Only
+      // refuse to record when NEITHER real source has anything, and only
+      // ever send the specific fields that are genuinely known (never a
+      // fabricated placeholder for the other one).
+      if (airQuality?.score == null && temperature == null) {
+        setLocationState({
+          status: 'error',
+          message: 'Could not record a real measurement: no nearby ARSO air-quality station and no weather data for your current location.'
+        })
+        return
+      }
+
+      const measurement = { latitude, longitude, activity_type: selectedActivity }
+      if (airQuality?.score != null) {
+        measurement.air_quality = airQuality.score
+        measurement.eco_score = airQuality.score
+      }
+      if (temperature != null) {
+        measurement.temperature = temperature
+      }
+
+      await axios.post('http://localhost:8080/api/succulent-data', measurement, { headers: getAuthHeaders() })
+
+      const parts = []
+      parts.push(airQuality?.score != null
+        ? `${airQuality.stationCount} nearby ARSO station(s)`
+        : 'no ARSO air-quality station nearby (Slovenia only)')
+      if (temperature != null) parts.push(`${temperature}°C`)
+
+      setLocationState({
+        status: 'success',
+        message: `Recorded your real location - ${parts.join(', ')}.`
+      })
+      loadSensorData()
+    } catch (err) {
+      console.error(err)
+      setLocationState({ status: 'error', message: 'Failed to record your real measurement.' })
+    }
+  }
+
+  // recordMeasurementForPosition fires both when the button below is clicked
+  // (first-time grant) and automatically once useRealGeolocation silently
+  // resolves a position on mount because permission was already granted on a
+  // previous visit - so repeat visits don't require clicking the button again.
+  const { error: geoError, requestLocation } = useRealGeolocation(recordMeasurementForPosition)
 
   const airCount = products.filter(p => getEnvironmentalType(p.name) === 'AIR_QUALITY').length
   const waterCount = products.filter(p => getEnvironmentalType(p.name) === 'WATER_QUALITY').length
@@ -245,7 +319,7 @@ function StatsDashboardPage() {
           <section style={styles.section}>
             <div style={styles.sectionHeader}>
               <div>
-                <p style={styles.eyebrow}>IoT integration</p>
+                <p style={styles.eyebrow}>IoT integration (simulated demo)</p>
                 <h2 style={styles.sectionTitle}>Live sensor data</h2>
               </div>
               <span style={sensorStatus === 'ok' ? styles.pillSuccess : styles.pillWarning}>
@@ -254,8 +328,39 @@ function StatsDashboardPage() {
             </div>
 
             <p style={styles.sectionDesc}>
-              Real-time environmental measurements collected from IoT devices and smartwatches via the Succulent data collection framework.
+              Simulated sensor readings generated by a demo script (no physical IoT devices are connected), sent through the
+              Succulent data collection framework to illustrate how live device data would flow through the system.
             </p>
+
+            <div style={styles.locationRecorder}>
+              <select
+                value={selectedActivity}
+                onChange={(e) => setSelectedActivity(e.target.value)}
+                style={styles.activitySelect}
+              >
+                <option value="WALKING">🚶 Walking</option>
+                <option value="CYCLING">🚴 Cycling</option>
+                <option value="RUNNING">🏃 Running</option>
+              </select>
+
+              <button
+                onClick={requestLocation}
+                disabled={locationState.status === 'requesting'}
+                style={styles.recordButton}
+              >
+                {locationState.status === 'requesting' ? 'Getting your location...' : '📍 Share my real location'}
+              </button>
+
+              {geoError && (
+                <p style={styles.locationError}>{geoError}</p>
+              )}
+
+              {!geoError && locationState.message && (
+                <p style={locationState.status === 'error' ? styles.locationError : styles.locationSuccess}>
+                  {locationState.message}
+                </p>
+              )}
+            </div>
 
             {sensorStatus === 'unavailable' && (
               <div style={styles.sensorOffline}>
@@ -703,6 +808,44 @@ const styles = {
     fontSize: '13px',
     marginTop: '10px',
     textAlign: 'center'
+  },
+  locationRecorder: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '18px'
+  },
+  activitySelect: {
+    padding: '10px 12px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148,163,184,0.28)',
+    backgroundColor: '#0f172a',
+    color: '#f8fafc',
+    fontWeight: 700
+  },
+  recordButton: {
+    padding: '10px 16px',
+    borderRadius: '12px',
+    border: 'none',
+    background: 'linear-gradient(135deg, #10b981, #22c55e)',
+    color: '#fff',
+    fontWeight: 800,
+    cursor: 'pointer'
+  },
+  locationSuccess: {
+    color: '#86efac',
+    fontSize: '13px',
+    fontWeight: 700,
+    margin: 0,
+    width: '100%'
+  },
+  locationError: {
+    color: '#fca5a5',
+    fontSize: '13px',
+    fontWeight: 700,
+    margin: 0,
+    width: '100%'
   }
 }
 

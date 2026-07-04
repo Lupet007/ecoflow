@@ -20,6 +20,7 @@ import GpxUploadPage from './pages/GpxUploadPage'
 import StatsDashboardPage from './pages/StatsDashboardPage'
 import EcoProfilePage from './pages/EcoProfilePage'
 import { isLoggedIn, logout } from './services/authService'
+import { useRealGeolocation } from './hooks/useRealGeolocation'
 import {
   buildRouteWaypoints,
   calculateRouteAirQuality,
@@ -132,6 +133,22 @@ function FlyToRegion({ center }) {
       map.flyTo(center, 9, { duration: 1.5 })
     }
   }, [center, map])
+
+  return null
+}
+
+function FlyToUserLocation({ position }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (position) {
+      // Zoomed in closer than FlyToRegion's city-level view, and flies
+      // regardless of where in the world the real position is - the user
+      // may be testing from outside Slovenia entirely, and would otherwise
+      // never see their own marker on the default Slovenia-centered map.
+      map.flyTo([position.latitude, position.longitude], 12, { duration: 1.5 })
+    }
+  }, [position, map])
 
   return null
 }
@@ -392,6 +409,15 @@ function MapPage() {
   const [sensorStatus, setSensorStatus] = useState('Loading live sensor data...')
   const [airQualityStations, setAirQualityStations] = useState([])
   const [airQualityStatus, setAirQualityStatus] = useState('Loading ARSO air quality stations...')
+
+  // Read-only "you are here" marker - no measurement is recorded here (that
+  // stays on the Dashboard's "Share my real location" action); this just
+  // displays the real position on the map, reusing the airQualityStations
+  // already polled above instead of a second network round-trip.
+  const { position: myPosition, error: myLocationError, requestLocation: requestMyLocation } = useRealGeolocation()
+  const myAirQuality = myPosition
+    ? calculateRouteAirQuality([[myPosition.latitude, myPosition.longitude]], airQualityStations)
+    : null
 
   const [status, setStatus] = useState('Loading environmental data...')
   const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
@@ -1024,7 +1050,17 @@ function MapPage() {
               >
                 {showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
               </button>
+
+              <button onClick={requestMyLocation} style={styles.secondaryDarkButton}>
+                📍 Show my location
+              </button>
             </div>
+
+            {myLocationError && (
+              <p style={{ marginTop: '10px', color: '#fbbf24', fontWeight: 700, textAlign: 'center' }}>
+                {myLocationError}
+              </p>
+            )}
 
             <div style={styles.optionRow} className="eco-option-row">
               {routeOptions.map(route => (
@@ -1238,6 +1274,8 @@ function MapPage() {
                 : null}
             />
 
+            <FlyToUserLocation position={myPosition} />
+
             {selectedRouteCoordinates.length > 0 && (
               <FlyToRoute routeCoordinates={selectedRouteCoordinates} />
             )}
@@ -1263,6 +1301,28 @@ function MapPage() {
                 </Marker>
               )
             })}
+
+            {myPosition && (
+              <CircleMarker
+                center={[myPosition.latitude, myPosition.longitude]}
+                radius={9}
+                pathOptions={{
+                  color: '#38bdf8',
+                  fillColor: '#38bdf8',
+                  fillOpacity: 0.85,
+                  weight: 3
+                }}
+              >
+                <Popup>
+                  <strong>You are here</strong>
+                  <br />
+                  {myAirQuality?.score != null
+                    ? <>Real air quality index: {myAirQuality.score}/100
+                        <br />Nearest station: {myAirQuality.stationNames?.[0] ?? 'ARSO station'} ({myAirQuality.nearestDistanceKm} km)</>
+                    : 'No real ARSO air-quality station is within range of your location (ARSO only covers Slovenia).'}
+                </Popup>
+              </CircleMarker>
+            )}
 
             {showHeatmap && heatmapPoints.map((point, index) => (
               <CircleMarker
