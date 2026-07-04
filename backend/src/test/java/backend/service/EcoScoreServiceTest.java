@@ -1,8 +1,11 @@
 package backend.service;
 
+import backend.model.ArsoAirQuality;
 import backend.model.CopernicusProduct;
 import backend.model.RoutePoint;
+import backend.repository.ArsoAirQualityRepository;
 import backend.repository.CopernicusProductRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -10,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,8 +26,18 @@ class EcoScoreServiceTest {
     @Mock
     private CopernicusProductRepository copernicusProductRepository;
 
+    @Mock
+    private ArsoAirQualityRepository arsoAirQualityRepository;
+
     @InjectMocks
     private EcoScoreService ecoScoreService;
+
+    // Default: no real ARSO station nearby, matching most tests below that
+    // don't specifically exercise the "real air quality nearby" branch.
+    @BeforeEach
+    void setUpDefaultAirQuality() {
+        lenient().when(arsoAirQualityRepository.findLatestBatch()).thenReturn(Collections.emptyList());
+    }
 
     // --- Helper methods to build test data ---
 
@@ -31,6 +45,21 @@ class EcoScoreServiceTest {
         CopernicusProduct p = mock(CopernicusProduct.class);
         lenient().when(p.getName()).thenReturn(name);
         return p;
+    }
+
+    // Places a real ARSO station at the same coordinates points(...) below
+    // generates (46.5+i*0.001, 15.6+i*0.001), so calculate()'s real
+    // proximity check finds it - replacing the old Copernicus-name-presence
+    // stand-in for "air quality data is present".
+    private void mockNearbyArsoStation() {
+        ArsoAirQuality station = mock(ArsoAirQuality.class);
+        lenient().when(station.getLatitude()).thenReturn(46.55);
+        lenient().when(station.getLongitude()).thenReturn(15.65);
+        lenient().when(arsoAirQualityRepository.findLatestBatch()).thenReturn(List.of(station));
+    }
+
+    private void mockNoNearbyArsoStation() {
+        lenient().when(arsoAirQualityRepository.findLatestBatch()).thenReturn(Collections.emptyList());
     }
 
     private List<RoutePoint> points(int count, Double elevation) {
@@ -85,7 +114,7 @@ class EcoScoreServiceTest {
 
     @Test
     void calculate_addsBonus_whenAirQualityDataPresent() {
-        mockProducts("S3A_OL_1_EFR____20160911.SEN3");
+        mockNearbyArsoStation();
         double score = ecoScoreService.calculate(points(100, 300.0), null, null);
         assertThat(score).isGreaterThan(50.0);
     }
@@ -111,10 +140,10 @@ class EcoScoreServiceTest {
     @Test
     void calculate_addsDiversityBonus_whenThreeDataSources() {
         mockProducts(
-                "S3A_OL_1_EFR____air.SEN3",
                 "S3A_OL_2_WRR____water.SEN3",
                 "S3A_SL_2_LST____temp.SEN3"
         );
+        mockNearbyArsoStation();
         double score = ecoScoreService.calculate(points(100, 300.0), null, null);
         assertThat(score).isGreaterThan(50.0);
     }
@@ -188,7 +217,7 @@ class EcoScoreServiceTest {
 
     @Test
     void calculate_runningActivity_bonusWithAirData() {
-        mockProducts("S3A_OL_1_EFR____air.SEN3");
+        mockNearbyArsoStation();
         double runningScore = ecoScoreService.calculate(points(100, 300.0), "RUNNING", null);
         assertThat(runningScore).isGreaterThan(50.0);
     }
@@ -227,10 +256,10 @@ class EcoScoreServiceTest {
 
     @Test
     void calculate_airQualityPriority_bonusWhenDataPresent() {
-        mockProducts("S3A_OL_1_EFR____air.SEN3");
+        mockNearbyArsoStation();
         double withData = ecoScoreService.calculate(points(100, 300.0), null, "AIR_QUALITY");
 
-        mockProducts();
+        mockNoNearbyArsoStation();
         double withoutData = ecoScoreService.calculate(points(100, 300.0), null, "AIR_QUALITY");
 
         assertThat(withData).isGreaterThan(withoutData);
@@ -272,10 +301,8 @@ class EcoScoreServiceTest {
 
     @Test
     void calculate_differentProfiles_produceDifferentScores() {
-        mockProducts(
-                "S3A_OL_1_EFR____air.SEN3",
-                "S3A_SL_2_LST____temp.SEN3"
-        );
+        mockProducts("S3A_SL_2_LST____temp.SEN3");
+        mockNearbyArsoStation();
 
         double runningAir = ecoScoreService.calculate(points(100, 300.0), "RUNNING", "AIR_QUALITY");
         double walkingTemp = ecoScoreService.calculate(points(100, 300.0), "WALKING", "LAND_TEMPERATURE");
@@ -287,10 +314,8 @@ class EcoScoreServiceTest {
 
     @Test
     void calculate_neverExceeds100() {
-        mockProducts(
-                "S3A_OL_1_EFR____air.SEN3",
-                "S3A_OL_2_WRR____water.SEN3"
-        );
+        mockProducts("S3A_OL_2_WRR____water.SEN3");
+        mockNearbyArsoStation();
         double score = ecoScoreService.calculate(points(100, 1000.0), "CYCLING", "AIR_QUALITY");
         assertThat(score).isLessThanOrEqualTo(100.0);
     }
