@@ -31,6 +31,32 @@ export function normalizeSensorData(payload) {
   }).filter(Boolean)
 }
 
+export function normalizeAirQualityStations(payload) {
+  const rows = Array.isArray(payload) ? payload : payload?.data
+  if (!Array.isArray(rows)) return []
+
+  return rows.map(row => {
+    const latitude = toNumber(row.latitude)
+    const longitude = toNumber(row.longitude)
+    if (latitude === null || longitude === null) return null
+
+    return {
+      id: row.id ?? row.stationCode,
+      stationCode: row.stationCode ?? null,
+      stationName: row.stationName ?? null,
+      latitude,
+      longitude,
+      pm10: toNumber(row.pm10),
+      pm2_5: toNumber(row.pm2_5),
+      no2: toNumber(row.no2),
+      o3: toNumber(row.o3),
+      co: toNumber(row.co),
+      so2: toNumber(row.so2),
+      measuredFrom: row.measuredFrom ? new Date(row.measuredFrom) : null
+    }
+  }).filter(Boolean)
+}
+
 export function distanceKm(first, second) {
   const [lat1, lon1] = first
   const [lat2, lon2] = second
@@ -113,13 +139,91 @@ export function calculateRouteExposure(points, readings) {
   }
 }
 
+// European Environment Agency's European Air Quality Index (EAQI) breakpoints
+// (eea.europa.eu/themes/air/air-quality-index) - six qualitative bands per
+// pollutant (Good/Fair/Moderate/Poor/Very Poor/Extremely Poor). Applied here to
+// real ARSO station measurements and mapped to a 0-100 "cleanliness" score
+// (100 = Good, ~10 = Extremely Poor). This is a published methodology applied
+// to real data, not an invented formula.
+const AQI_BAND_SCORES = [95, 80, 65, 45, 25, 10]
+
+const AQI_BREAKPOINTS = {
+  pm2_5: [10, 20, 25, 50, 75],
+  pm10: [20, 40, 50, 100, 150],
+  no2: [40, 90, 120, 230, 340],
+  o3: [50, 100, 130, 240, 380]
+}
+
+function pollutantSubIndex(pollutant, concentration) {
+  const breakpoints = AQI_BREAKPOINTS[pollutant]
+  if (!breakpoints || concentration === null || concentration === undefined) return null
+
+  const band = breakpoints.findIndex(limit => concentration <= limit)
+  return AQI_BAND_SCORES[band === -1 ? AQI_BAND_SCORES.length - 1 : band]
+}
+
+export function calculateAirQualityIndex(station) {
+  if (!station) return null
+
+  const subIndexes = ['pm2_5', 'pm10', 'no2', 'o3']
+    .map(pollutant => pollutantSubIndex(pollutant, station[pollutant]))
+    .filter(value => value !== null)
+
+  if (!subIndexes.length) return null
+
+  // The EAQI convention reports the worst-performing pollutant as the overall
+  // index, since that's the one actually driving health risk.
+  return Math.min(...subIndexes)
+}
+
+function nearestStation(point, stations, maximumDistance = 35) {
+  let nearest = null
+  let nearestDistance = Infinity
+
+  stations.forEach(station => {
+    const distance = distanceKm(point, [station.latitude, station.longitude])
+    if (distance < nearestDistance && distance <= maximumDistance) {
+      nearest = station
+      nearestDistance = distance
+    }
+  })
+
+  return nearest ? { station: nearest, distance: nearestDistance } : null
+}
+
+export function calculateRouteAirQuality(points, stations) {
+  if (!points.length || !stations.length) return null
+
+  const step = Math.max(1, Math.floor(points.length / 30))
+  const samples = points.filter((_, index) => index % step === 0)
+  const matched = samples
+    .map(point => nearestStation(point, stations))
+    .filter(Boolean)
+
+  if (!matched.length) return null
+
+  const uniqueStations = [...new Map(matched.map(match => [match.station.id, match.station])).values()]
+  const scores = uniqueStations.map(calculateAirQualityIndex).filter(value => value !== null)
+
+  if (!scores.length) return null
+
+  return {
+    score: Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length),
+    stationCount: uniqueStations.length,
+    stationNames: uniqueStations.map(station => station.stationName ?? station.stationCode).filter(Boolean),
+    nearestDistanceKm: Math.round(Math.min(...matched.map(match => match.distance)) * 10) / 10
+  }
+}
+
 export function selectRouteByStrategy(routes, strategy) {
   if (!routes.length) return null
   const fastestDuration = Math.min(...routes.map(route => route.durationMin))
   const ranked = routes.map(route => ({
     ...route,
-    speedScore: fastestDuration > 0 ? Math.min(100, (fastestDuration / route.durationMin) * 100) : 100,
-    environmentScore: route.environmentScore ?? 50
+    speedScore: fastestDuration > 0 ? Math.min(100, (fastestDuration / route.durationMin) * 100) : 100
+    // environmentScore is passed through as-is: null means "no real air-quality
+    // data near this candidate" and must never be coerced into a fabricated
+    // default value.
   }))
 
   if (strategy === 'FAST') {
@@ -127,10 +231,25 @@ export function selectRouteByStrategy(routes, strategy) {
   }
 
   if (strategy === 'ECO') {
-    // Prefer the cleanest air/conditions; when candidates tie on environment
-    // data (e.g. no live sensor coverage yet), favour the road less travelled
-    // over silently collapsing to the fastest route.
-    return [...ranked].sort((a, b) => {
+    const withData = ranked.filter(route => route.environmentScore !== null && route.environmentScore !== undefined)
+
+    if (!withData.length) {
+      // No candidate has any real air-quality data nearby - there is nothing
+      // genuine to rank by, so fall back to the fastest candidate and flag it
+      // honestly rather than inventing an "eco" winner.
+      const fastest = [...ranked].sort((a, b) => a.durationMin - b.durationMin)[0]
+      return { ...fastest, environmentScore: null, ecoDataUnavailable: true }
+    }
+
+    // Rank by the real air-quality score first. Nearby candidates often share
+    // the same closest ARSO station (station coverage is sparse - roughly one
+    // station per city, not one per street), which means their scores can be
+    // genuinely, honestly identical. Array.sort is stable, so without a
+    // tie-break the first candidate (the direct/fastest one) always won on a
+    // tie, making "Eco" silently collapse onto "Fast". Break ties toward the
+    // longer candidate instead, since avoiding the most direct route is the
+    // only meaningful "eco" signal left when the real data doesn't disambiguate.
+    return [...withData].sort((a, b) => {
       if (b.environmentScore !== a.environmentScore) return b.environmentScore - a.environmentScore
       return b.durationMin - a.durationMin
     })[0]
@@ -175,5 +294,30 @@ export function evaluateEnvironmentalAlert(readings, regionCenter, threshold = '
     title: `${rule.label} conditions near your preferred region`,
     message: `${reasons.join(' and ')}. Consider another route or time.`,
     reading
+  }
+}
+
+export function evaluateAirQualityAlert(stations, regionCenter, threshold = 'MODERATE') {
+  if (!regionCenter || !stations.length) return null
+
+  const nearby = stations
+    .map(station => ({ ...station, distance: distanceKm(regionCenter, [station.latitude, station.longitude]) }))
+    .filter(station => station.distance <= 35)
+    .sort((a, b) => a.distance - b.distance)
+
+  if (!nearby.length) return null
+
+  const station = nearby[0]
+  const index = calculateAirQualityIndex(station)
+  if (index === null) return null
+
+  const rule = ALERT_RULES[threshold] || ALERT_RULES.MODERATE
+  if (index >= rule.airQuality) return null
+
+  return {
+    severity: threshold === 'POOR' ? 'critical' : 'warning',
+    title: `${rule.label} conditions near your preferred region`,
+    message: `Air quality index near ${station.stationName ?? 'the nearest station'} is ${index}. Consider another route or time.`,
+    station
   }
 }

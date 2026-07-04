@@ -22,8 +22,9 @@ import EcoProfilePage from './pages/EcoProfilePage'
 import { isLoggedIn, logout } from './services/authService'
 import {
   buildRouteWaypoints,
-  calculateRouteExposure,
-  evaluateEnvironmentalAlert,
+  calculateRouteAirQuality,
+  evaluateAirQualityAlert,
+  normalizeAirQualityStations,
   normalizeSensorData,
   selectRouteByStrategy
 } from './utils/environment'
@@ -83,20 +84,18 @@ function calculateDistanceKm(routePoints) {
   return distance
 }
 
-function calculateEcoScore(distanceKm, environmentType) {
-  let score = 90
+function formatDuration(totalMinutes) {
+  const rounded = Math.max(0, Math.round(totalMinutes))
+  const hours = Math.floor(rounded / 60)
+  const minutes = rounded % 60
 
-  if (distanceKm > 5) score -= 8
-  if (distanceKm > 10) score -= 12
-
-  if (environmentType === 'AIR_QUALITY') score += 4
-  if (environmentType === 'LAND_TEMPERATURE') score -= 3
-  if (environmentType === 'WATER_QUALITY') score += 2
-
-  return Math.max(45, Math.min(100, Math.round(score)))
+  if (hours === 0) return `${minutes} min`
+  if (minutes === 0) return `${hours} h`
+  return `${hours} h ${minutes} min`
 }
 
 function getScoreColor(score) {
+  if (score === null || score === undefined) return '#94a3b8'
   if (score >= 80) return '#22c55e'
   if (score >= 60) return '#3b82f6'
   if (score >= 40) return '#f59e0b'
@@ -390,8 +389,9 @@ function MapPage() {
 
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
-  const [sensorData, setSensorData] = useState([])
   const [sensorStatus, setSensorStatus] = useState('Loading live sensor data...')
+  const [airQualityStations, setAirQualityStations] = useState([])
+  const [airQualityStatus, setAirQualityStatus] = useState('Loading ARSO air quality stations...')
 
   const [status, setStatus] = useState('Loading environmental data...')
   const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
@@ -476,6 +476,7 @@ function MapPage() {
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [alertTestScenario, setAlertTestScenario] = useState(null)
   const lastNotification = useRef(null)
+  const routeRequestId = useRef(0)
 
   const environmentalAlert = useMemo(() => {
     if (!ecoProfile?.alertsEnabled) return null
@@ -483,23 +484,27 @@ function MapPage() {
 
     if (alertTestScenario) {
       const critical = alertTestScenario === 'POOR'
-      return evaluateEnvironmentalAlert([{
+      return evaluateAirQualityAlert([{
         id: `alert-test-${alertTestScenario}`,
+        stationName: 'Test station',
         latitude: regionCenter[0],
         longitude: regionCenter[1],
-        airQuality: critical ? 20 : 50,
-        ecoScore: critical ? 25 : 55,
-        temperature: critical ? 32 : 28,
-        timestamp: new Date()
+        // pm2.5 concentrations chosen to land in the EAQI "Poor" (60 ug/m3)
+        // and "Moderate" (30 ug/m3) bands, so the test buttons genuinely
+        // exercise the same real-data-based alert logic as live stations.
+        pm2_5: critical ? 60 : 30,
+        pm10: null,
+        no2: null,
+        o3: null
       }], regionCenter, alertTestScenario)
     }
 
-    return evaluateEnvironmentalAlert(
-      sensorData,
+    return evaluateAirQualityAlert(
+      airQualityStations,
       regionCenter,
       ecoProfile.alertThreshold
     )
-  }, [alertTestScenario, ecoProfile, sensorData])
+  }, [alertTestScenario, ecoProfile, airQualityStations])
 
   useEffect(() => {
     if (!environmentalAlert || typeof Notification === 'undefined') return
@@ -593,7 +598,6 @@ function MapPage() {
       axios.get('http://localhost:8080/api/succulent-data', { headers: getAuthHeaders() })
         .then(response => {
           const readings = normalizeSensorData(response.data).slice(-500)
-          setSensorData(readings)
           setSensorStatus(readings.length
             ? `${readings.length} recent live measurements`
             : 'No live measurements available')
@@ -607,6 +611,29 @@ function MapPage() {
     loadSensorData()
     const sensorInterval = setInterval(loadSensorData, 15000)
     return () => clearInterval(sensorInterval)
+  }, [])
+
+  useEffect(() => {
+    const loadAirQualityStations = () => {
+      axios.get('http://localhost:8080/api/air-quality', { headers: getAuthHeaders() })
+        .then(response => {
+          const stations = normalizeAirQualityStations(response.data)
+          setAirQualityStations(stations)
+          setAirQualityStatus(stations.length
+            ? `${stations.length} ARSO station(s) reporting`
+            : 'No ARSO air quality data available')
+        })
+        .catch(error => {
+          console.error(error)
+          setAirQualityStatus('ARSO air quality service unavailable')
+        })
+    }
+
+    loadAirQualityStations()
+    // ARSO refreshes hourly, so polling every 5 minutes is frequent enough
+    // without hammering the backend for data that rarely changes.
+    const airQualityInterval = setInterval(loadAirQualityStations, 300000)
+    return () => clearInterval(airQualityInterval)
   }, [])
 
   const environmentalTypes = useMemo(() => {
@@ -696,6 +723,15 @@ function MapPage() {
       return
     }
 
+    // Guards against overlapping requests: switching route type quickly (e.g.
+    // Fast then Balanced before Fast's network round-trip finishes) starts a
+    // second calculateRoute() call while the first is still in flight. Without
+    // this, whichever fetch happens to resolve last wins and overwrites the
+    // screen - regardless of which button was actually clicked last - making
+    // "Balanced" sometimes display an older "Fast" result or vice versa.
+    const requestId = ++routeRequestId.current
+    const isStale = () => requestId !== routeRequestId.current
+
     setRouteStatus('Calculating route...')
 
     try {
@@ -733,24 +769,32 @@ function MapPage() {
       const candidates = availableRoutes.map((route, index) => {
         const points = route.geometry.coordinates.map(point => [point[1], point[0]])
         const distanceKm = route.distance / 1000
-        const exposure = calculateRouteExposure(points, sensorData)
+        const durationMin = route.duration / 60
+        // Real ARSO station measurements only - no distance-based formula or
+        // fabricated bonus. `airQuality` is null when no real station is
+        // within range, and that null is never replaced with a made-up score.
+        const airQuality = calculateRouteAirQuality(points, airQualityStations)
 
         return {
           id: index,
           points,
           distanceKm,
-          durationMin: route.duration / 60,
-          exposure,
-          environmentScore: exposure?.score ?? calculateEcoScore(distanceKm, selectedEnvironment)
+          durationMin,
+          airQuality,
+          environmentScore: airQuality?.score ?? null
         }
       })
 
+      if (isStale()) return
+
       const selectedRoute = selectRouteByStrategy(candidates, routeType)
-      const strategyReason = routeType === 'FAST'
-        ? 'Selected the shortest-duration candidate.'
-        : routeType === 'ECO'
-          ? 'Selected the candidate with the strongest nearby sensor conditions.'
-          : 'Selected the best balance of duration and environmental conditions.'
+      const strategyReason = selectedRoute.ecoDataUnavailable
+        ? 'No ARSO air-quality station is close enough to this route - showing the fastest candidate instead.'
+        : routeType === 'FAST'
+          ? 'Selected the shortest-duration candidate.'
+          : routeType === 'ECO'
+            ? 'Selected the candidate with the best real air-quality index nearby.'
+            : 'Selected the candidate with the median duration as a balance of speed and environment.'
 
       setRouteAlternatives(candidates.map(candidate => candidate.points))
       setRoutePoints(selectedRoute.points)
@@ -761,21 +805,25 @@ function MapPage() {
         ecoScore: selectedRoute.environmentScore,
         environmentType: selectedEnvironment,
         alternativeCount: candidates.length,
-        sensorCount: selectedRoute.exposure?.sensorCount ?? 0,
-        airQuality: selectedRoute.exposure?.airQuality ?? null,
-        temperature: selectedRoute.exposure?.temperature ?? null,
+        stationCount: selectedRoute.airQuality?.stationCount ?? 0,
+        stationNames: selectedRoute.airQuality?.stationNames ?? [],
+        nearestStationKm: selectedRoute.airQuality?.nearestDistanceKm ?? null,
         strategyReason,
         recommendation:
-          selectedRoute.environmentScore >= 85
-            ? 'Excellent route for outdoor activity.'
-            : selectedRoute.environmentScore >= 70
-              ? 'Good route with acceptable environmental conditions.'
-              : 'Environmental conditions are less suitable.'
+          selectedRoute.environmentScore === null
+            ? 'No nearby ARSO station - environmental score unavailable for this route.'
+            : selectedRoute.environmentScore >= 85
+              ? 'Excellent route for outdoor activity.'
+              : selectedRoute.environmentScore >= 70
+                ? 'Good route with acceptable environmental conditions.'
+                : 'Environmental conditions are less suitable.'
       })
 
       setRouteStatus(`${routeOptions.find(option => option.id === routeType)?.name} selected from ${candidates.length} candidate route(s).`)
     } catch (error) {
       console.error(error)
+
+      if (isStale()) return
 
       const fallbackRoute = [startPoint, endPoint]
       const distanceKm = calculateDistanceKm(fallbackRoute)
@@ -788,17 +836,21 @@ function MapPage() {
       setRoutePoints(fallbackRoute)
       setRouteAlternatives([fallbackRoute])
 
+      const fallbackAirQuality = calculateRouteAirQuality(fallbackRoute, airQualityStations)
+
       setRouteInfo({
         distanceKm: distanceKm.toFixed(2),
         durationMin: Math.round(distanceKm * 12),
-        ecoScore: calculateEcoScore(distanceKm, selectedEnvironment),
+        ecoScore: fallbackAirQuality?.score ?? null,
         environmentType: selectedEnvironment,
         alternativeCount: 1,
-        sensorCount: 0,
-        airQuality: null,
-        temperature: null,
+        stationCount: fallbackAirQuality?.stationCount ?? 0,
+        stationNames: fallbackAirQuality?.stationNames ?? [],
+        nearestStationKm: fallbackAirQuality?.nearestDistanceKm ?? null,
         strategyReason: 'The routing service was unavailable, so a direct preview was used.',
-        recommendation: 'Fallback route preview generated.'
+        recommendation: fallbackAirQuality?.score != null
+          ? 'Fallback route preview generated using the nearest real ARSO station.'
+          : 'Fallback route preview generated - no nearby ARSO station to score it.'
       })
 
       setRouteStatus('Fallback route generated.')
@@ -1012,12 +1064,12 @@ function MapPage() {
                     </div>
                     <div style={styles.metricBox}>
                       <span style={styles.metricLabel}>Duration</span>
-                      <strong style={styles.metricValue}>{routeInfo.durationMin} min</strong>
+                      <strong style={styles.metricValue}>{formatDuration(routeInfo.durationMin)}</strong>
                     </div>
                     <div style={styles.metricBox}>
                       <span style={styles.metricLabel}>Eco-score</span>
                       <strong style={{ ...styles.metricValue, color: getScoreColor(routeInfo.ecoScore) }}>
-                        {routeInfo.ecoScore}/100
+                        {routeInfo.ecoScore !== null ? `${routeInfo.ecoScore}/100` : 'No data'}
                       </strong>
                     </div>
                   </div>
@@ -1029,25 +1081,30 @@ function MapPage() {
                     <strong>Selection:</strong> {routeInfo.strategyReason}
                   </p>
                   <p style={styles.mutedText}>
-                    Compared {routeInfo.alternativeCount} candidate route(s) using {routeInfo.sensorCount} nearby live sensor(s).
+                    Compared {routeInfo.alternativeCount} candidate route(s) using {routeInfo.stationCount} nearby ARSO station(s).
                   </p>
                   <p style={styles.text}>{routeInfo.recommendation}</p>
                 </div>
 
                 <div style={styles.conditionsPanel}>
-                  <p style={styles.eyebrow}>Live measurements</p>
-                  <h3 style={styles.cardTitle}>Environmental conditions</h3>
+                  <p style={styles.eyebrow}>Real air-quality data</p>
+                  <h3 style={styles.cardTitle}>ARSO station coverage</h3>
                   <p style={styles.text}>
-                    <strong>Air quality:</strong> {routeInfo.airQuality ?? 'No nearby reading'}
+                    <strong>Nearby stations:</strong> {routeInfo.stationCount || 'None in range'}
                   </p>
                   <p style={styles.text}>
-                    <strong>Temperature:</strong> {routeInfo.temperature !== null ? `${routeInfo.temperature} C` : 'No nearby reading'}
+                    <strong>Nearest station:</strong> {routeInfo.nearestStationKm !== null ? `${routeInfo.nearestStationKm} km away` : 'No station within 35 km'}
                   </p>
-                  <p style={styles.text}><strong>Sensor status:</strong> {sensorStatus}</p>
-                  <p style={routeInfo.sensorCount ? styles.successText : styles.mutedText}>
-                    {routeInfo.sensorCount
-                      ? 'Eco-score includes live measurements near this route.'
-                      : 'Eco-score uses route characteristics because no nearby sensor was available.'}
+                  {routeInfo.stationNames?.length > 0 && (
+                    <p style={styles.text}>
+                      <strong>Station(s) used:</strong> {routeInfo.stationNames.join(', ')}
+                    </p>
+                  )}
+                  <p style={styles.text}><strong>Air quality feed status:</strong> {airQualityStatus}</p>
+                  <p style={routeInfo.stationCount ? styles.successText : styles.mutedText}>
+                    {routeInfo.stationCount
+                      ? 'Eco-score is based on real ARSO air-quality measurements near this route.'
+                      : 'No real air-quality station is close enough to score this route honestly.'}
                   </p>
                 </div>
               </div>
@@ -1092,9 +1149,17 @@ function MapPage() {
               </div>
 
               <div style={styles.moduleItem}>
+                <span style={styles.moduleIcon}>🏭</span>
+                <div>
+                  <strong>ARSO air quality</strong>
+                  <p>{airQualityStatus}</p>
+                </div>
+              </div>
+
+              <div style={styles.moduleItem}>
                 <span style={styles.moduleIcon}>LIVE</span>
                 <div>
-                  <strong>Sensor measurements</strong>
+                  <strong>Simulated IoT sensors (demo)</strong>
                   <p>{sensorStatus}</p>
                 </div>
               </div>
