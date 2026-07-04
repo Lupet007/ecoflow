@@ -1,34 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
-function predictEcoScore(profile) {
-  let score = 70
-
-  if (profile.activityType === 'WALKING') score += 10
-  if (profile.activityType === 'RUNNING') score += 6
-  if (profile.activityType === 'CYCLING') score += 3
-
-  if (profile.ecoPriority === 'AIR_QUALITY') score += 8
-  if (profile.ecoPriority === 'WATER_QUALITY') score += 5
-  if (profile.ecoPriority === 'LAND_TEMPERATURE') score += 3
-
-  return Math.min(100, score)
-}
-
-function getScoreColor(score) {
-  if (score >= 80) return '#22c55e'
-  if (score >= 60) return '#3b82f6'
-  if (score >= 40) return '#f59e0b'
-  return '#ef4444'
-}
-
-function getScoreLabel(score) {
-  if (score >= 80) return 'Excellent'
-  if (score >= 60) return 'Good'
-  if (score >= 40) return 'Moderate'
-  return 'Poor'
-}
-
 const REGIONS = ['Ljubljana', 'Maribor', 'Koper', 'Celje', 'Kranj']
 
 const ECO_PRIORITIES = [
@@ -66,7 +38,14 @@ function EcoProfilePage() {
     return score
   }, [profile])
 
-  const predictedScore = useMemo(() => predictEcoScore(profile), [profile])
+  const priorityInfo = useMemo(
+    () => ECO_PRIORITIES.find(e => e.value === profile.ecoPriority),
+    [profile.ecoPriority]
+  )
+  const activityInfo = useMemo(
+    () => ACTIVITY_TYPES.find(a => a.value === profile.activityType),
+    [profile.activityType]
+  )
 
   const handleSave = () => {
     localStorage.setItem('ecoProfile', JSON.stringify(profile))
@@ -159,25 +138,20 @@ function EcoProfilePage() {
             </div>
           </div>
 
-          <div style={{ ...styles.scoreCard, borderColor: `${getScoreColor(predictedScore)}66` }}>
-            <p style={styles.eyebrow}>Predicted result</p>
-            <h2 style={styles.sectionTitle}>Predicted eco-score</h2>
+          <div style={styles.scoreCard}>
+            <p style={styles.eyebrow}>What this means</p>
+            <h2 style={styles.sectionTitle}>Your routes will be tuned for</h2>
 
-            <div style={{
-              ...styles.scoreCircle,
-              borderColor: getScoreColor(predictedScore),
-              color: getScoreColor(predictedScore)
-            }}>
-              <strong>{predictedScore}</strong>
-              <span>/100</span>
+            <div style={styles.scoreCircle}>
+              <span style={{ fontSize: '48px' }}>{priorityInfo?.icon}</span>
             </div>
 
-            <h3 style={{ ...styles.scoreLabel, color: getScoreColor(predictedScore) }}>
-              {getScoreLabel(predictedScore)}
-            </h3>
+            <h3 style={styles.scoreLabel}>{priorityInfo?.label}</h3>
 
             <p style={styles.sectionDesc}>
-              Based on your current preferences, EcoFlow estimates how suitable your routes will be.
+              Eco/Fast/Balanced route options and GPX eco-scores will favor {priorityInfo?.desc?.toLowerCase()},
+              tuned for {activityInfo?.label?.toLowerCase()} around {profile.preferredRegion}. This reflects your
+              own selections below - not a measured or predicted number.
             </p>
           </div>
         </section>
@@ -514,7 +488,7 @@ const styles = {
     width: '142px',
     height: '142px',
     borderRadius: '50%',
-    border: '7px solid',
+    border: '7px solid #22c55e',
     margin: '24px auto 14px',
     display: 'flex',
     flexDirection: 'column',
@@ -524,7 +498,8 @@ const styles = {
   },
   scoreLabel: {
     margin: '0 0 8px',
-    fontSize: '24px'
+    fontSize: '24px',
+    color: '#22c55e'
   },
   optionGrid: {
     display: 'grid',

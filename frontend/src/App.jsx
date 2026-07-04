@@ -175,10 +175,9 @@ function FlyToRoute({ routeCoordinates }) {
   return null
 }
 
-function RouteClickHandler({ selectionMode, onSelectPoint }) {
+function RouteClickHandler({ onSelectPoint }) {
   useMapEvents({
     click(event) {
-      if (!selectionMode) return
       onSelectPoint([event.latlng.lat, event.latlng.lng])
     }
   })
@@ -495,7 +494,7 @@ function MapPage() {
   const [endPoint, setEndPoint] = useState(null)
   const [routePoints, setRoutePoints] = useState([])
   const [routeAlternatives, setRouteAlternatives] = useState([])
-  const [routeStatus, setRouteStatus] = useState('Select start and destination points on the map.')
+  const [routeStatus, setRouteStatus] = useState('Click on the map to set your start point, then click again for your destination.')
   const [routeInfo, setRouteInfo] = useState(null)
 
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
@@ -710,15 +709,53 @@ function MapPage() {
   }
 
   const handleSelectPoint = (point) => {
+    // "Select start"/"Select destination" buttons still work as an explicit
+    // override, e.g. to redo just one point of an already-planned route.
     if (selectionMode === 'START') {
       setStartPoint(point)
-      setSelectionMode('END')
-      setRouteStatus('Start point selected. Now select destination point.')
-    } else if (selectionMode === 'END') {
+      setSelectionMode(null)
+      if (endPoint) {
+        setRouteStatus('Calculating your route...')
+        calculateRoute(undefined, { start: point, end: endPoint })
+      } else {
+        setRouteStatus('Start point selected. Click on the map again to set your destination.')
+      }
+      return
+    }
+
+    if (selectionMode === 'END') {
       setEndPoint(point)
       setSelectionMode(null)
-      setRouteStatus('Destination selected. Click Calculate route.')
+      if (startPoint) {
+        setRouteStatus('Calculating your route...')
+        calculateRoute(undefined, { start: startPoint, end: point })
+      }
+      return
     }
+
+    // No button pressed - clicking the map directly sets start, then
+    // destination, then auto-calculates, so planning a route never requires
+    // scrolling back up to press a button first.
+    if (!startPoint) {
+      setStartPoint(point)
+      setRouteStatus('Start point selected. Click on the map again to set your destination.')
+      return
+    }
+
+    if (!endPoint) {
+      setEndPoint(point)
+      setRouteStatus('Calculating your route...')
+      calculateRoute(undefined, { start: startPoint, end: point })
+      return
+    }
+
+    // Both points already set - this click starts a fresh selection.
+    setStartPoint(point)
+    setEndPoint(null)
+    setRoutePoints([])
+    setRouteAlternatives([])
+    setRouteInfo(null)
+    setRouteStatus('New start point selected. Click on the map again to set your destination.')
   }
 
   const clearRoute = () => {
@@ -728,23 +765,32 @@ function MapPage() {
     setRouteAlternatives([])
     setRouteInfo(null)
     setSelectionMode(null)
-    setRouteStatus('Select start and destination points on the map.')
+    setRouteStatus('Click on the map to set your start point, then click again for your destination.')
   }
 
   const useDemoRoute = () => {
-    setStartPoint([46.5547, 15.6459])
-    setEndPoint([46.5602, 15.6487])
+    const start = [46.5547, 15.6459]
+    const end = [46.5602, 15.6487]
+    setStartPoint(start)
+    setEndPoint(end)
     setRoutePoints([])
     setRouteAlternatives([])
     setRouteInfo(null)
     setSelectionMode(null)
-    setRouteStatus('Demo route selected. Click Calculate route.')
+    setRouteStatus('Calculating demo route...')
+    calculateRoute(undefined, { start, end })
   }
 
-  const calculateRoute = async (routeTypeOverride) => {
+  const calculateRoute = async (routeTypeOverride, pointsOverride) => {
     const routeType = routeTypeOverride ?? selectedRouteType
+    // Accepts the two points directly so a click that just set the second
+    // point can trigger a calculation immediately, without waiting for React
+    // state to flush (startPoint/endPoint would still read stale/null here
+    // in that same tick otherwise).
+    const effectiveStart = pointsOverride?.start ?? startPoint
+    const effectiveEnd = pointsOverride?.end ?? endPoint
 
-    if (!startPoint || !endPoint) {
+    if (!effectiveStart || !effectiveEnd) {
       setRouteStatus('Please select start and destination points first.')
       return
     }
@@ -764,9 +810,9 @@ function MapPage() {
       const routingService = ecoProfile?.activityType === 'CYCLING' ? 'routed-bike' : 'routed-foot'
       const routingProfile = routingService === 'routed-bike' ? 'bike' : 'foot'
 
-      const corridorRequests = buildRouteWaypoints(startPoint, endPoint).map(async waypoints => {
+      const corridorRequests = buildRouteWaypoints(effectiveStart, effectiveEnd).map(async waypoints => {
         try {
-          const coordinates = [startPoint, ...waypoints, endPoint]
+          const coordinates = [effectiveStart, ...waypoints, effectiveEnd]
             .map(point => `${point[1]},${point[0]}`)
             .join(';')
           const response = await fetch(
@@ -851,7 +897,7 @@ function MapPage() {
 
       if (isStale()) return
 
-      const fallbackRoute = [startPoint, endPoint]
+      const fallbackRoute = [effectiveStart, effectiveEnd]
       const distanceKm = calculateDistanceKm(fallbackRoute)
 
       const selectedEnvironment =
@@ -1264,7 +1310,6 @@ function MapPage() {
             className="eco-map"
           >
             <RouteClickHandler
-              selectionMode={selectionMode}
               onSelectPoint={handleSelectPoint}
             />
 
