@@ -77,6 +77,6 @@ describe('RegisterPage', () => {
 
   it('has link to login page', () => {
     renderRegisterPage()
-    expect(screen.getByText('Sign in')).toBeInTheDocument()
+    expect(screen.getByText('Prijava')).toBeInTheDocument()
   })
 })

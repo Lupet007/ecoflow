@@ -22,7 +22,7 @@ describe('GpxUploadPage', () => {
   it('renders upload form', () => {
     renderGpxUploadPage()
     expect(screen.getByText('EcoFlow GPX Route Upload')).toBeInTheDocument()
-    expect(screen.getByText(/upload and analyse route/i)).toBeInTheDocument()
+    expect(screen.getByText(/naloži in analiziraj pot/i)).toBeInTheDocument()
     expect(screen.getByText('Back to map')).toBeInTheDocument()
   })
 
@@ -30,20 +30,20 @@ describe('GpxUploadPage', () => {
     renderGpxUploadPage()
 
     const file = new File(['content'], 'route.txt', { type: 'text/plain' })
-    const input = screen.getByRole('button', { name: /upload and analyse/i }).closest('main').querySelector('input[type="file"]')
+    const input = screen.getByRole('button', { name: /naloži in analiziraj/i }).closest('main').querySelector('input[type="file"]')
 
     fireEvent.change(input, { target: { files: [file] } })
 
-    expect(screen.getByText('Please select a valid GPX file.')).toBeInTheDocument()
+    expect(screen.getByText('Prosimo, izberi veljavno GPX datoteko.')).toBeInTheDocument()
   })
 
   it('shows error when upload button clicked without file', async () => {
     renderGpxUploadPage()
 
-    fireEvent.click(screen.getByRole('button', { name: /upload and analyse/i }))
+    fireEvent.click(screen.getByRole('button', { name: /naloži in analiziraj/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Please select a GPX file first.')).toBeInTheDocument()
+      expect(screen.getByText('Najprej izberi GPX datoteko.')).toBeInTheDocument()
     })
   })
 
@@ -60,10 +60,10 @@ describe('GpxUploadPage', () => {
     renderGpxUploadPage()
 
     const file = new File(['<gpx></gpx>'], 'test_route.gpx', { type: 'application/gpx+xml' })
-    const input = screen.getByRole('button', { name: /upload and analyse/i }).closest('main').querySelector('input[type="file"]')
+    const input = screen.getByRole('button', { name: /naloži in analiziraj/i }).closest('main').querySelector('input[type="file"]')
 
     fireEvent.change(input, { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: /upload and analyse/i }))
+    fireEvent.click(screen.getByRole('button', { name: /naloži in analiziraj/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Eco-score result')).toBeInTheDocument()
@@ -80,10 +80,10 @@ describe('GpxUploadPage', () => {
     renderGpxUploadPage()
 
     const file = new File(['<gpx></gpx>'], 'test_route.gpx', { type: 'application/gpx+xml' })
-    const input = screen.getByRole('button', { name: /upload and analyse/i }).closest('main').querySelector('input[type="file"]')
+    const input = screen.getByRole('button', { name: /naloži in analiziraj/i }).closest('main').querySelector('input[type="file"]')
 
     fireEvent.change(input, { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: /upload and analyse/i }))
+    fireEvent.click(screen.getByRole('button', { name: /naloži in analiziraj/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Failed to process GPX file.')).toBeInTheDocument()

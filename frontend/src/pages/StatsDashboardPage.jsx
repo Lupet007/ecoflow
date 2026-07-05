@@ -15,15 +15,12 @@ function getEnvironmentalType(name) {
   return 'AIR_QUALITY'
 }
 
-function StatCard({ label, value, color, icon, description }) {
+function StatCard({ label, value, color, description }) {
   return (
-    <div style={{ ...styles.statCard, borderColor: `${color}55` }}>
-      <div style={{ ...styles.statIcon, background: `${color}22`, color }}>{icon}</div>
-      <div>
-        <div style={{ ...styles.statValue, color }}>{value}</div>
-        <div style={styles.statLabel}>{label}</div>
-        {description && <div style={styles.statDescription}>{description}</div>}
-      </div>
+    <div style={{ ...styles.statCard, borderLeftColor: color }}>
+      <div style={{ ...styles.statValue, color }}>{value}</div>
+      <div style={styles.statLabel}>{label}</div>
+      {description && <div style={styles.statDescription}>{description}</div>}
     </div>
   )
 }
@@ -39,7 +36,7 @@ function BarChart({ data, maxValue }) {
               style={{
                 ...styles.barFill,
                 width: maxValue > 0 ? `${Math.max(4, (item.value / maxValue) * 100)}%` : '0%',
-                background: `linear-gradient(135deg, ${item.color}, ${item.color}cc)`
+                backgroundColor: item.color
               }}
             />
           </div>
@@ -96,7 +93,7 @@ function StatsDashboardPage() {
   // built and tested for route scoring, rather than duplicating it or
   // fabricating a reading.
   const recordMeasurementForPosition = async ({ latitude, longitude }) => {
-    setLocationState({ status: 'requesting', message: 'Looking up real air quality and weather for your location...' })
+    setLocationState({ status: 'requesting', message: 'Iskanje resnične kakovosti zraka in vremena za tvojo lokacijo ...' })
 
     try {
       const [airQualityRes, weatherRes] = await Promise.all([
@@ -118,7 +115,7 @@ function StatsDashboardPage() {
       if (airQuality?.score == null && temperature == null) {
         setLocationState({
           status: 'error',
-          message: 'Could not record a real measurement: no nearby ARSO air-quality station and no weather data for your current location.'
+          message: 'Ni bilo mogoče zabeležiti resnične meritve: ni bližnje ARSO postaje za kakovost zraka niti vremenskih podatkov za tvojo trenutno lokacijo.'
         })
         return
       }
@@ -136,18 +133,18 @@ function StatsDashboardPage() {
 
       const parts = []
       parts.push(airQuality?.score != null
-        ? `${airQuality.stationCount} nearby ARSO station(s)`
-        : 'no ARSO air-quality station nearby (Slovenia only)')
+        ? `${airQuality.stationCount} bližnjih ARSO postaj`
+        : 'brez bližnje ARSO postaje za kakovost zraka (samo Slovenija)')
       if (temperature != null) parts.push(`${temperature}°C`)
 
       setLocationState({
         status: 'success',
-        message: `Recorded your real location - ${parts.join(', ')}.`
+        message: `Zabeležena tvoja resnična lokacija - ${parts.join(', ')}.`
       })
       loadSensorData()
     } catch (err) {
       console.error(err)
-      setLocationState({ status: 'error', message: 'Failed to record your real measurement.' })
+      setLocationState({ status: 'error', message: 'Beleženje tvoje resnične meritve ni uspelo.' })
     }
   }
 
@@ -172,17 +169,17 @@ function StatsDashboardPage() {
   const poorRoutes = routes.filter(r => r.ecoScore < 40).length
 
   const envBarData = [
-    { label: 'Air quality', value: airCount, color: '#3b82f6' },
-    { label: 'Water quality', value: waterCount, color: '#06b6d4' },
-    { label: 'Land temperature', value: tempCount, color: '#f59e0b' },
-    { label: 'Other', value: otherCount, color: '#6366f1' }
+    { label: 'Kakovost zraka', value: airCount, color: '#2563eb' },
+    { label: 'Kakovost vode', value: waterCount, color: '#0891b2' },
+    { label: 'Temperatura tal', value: tempCount, color: '#b45309' },
+    { label: 'Drugo', value: otherCount, color: '#6366f1' }
   ]
 
   const scoreBarData = [
-    { label: 'Excellent (80+)', value: excellentRoutes, color: '#22c55e' },
-    { label: 'Good (60–79)', value: goodRoutes, color: '#3b82f6' },
-    { label: 'Moderate (40–59)', value: moderateRoutes, color: '#f59e0b' },
-    { label: 'Poor (<40)', value: poorRoutes, color: '#ef4444' }
+    { label: 'Odlično (80+)', value: excellentRoutes, color: '#15803d' },
+    { label: 'Dobro (60–79)', value: goodRoutes, color: '#2563eb' },
+    { label: 'Zmerno (40–59)', value: moderateRoutes, color: '#b45309' },
+    { label: 'Slabo (<40)', value: poorRoutes, color: '#b91c1c' }
   ]
 
   const maxEnv = Math.max(...envBarData.map(d => d.value), 1)
@@ -190,57 +187,49 @@ function StatsDashboardPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.glowOne} />
-      <div style={styles.glowTwo} />
-
       <header style={styles.header} className="eco-header">
         <div>
-          <p style={styles.eyebrow}>Analytics center</p>
-          <h1 style={styles.title}>Environmental Dashboard</h1>
+          <p style={styles.eyebrow}>Analitski center</p>
+          <h1 style={styles.title}>Okoljska nadzorna plošča</h1>
           <p style={styles.subtitle}>
-            Real-time overview of satellite products, GPX routes and environmental measurements.
+            Pregled satelitskih produktov, GPX poti in okoljskih meritev v realnem času.
           </p>
         </div>
 
-        <Link to="/" style={styles.backButton}>← Back to map</Link>
+        <Link to="/" style={styles.backButton}>← Nazaj na zemljevid</Link>
       </header>
 
       {loading ? (
         <div style={styles.loadingCard}>
-          <div style={styles.spinner}>🌿</div>
-          <strong>Loading dashboard data...</strong>
-          <span>Fetching environmental products and uploaded routes.</span>
+          <strong>Nalaganje podatkov nadzorne plošče ...</strong>
+          <span>Pridobivanje okoljskih produktov in naloženih poti.</span>
         </div>
       ) : (
         <main style={styles.container} className="eco-container">
           <div style={styles.cardsGrid} className="eco-cards-grid">
             <StatCard
-              label="Environmental products"
+              label="Okoljski produkti"
               value={products.length}
-              color="#3b82f6"
-              icon="🌍"
-              description="Copernicus records"
+              color="#2563eb"
+              description="Copernicus zapisi"
             />
             <StatCard
-              label="Uploaded GPX routes"
+              label="Naložene GPX poti"
               value={routes.length}
-              color="#22c55e"
-              icon="🗺️"
-              description="Stored route files"
+              color="#15803d"
+              description="Shranjene datoteke poti"
             />
             <StatCard
-              label="Average eco-score"
+              label="Povprečna eko-ocena"
               value={`${avgScore}/100`}
-              color="#f59e0b"
-              icon="⭐"
-              description="Across saved routes"
+              color="#b45309"
+              description="Med shranjenimi potmi"
             />
             <StatCard
-              label="Excellent routes"
+              label="Odlične poti"
               value={excellentRoutes}
-              color="#10b981"
-              icon="✅"
-              description="Routes above 80"
+              color="#0891b2"
+              description="Poti nad oceno 80"
             />
           </div>
 
@@ -248,14 +237,14 @@ function StatsDashboardPage() {
             <section style={styles.section}>
               <div style={styles.sectionHeader}>
                 <div>
-                  <p style={styles.eyebrow}>Satellite data</p>
-                  <h2 style={styles.sectionTitle}>Environmental data by type</h2>
+                  <p style={styles.eyebrow}>Satelitski podatki</p>
+                  <h2 style={styles.sectionTitle}>Okoljski podatki po vrsti</h2>
                 </div>
-                <span style={styles.pill}>{products.length} products</span>
+                <span style={styles.pill}>{products.length} produktov</span>
               </div>
 
               <p style={styles.sectionDesc}>
-                Distribution of Copernicus satellite products currently stored in the database.
+                Porazdelitev Copernicus satelitskih produktov, trenutno shranjenih v bazi podatkov.
               </p>
 
               <BarChart data={envBarData} maxValue={maxEnv} />
@@ -264,18 +253,18 @@ function StatsDashboardPage() {
             <section style={styles.section}>
               <div style={styles.sectionHeader}>
                 <div>
-                  <p style={styles.eyebrow}>Route quality</p>
-                  <h2 style={styles.sectionTitle}>Routes by eco-score</h2>
+                  <p style={styles.eyebrow}>Kakovost poti</p>
+                  <h2 style={styles.sectionTitle}>Poti po eko-oceni</h2>
                 </div>
-                <span style={styles.pill}>{routes.length} routes</span>
+                <span style={styles.pill}>{routes.length} poti</span>
               </div>
 
               <p style={styles.sectionDesc}>
-                Eco-score distribution across all uploaded GPX routes.
+                Porazdelitev eko-ocen med vsemi naloženimi GPX potmi.
               </p>
 
               {routes.length === 0 ? (
-                <p style={styles.empty}>No routes uploaded yet. Upload a GPX file to see stats.</p>
+                <p style={styles.empty}>Še ni naloženih poti. Naloži GPX datoteko za prikaz statistike.</p>
               ) : (
                 <BarChart data={scoreBarData} maxValue={maxScore} />
               )}
@@ -286,17 +275,17 @@ function StatsDashboardPage() {
             <section style={styles.section}>
               <div style={styles.sectionHeader}>
                 <div>
-                  <p style={styles.eyebrow}>Route archive</p>
-                  <h2 style={styles.sectionTitle}>Uploaded routes</h2>
+                  <p style={styles.eyebrow}>Arhiv poti</p>
+                  <h2 style={styles.sectionTitle}>Naložene poti</h2>
                 </div>
               </div>
 
               <div style={styles.routeTable}>
                 <div style={styles.tableHeader}>
-                  <span>Name</span>
-                  <span>Points</span>
-                  <span>Eco-score</span>
-                  <span>Status</span>
+                  <span>Ime</span>
+                  <span>Točke</span>
+                  <span>Eko-ocena</span>
+                  <span>Stanje</span>
                 </div>
 
                 {routes.map(route => (
@@ -304,8 +293,8 @@ function StatsDashboardPage() {
                     <span style={styles.routeName}>{route.name}</span>
                     <span>{route.pointCount}</span>
                     <span style={{
-                      color: route.ecoScore >= 80 ? '#22c55e' : route.ecoScore >= 60 ? '#3b82f6' : '#f59e0b',
-                      fontWeight: 900
+                      color: route.ecoScore >= 80 ? '#15803d' : route.ecoScore >= 60 ? '#2563eb' : '#b45309',
+                      fontWeight: 700
                     }}>
                       {route.ecoScore}/100
                     </span>
@@ -319,17 +308,17 @@ function StatsDashboardPage() {
           <section style={styles.section}>
             <div style={styles.sectionHeader}>
               <div>
-                <p style={styles.eyebrow}>IoT integration (simulated demo)</p>
-                <h2 style={styles.sectionTitle}>Live sensor data</h2>
+                <p style={styles.eyebrow}>IoT integracija (simulirani demo)</p>
+                <h2 style={styles.sectionTitle}>Podatki senzorjev v živo</h2>
               </div>
               <span style={sensorStatus === 'ok' ? styles.pillSuccess : styles.pillWarning}>
-                {sensorStatus === 'ok' ? 'Online' : 'Unavailable'}
+                {sensorStatus === 'ok' ? 'Povezano' : 'Ni na voljo'}
               </span>
             </div>
 
             <p style={styles.sectionDesc}>
-              Simulated sensor readings generated by a demo script (no physical IoT devices are connected), sent through the
-              Succulent data collection framework to illustrate how live device data would flow through the system.
+              Simulirani odčitki senzorjev, ustvarjeni z demo skripto (brez povezanih fizičnih IoT naprav), poslani preko ogrodja
+              Succulent za zbiranje podatkov, ki ponazarja, kako bi podatki naprav v živo potovali skozi sistem.
             </p>
 
             <div style={styles.locationRecorder}>
@@ -338,9 +327,9 @@ function StatsDashboardPage() {
                 onChange={(e) => setSelectedActivity(e.target.value)}
                 style={styles.activitySelect}
               >
-                <option value="WALKING">🚶 Walking</option>
-                <option value="CYCLING">🚴 Cycling</option>
-                <option value="RUNNING">🏃 Running</option>
+                <option value="WALKING">Hoja</option>
+                <option value="CYCLING">Kolesarjenje</option>
+                <option value="RUNNING">Tek</option>
               </select>
 
               <button
@@ -348,7 +337,7 @@ function StatsDashboardPage() {
                 disabled={locationState.status === 'requesting'}
                 style={styles.recordButton}
               >
-                {locationState.status === 'requesting' ? 'Getting your location...' : '📍 Share my real location'}
+                {locationState.status === 'requesting' ? 'Pridobivanje tvoje lokacije ...' : 'Deli mojo resnično lokacijo'}
               </button>
 
               {geoError && (
@@ -364,59 +353,58 @@ function StatsDashboardPage() {
 
             {sensorStatus === 'unavailable' && (
               <div style={styles.sensorOffline}>
-                <span style={styles.offlineIcon}>📡</span>
                 <div>
-                  <strong>Succulent server offline</strong>
+                  <strong>Succulent strežnik ni povezan</strong>
                   <p style={styles.offlineText}>
-                    Start the collector: <code style={styles.code}>cd succulent &amp;&amp; python run.py</code><br />
-                    Then run simulator: <code style={styles.code}>python simulate_data.py</code>
+                    Zaženi zbiralnik: <code style={styles.code}>cd succulent &amp;&amp; python run.py</code><br />
+                    Nato zaženi simulator: <code style={styles.code}>python simulate_data.py</code>
                   </p>
                 </div>
               </div>
             )}
 
             {sensorStatus === 'ok' && sensorData.length === 0 && (
-              <p style={styles.empty}>No sensor measurements yet. Run the simulator to generate data.</p>
+              <p style={styles.empty}>Še ni meritev senzorjev. Zaženi simulator za ustvarjanje podatkov.</p>
             )}
 
             {sensorStatus === 'ok' && sensorData.length > 0 && (
               <>
                 <div style={styles.sensorCards}>
                   <div style={styles.sensorStat}>
-                    <strong style={{ color: '#22c55e' }}>{sensorData.length}</strong>
-                    <span>Total measurements</span>
+                    <strong style={{ color: 'var(--brand)' }}>{sensorData.length}</strong>
+                    <span>Skupno meritev</span>
                   </div>
 
                   <div style={styles.sensorStat}>
-                    <strong style={{ color: '#3b82f6' }}>
+                    <strong style={{ color: 'var(--info)' }}>
                       {sensorData.filter(d => d.activity_type === 'WALKING').length}
                     </strong>
-                    <span>🚶 Walking</span>
+                    <span>Hoja</span>
                   </div>
 
                   <div style={styles.sensorStat}>
-                    <strong style={{ color: '#f59e0b' }}>
+                    <strong style={{ color: 'var(--warning)' }}>
                       {sensorData.filter(d => d.activity_type === 'CYCLING').length}
                     </strong>
-                    <span>🚴 Cycling</span>
+                    <span>Kolesarjenje</span>
                   </div>
 
                   <div style={styles.sensorStat}>
-                    <strong style={{ color: '#a78bfa' }}>
+                    <strong style={{ color: '#7c3aed' }}>
                       {sensorData.filter(d => d.activity_type === 'RUNNING').length}
                     </strong>
-                    <span>🏃 Running</span>
+                    <span>Tek</span>
                   </div>
                 </div>
 
                 <div style={styles.sensorTableWrap}>
                   <div style={styles.sensorTableHeader}>
-                    <span>Latitude</span>
-                    <span>Longitude</span>
-                    <span>Activity</span>
-                    <span>Air quality</span>
-                    <span>Eco-score</span>
-                    <span>Timestamp</span>
+                    <span>Zemljepisna širina</span>
+                    <span>Zemljepisna dolžina</span>
+                    <span>Aktivnost</span>
+                    <span>Kakovost zraka</span>
+                    <span>Eko-ocena</span>
+                    <span>Časovni žig</span>
                   </div>
 
                   {sensorData.slice(-10).reverse().map((row, i) => (
@@ -425,20 +413,20 @@ function StatsDashboardPage() {
                       <span>{row.longitude}</span>
                       <span>{row.activity_type}</span>
                       <span style={{
-                        color: row.air_quality >= 70 ? '#22c55e' : row.air_quality >= 40 ? '#f59e0b' : '#ef4444',
-                        fontWeight: 800
+                        color: row.air_quality >= 70 ? '#15803d' : row.air_quality >= 40 ? '#b45309' : '#b91c1c',
+                        fontWeight: 700
                       }}>
                         {row.air_quality}
                       </span>
-                      <span style={{ color: '#3b82f6', fontWeight: 900 }}>{row.eco_score}</span>
-                      <span style={{ color: '#64748b' }}>{row.timestamp || '—'}</span>
+                      <span style={{ color: 'var(--info)', fontWeight: 700 }}>{row.eco_score}</span>
+                      <span style={{ color: 'var(--text-faint)' }}>{row.timestamp || '—'}</span>
                     </div>
                   ))}
                 </div>
 
                 {sensorData.length > 10 && (
                   <p style={styles.showingText}>
-                    Showing last 10 of {sensorData.length} measurements
+                    Prikazanih zadnjih 10 od {sensorData.length} meritev
                   </p>
                 )}
               </>
@@ -450,46 +438,20 @@ function StatsDashboardPage() {
   )
 }
 
-const glassCard = {
-  background: 'linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.96))',
-  border: '1px solid rgba(148,163,184,0.22)',
-  boxShadow: '0 26px 90px rgba(0,0,0,0.36)',
-  backdropFilter: 'blur(16px)'
+const card = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  boxShadow: 'var(--shadow-sm)'
 }
 
 const styles = {
   page: {
     minHeight: '100vh',
-    position: 'relative',
-    overflow: 'hidden',
-    background:
-      'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 15%, rgba(56,189,248,0.12), transparent 28%), linear-gradient(135deg, #020617, #0f172a)',
-    color: '#e5e7eb',
-    fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
-  },
-  glowOne: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(34,197,94,0.14)',
-    filter: 'blur(90px)',
-    top: '-130px',
-    left: '-130px'
-  },
-  glowTwo: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(59,130,246,0.14)',
-    filter: 'blur(90px)',
-    right: '-130px',
-    bottom: '-130px'
+    background: 'var(--bg)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font)'
   },
   header: {
-    position: 'relative',
-    zIndex: 1,
     maxWidth: '1240px',
     margin: '0 auto',
     padding: '32px 24px 22px',
@@ -500,60 +462,53 @@ const styles = {
   },
   eyebrow: {
     margin: 0,
-    color: '#38bdf8',
+    color: 'var(--brand)',
     textTransform: 'uppercase',
-    letterSpacing: '0.12em',
+    letterSpacing: '0.1em',
     fontSize: '11px',
-    fontWeight: 900
+    fontWeight: 700
   },
   title: {
-    margin: '5px 0 0',
-    fontSize: '44px',
-    lineHeight: 1,
-    fontWeight: 900,
-    letterSpacing: '-0.06em',
-    color: '#f8fafc'
+    margin: '4px 0 0',
+    fontSize: '30px',
+    lineHeight: 1.1,
+    fontWeight: 800,
+    letterSpacing: '-0.02em',
+    color: 'var(--text)'
   },
   subtitle: {
-    marginTop: '10px',
-    color: '#94a3b8',
-    fontSize: '16px'
+    marginTop: '8px',
+    color: 'var(--text-muted)',
+    fontSize: '15px'
   },
   backButton: {
-    padding: '11px 16px',
-    background: 'linear-gradient(135deg, #334155, #475569)',
-    color: '#fff',
+    padding: '10px 16px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border-strong)',
+    color: 'var(--text)',
     textDecoration: 'none',
-    borderRadius: '12px',
-    fontWeight: 800,
-    boxShadow: '0 14px 34px rgba(0,0,0,0.24)'
+    borderRadius: 'var(--radius-md)',
+    fontWeight: 600
   },
   loadingCard: {
-    ...glassCard,
-    position: 'relative',
-    zIndex: 1,
+    ...card,
     maxWidth: '520px',
     margin: '80px auto',
     padding: '34px',
-    borderRadius: '24px',
+    borderRadius: 'var(--radius-lg)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '8px',
     alignItems: 'center',
-    color: '#cbd5e1'
-  },
-  spinner: {
-    fontSize: '38px'
+    color: 'var(--text-muted)'
   },
   container: {
-    position: 'relative',
-    zIndex: 1,
     maxWidth: '1240px',
     margin: '0 auto',
     padding: '0 24px 44px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px'
+    gap: '20px'
   },
   cardsGrid: {
     display: 'grid',
@@ -561,47 +516,36 @@ const styles = {
     gap: '16px'
   },
   statCard: {
-    ...glassCard,
-    borderRadius: '20px',
-    padding: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
-  },
-  statIcon: {
-    width: '52px',
-    height: '52px',
-    borderRadius: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px'
+    ...card,
+    borderLeft: '3px solid',
+    borderRadius: 'var(--radius-md)',
+    padding: '18px'
   },
   statValue: {
-    fontSize: '32px',
+    fontSize: '28px',
     lineHeight: 1,
-    fontWeight: 900
+    fontWeight: 800
   },
   statLabel: {
-    color: '#f8fafc',
-    fontSize: '14px',
-    fontWeight: 800,
-    marginTop: '5px'
+    color: 'var(--text)',
+    fontSize: '13px',
+    fontWeight: 700,
+    marginTop: '6px'
   },
   statDescription: {
-    color: '#94a3b8',
+    color: 'var(--text-faint)',
     fontSize: '12px',
     marginTop: '2px'
   },
   gridTwo: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '24px'
+    gap: '20px'
   },
   section: {
-    ...glassCard,
-    borderRadius: '24px',
-    padding: '24px'
+    ...card,
+    borderRadius: 'var(--radius-lg)',
+    padding: '20px'
   },
   sectionHeader: {
     display: 'flex',
@@ -611,49 +555,49 @@ const styles = {
     marginBottom: '12px'
   },
   sectionTitle: {
-    margin: '5px 0 0',
-    color: '#f8fafc',
-    fontSize: '24px',
-    fontWeight: 850,
-    letterSpacing: '-0.04em'
+    margin: '4px 0 0',
+    color: 'var(--text)',
+    fontSize: '20px',
+    fontWeight: 700,
+    letterSpacing: '-0.01em'
   },
   sectionDesc: {
-    color: '#94a3b8',
-    marginBottom: '22px',
+    color: 'var(--text-muted)',
+    marginBottom: '18px',
     fontSize: '14px',
     lineHeight: 1.6
   },
   pill: {
-    padding: '7px 10px',
+    padding: '6px 10px',
     borderRadius: '999px',
-    background: 'rgba(59,130,246,0.12)',
-    border: '1px solid rgba(59,130,246,0.35)',
-    color: '#93c5fd',
+    background: 'var(--info-soft)',
+    border: '1px solid var(--info-soft-border)',
+    color: 'var(--info)',
     fontSize: '12px',
-    fontWeight: 900
+    fontWeight: 700
   },
   pillSuccess: {
-    padding: '7px 10px',
+    padding: '6px 10px',
     borderRadius: '999px',
-    background: 'rgba(34,197,94,0.12)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    color: '#86efac',
+    background: 'var(--brand-soft)',
+    border: '1px solid var(--brand-soft-border)',
+    color: 'var(--brand-hover)',
     fontSize: '12px',
-    fontWeight: 900
+    fontWeight: 700
   },
   pillWarning: {
-    padding: '7px 10px',
+    padding: '6px 10px',
     borderRadius: '999px',
-    background: 'rgba(245,158,11,0.12)',
-    border: '1px solid rgba(245,158,11,0.35)',
-    color: '#fde68a',
+    background: 'var(--warning-soft)',
+    border: '1px solid var(--warning-soft-border)',
+    color: 'var(--warning)',
     fontSize: '12px',
-    fontWeight: 900
+    fontWeight: 700
   },
   barChart: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px'
+    gap: '12px'
   },
   barRow: {
     display: 'grid',
@@ -662,16 +606,16 @@ const styles = {
     gap: '12px'
   },
   barLabel: {
-    color: '#cbd5e1',
-    fontSize: '14px',
+    color: 'var(--text-muted)',
+    fontSize: '13px',
     textAlign: 'right'
   },
   barTrack: {
-    height: '30px',
-    backgroundColor: 'rgba(2,6,23,0.7)',
+    height: '24px',
+    backgroundColor: 'var(--surface-muted)',
     borderRadius: '999px',
     overflow: 'hidden',
-    border: '1px solid rgba(148,163,184,0.12)'
+    border: '1px solid var(--border)'
   },
   barFill: {
     height: '100%',
@@ -679,12 +623,12 @@ const styles = {
     transition: 'width 0.6s ease'
   },
   barValue: {
-    color: '#f8fafc',
-    fontWeight: 900,
-    fontSize: '15px'
+    color: 'var(--text)',
+    fontWeight: 700,
+    fontSize: '14px'
   },
   empty: {
-    color: '#64748b',
+    color: 'var(--text-faint)',
     fontStyle: 'italic'
   },
   routeTable: {
@@ -695,85 +639,73 @@ const styles = {
   tableHeader: {
     display: 'grid',
     gridTemplateColumns: '2fr 1fr 1fr 1fr',
-    padding: '12px 14px',
-    backgroundColor: 'rgba(15,23,42,0.8)',
-    borderRadius: '12px',
-    color: '#64748b',
-    fontWeight: 900,
+    padding: '10px 14px',
+    backgroundColor: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-muted)',
+    fontWeight: 700,
     fontSize: '13px'
   },
   tableRow: {
     display: 'grid',
     gridTemplateColumns: '2fr 1fr 1fr 1fr',
-    padding: '14px',
-    backgroundColor: 'rgba(15,23,42,0.68)',
-    borderRadius: '12px',
+    padding: '12px 14px',
+    borderRadius: 'var(--radius-sm)',
     alignItems: 'center',
-    border: '1px solid rgba(148,163,184,0.12)'
+    border: '1px solid var(--border)'
   },
   routeName: {
-    color: '#e2e8f0',
-    fontWeight: 700,
+    color: 'var(--text)',
+    fontWeight: 600,
     fontSize: '14px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
   },
   badge: {
-    backgroundColor: 'rgba(59,130,246,0.14)',
-    border: '1px solid rgba(59,130,246,0.28)',
-    color: '#93c5fd',
-    padding: '5px 9px',
+    backgroundColor: 'var(--info-soft)',
+    border: '1px solid var(--info-soft-border)',
+    color: 'var(--info)',
+    padding: '4px 9px',
     borderRadius: '999px',
     fontSize: '12px',
-    fontWeight: 800,
+    fontWeight: 700,
     display: 'inline-block'
   },
   sensorOffline: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '14px',
-    backgroundColor: 'rgba(15,23,42,0.72)',
-    border: '1px solid rgba(245,158,11,0.28)',
-    borderRadius: '18px',
-    padding: '18px',
-    color: '#e2e8f0'
-  },
-  offlineIcon: {
-    width: '46px',
-    height: '46px',
-    borderRadius: '16px',
-    background: 'rgba(245,158,11,0.14)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '22px'
+    backgroundColor: 'var(--warning-soft)',
+    border: '1px solid var(--warning-soft-border)',
+    borderRadius: 'var(--radius-md)',
+    padding: '16px',
+    color: 'var(--text)'
   },
   offlineText: {
     margin: '6px 0 0',
-    color: '#94a3b8',
+    color: 'var(--text-muted)',
     fontSize: '13px',
     lineHeight: 1.6
   },
   code: {
-    backgroundColor: '#020617',
+    backgroundColor: 'var(--surface-muted)',
     padding: '3px 7px',
     borderRadius: '6px',
-    fontFamily: 'monospace',
+    fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
     fontSize: '12px',
-    color: '#22c55e'
+    color: 'var(--brand)'
   },
   sensorCards: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: '12px',
-    marginBottom: '18px'
+    marginBottom: '16px'
   },
   sensorStat: {
-    backgroundColor: 'rgba(15,23,42,0.72)',
-    borderRadius: '16px',
-    padding: '16px',
-    border: '1px solid rgba(148,163,184,0.12)',
+    backgroundColor: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-md)',
+    padding: '14px',
     display: 'flex',
     flexDirection: 'column',
     gap: '4px'
@@ -785,26 +717,25 @@ const styles = {
     minWidth: '760px',
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 1fr)',
-    padding: '12px 14px',
-    backgroundColor: 'rgba(15,23,42,0.8)',
-    borderRadius: '12px',
-    color: '#64748b',
-    fontWeight: 900,
+    padding: '10px 14px',
+    backgroundColor: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-muted)',
+    fontWeight: 700,
     fontSize: '13px'
   },
   sensorTableRow: {
     minWidth: '760px',
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 1fr)',
-    padding: '12px 14px',
-    backgroundColor: 'rgba(15,23,42,0.62)',
-    borderRadius: '12px',
+    padding: '10px 14px',
+    borderRadius: 'var(--radius-sm)',
     marginTop: '8px',
     fontSize: '13px',
-    border: '1px solid rgba(148,163,184,0.10)'
+    border: '1px solid var(--border)'
   },
   showingText: {
-    color: '#64748b',
+    color: 'var(--text-faint)',
     fontSize: '13px',
     marginTop: '10px',
     textAlign: 'center'
@@ -814,36 +745,33 @@ const styles = {
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: '10px',
-    marginBottom: '18px'
+    marginBottom: '16px'
   },
   activitySelect: {
-    padding: '10px 12px',
-    borderRadius: '12px',
-    border: '1px solid rgba(148,163,184,0.28)',
-    backgroundColor: '#0f172a',
-    color: '#f8fafc',
-    fontWeight: 700
+    padding: '9px 12px',
+    borderRadius: 'var(--radius-md)',
+    fontWeight: 600
   },
   recordButton: {
-    padding: '10px 16px',
-    borderRadius: '12px',
+    padding: '9px 16px',
+    borderRadius: 'var(--radius-md)',
     border: 'none',
-    background: 'linear-gradient(135deg, #10b981, #22c55e)',
+    background: 'var(--brand)',
     color: '#fff',
-    fontWeight: 800,
+    fontWeight: 700,
     cursor: 'pointer'
   },
   locationSuccess: {
-    color: '#86efac',
+    color: 'var(--brand-hover)',
     fontSize: '13px',
-    fontWeight: 700,
+    fontWeight: 600,
     margin: 0,
     width: '100%'
   },
   locationError: {
-    color: '#fca5a5',
+    color: 'var(--danger)',
     fontSize: '13px',
-    fontWeight: 700,
+    fontWeight: 600,
     margin: 0,
     width: '100%'
   }
