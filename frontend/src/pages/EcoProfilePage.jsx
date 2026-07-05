@@ -1,46 +1,24 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
-function predictEcoScore(profile) {
-  let score = 70
-
-  if (profile.activityType === 'WALKING') score += 10
-  if (profile.activityType === 'RUNNING') score += 6
-  if (profile.activityType === 'CYCLING') score += 3
-
-  if (profile.ecoPriority === 'AIR_QUALITY') score += 8
-  if (profile.ecoPriority === 'WATER_QUALITY') score += 5
-  if (profile.ecoPriority === 'LAND_TEMPERATURE') score += 3
-
-  return Math.min(100, score)
-}
-
-function getScoreColor(score) {
-  if (score >= 80) return '#22c55e'
-  if (score >= 60) return '#3b82f6'
-  if (score >= 40) return '#f59e0b'
-  return '#ef4444'
-}
-
-function getScoreLabel(score) {
-  if (score >= 80) return 'Excellent'
-  if (score >= 60) return 'Good'
-  if (score >= 40) return 'Moderate'
-  return 'Poor'
-}
-
 const REGIONS = ['Ljubljana', 'Maribor', 'Koper', 'Celje', 'Kranj']
 
 const ECO_PRIORITIES = [
-  { value: 'AIR_QUALITY', label: 'Clean air', icon: '🌬️', desc: 'Prioritize routes with good air quality' },
-  { value: 'WATER_QUALITY', label: 'Clean water', icon: '💧', desc: 'Prioritize routes near clean water sources' },
-  { value: 'LAND_TEMPERATURE', label: 'Low temperature', icon: '🌡️', desc: 'Avoid high temperature zones' },
+  { value: 'AIR_QUALITY', label: 'Čist zrak', desc: 'Daj prednost potem z dobro kakovostjo zraka' },
+  { value: 'WATER_QUALITY', label: 'Čista voda', desc: 'Daj prednost potem blizu čistih vodnih virov' },
+  { value: 'LAND_TEMPERATURE', label: 'Nizka temperatura', desc: 'Izogibaj se območjem z visoko temperaturo' },
 ]
 
 const ACTIVITY_TYPES = [
-  { value: 'WALKING', label: 'Walking', icon: '🚶', desc: 'Shorter routes and comfort-first planning' },
-  { value: 'CYCLING', label: 'Cycling', icon: '🚴', desc: 'Balanced medium routes up to 15km' },
-  { value: 'RUNNING', label: 'Running', icon: '🏃', desc: 'Cleaner air and moderate exposure time' },
+  { value: 'WALKING', label: 'Hoja', desc: 'Krajše poti in načrtovanje, ki daje prednost udobju' },
+  { value: 'CYCLING', label: 'Kolesarjenje', desc: 'Uravnotežene srednje dolge poti do 15 km' },
+  { value: 'RUNNING', label: 'Tek', desc: 'Čistejši zrak in zmerna izpostavljenost' },
+]
+
+const ALERT_LEVELS = [
+  { value: 'POOR', label: 'Slabo' },
+  { value: 'MODERATE', label: 'Zmerno' },
+  { value: 'ANY', label: 'Katerokoli' },
 ]
 
 function EcoProfilePage() {
@@ -66,7 +44,14 @@ function EcoProfilePage() {
     return score
   }, [profile])
 
-  const predictedScore = useMemo(() => predictEcoScore(profile), [profile])
+  const priorityInfo = useMemo(
+    () => ECO_PRIORITIES.find(e => e.value === profile.ecoPriority),
+    [profile.ecoPriority]
+  )
+  const activityInfo = useMemo(
+    () => ACTIVITY_TYPES.find(a => a.value === profile.activityType),
+    [profile.activityType]
+  )
 
   const handleSave = () => {
     localStorage.setItem('ecoProfile', JSON.stringify(profile))
@@ -100,84 +85,76 @@ function EcoProfilePage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.glowOne} />
-      <div style={styles.glowTwo} />
-
       <header style={styles.header} className="eco-header">
         <div>
-          <p style={styles.eyebrow}>Personalization</p>
-          <h1 style={styles.title}>Eco Profile</h1>
+          <p style={styles.eyebrow}>Personalizacija</p>
+          <h1 style={styles.title}>Eko profil</h1>
           <p style={styles.subtitle}>
-            Configure your activity, region and environmental priorities for smarter route recommendations.
+            Nastavi svojo aktivnost, regijo in okoljske prioritete za pametnejša priporočila poti.
           </p>
         </div>
 
-        <Link to="/" style={styles.backButton}>← Back to map</Link>
+        <Link to="/" style={styles.backButton}>← Nazaj na zemljevid</Link>
       </header>
 
       <main style={styles.container} className="eco-container">
         <section style={styles.heroGrid}>
           <div style={styles.profileCard}>
-            <p style={styles.eyebrow}>Profile status</p>
-            <h2 style={styles.sectionTitle}>Your route preferences</h2>
+            <p style={styles.eyebrow}>Stanje profila</p>
+            <h2 style={styles.sectionTitle}>Tvoje nastavitve poti</h2>
             <p style={styles.sectionDesc}>
-              EcoFlow uses this profile to adapt route recommendations, map focus and predicted eco-score.
+              EcoFlow uporablja ta profil za prilagajanje priporočil poti, fokusa zemljevida in predvidene eko-ocene.
             </p>
 
             <div style={styles.summaryList}>
               <div style={styles.summaryItem}>
-                <span>🌍</span>
+                <span style={styles.summaryDot} />
                 <div>
-                  <strong>Priority</strong>
+                  <strong>Prioriteta</strong>
                   <p>{ECO_PRIORITIES.find(e => e.value === profile.ecoPriority)?.label}</p>
                 </div>
               </div>
 
               <div style={styles.summaryItem}>
-                <span>🏃</span>
+                <span style={styles.summaryDot} />
                 <div>
-                  <strong>Activity</strong>
+                  <strong>Aktivnost</strong>
                   <p>{ACTIVITY_TYPES.find(a => a.value === profile.activityType)?.label}</p>
                 </div>
               </div>
 
               <div style={styles.summaryItem}>
-                <span>📍</span>
+                <span style={styles.summaryDot} />
                 <div>
-                  <strong>Region</strong>
+                  <strong>Regija</strong>
                   <p>{profile.preferredRegion}</p>
                 </div>
               </div>
 
               <div style={styles.summaryItem}>
-                <span>⚠️</span>
+                <span style={styles.summaryDot} />
                 <div>
-                  <strong>Alerts</strong>
-                  <p>{profile.alertsEnabled ? `Enabled (${profile.alertThreshold})` : 'Disabled'}</p>
+                  <strong>Opozorila</strong>
+                  <p>{profile.alertsEnabled
+                    ? `Omogočeno (${ALERT_LEVELS.find(l => l.value === profile.alertThreshold)?.label})`
+                    : 'Onemogočeno'}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div style={{ ...styles.scoreCard, borderColor: `${getScoreColor(predictedScore)}66` }}>
-            <p style={styles.eyebrow}>Predicted result</p>
-            <h2 style={styles.sectionTitle}>Predicted eco-score</h2>
+          <div style={styles.scoreCard}>
+            <p style={styles.eyebrow}>Kaj to pomeni</p>
+            <h2 style={styles.sectionTitle}>Tvoje poti bodo prilagojene za</h2>
 
-            <div style={{
-              ...styles.scoreCircle,
-              borderColor: getScoreColor(predictedScore),
-              color: getScoreColor(predictedScore)
-            }}>
-              <strong>{predictedScore}</strong>
-              <span>/100</span>
+            <div style={styles.scoreCircle}>
+              <strong style={styles.scoreCircleLabel}>{priorityInfo?.label}</strong>
             </div>
 
-            <h3 style={{ ...styles.scoreLabel, color: getScoreColor(predictedScore) }}>
-              {getScoreLabel(predictedScore)}
-            </h3>
-
             <p style={styles.sectionDesc}>
-              Based on your current preferences, EcoFlow estimates how suitable your routes will be.
+              Možnosti poti Eko/Hitro/Uravnoteženo in GPX eko-ocene bodo dajale prednost: {priorityInfo?.desc?.toLowerCase()},
+              prilagojeno za {activityInfo?.label?.toLowerCase()} v okolici {profile.preferredRegion}. To odraža tvoje
+              lastne izbire spodaj - ne izmerjeno ali predvideno število.
             </p>
           </div>
         </section>
@@ -185,8 +162,8 @@ function EcoProfilePage() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
-              <p style={styles.eyebrow}>Environmental priority</p>
-              <h2 style={styles.sectionTitle}>What matters most?</h2>
+              <p style={styles.eyebrow}>Okoljska prioriteta</p>
+              <h2 style={styles.sectionTitle}>Kaj ti je najbolj pomembno?</h2>
             </div>
           </div>
 
@@ -195,18 +172,11 @@ function EcoProfilePage() {
               <button
                 key={opt.value}
                 onClick={() => setProfile(p => ({ ...p, ecoPriority: opt.value }))}
-                style={{
-                  ...styles.optionCard,
-                  borderColor: profile.ecoPriority === opt.value ? '#22c55e' : 'rgba(148,163,184,0.18)',
-                  background: profile.ecoPriority === opt.value
-                    ? 'linear-gradient(180deg, rgba(34,197,94,0.18), rgba(15,23,42,0.9))'
-                    : 'rgba(15,23,42,0.72)'
-                }}
+                style={profile.ecoPriority === opt.value ? styles.optionCardActive : styles.optionCard}
               >
-                <span style={styles.optionIcon}>{opt.icon}</span>
                 <strong>{opt.label}</strong>
                 <small>{opt.desc}</small>
-                {profile.ecoPriority === opt.value && <em style={styles.selectedBadge}>Selected</em>}
+                {profile.ecoPriority === opt.value && <em style={styles.selectedBadge}>Izbrano</em>}
               </button>
             ))}
           </div>
@@ -215,8 +185,8 @@ function EcoProfilePage() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
-              <p style={styles.eyebrow}>Activity type</p>
-              <h2 style={styles.sectionTitle}>How will you move?</h2>
+              <p style={styles.eyebrow}>Vrsta aktivnosti</p>
+              <h2 style={styles.sectionTitle}>Kako se boš gibal/-a?</h2>
             </div>
           </div>
 
@@ -225,18 +195,11 @@ function EcoProfilePage() {
               <button
                 key={opt.value}
                 onClick={() => setProfile(p => ({ ...p, activityType: opt.value }))}
-                style={{
-                  ...styles.optionCard,
-                  borderColor: profile.activityType === opt.value ? '#3b82f6' : 'rgba(148,163,184,0.18)',
-                  background: profile.activityType === opt.value
-                    ? 'linear-gradient(180deg, rgba(59,130,246,0.18), rgba(15,23,42,0.9))'
-                    : 'rgba(15,23,42,0.72)'
-                }}
+                style={profile.activityType === opt.value ? styles.optionCardActiveInfo : styles.optionCard}
               >
-                <span style={styles.optionIcon}>{opt.icon}</span>
                 <strong>{opt.label}</strong>
                 <small>{opt.desc}</small>
-                {profile.activityType === opt.value && <em style={{ ...styles.selectedBadge, background: '#3b82f6' }}>Selected</em>}
+                {profile.activityType === opt.value && <em style={{ ...styles.selectedBadge, background: 'var(--info)' }}>Izbrano</em>}
               </button>
             ))}
           </div>
@@ -245,8 +208,8 @@ function EcoProfilePage() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
-              <p style={styles.eyebrow}>Preferred region</p>
-              <h2 style={styles.sectionTitle}>Map focus area</h2>
+              <p style={styles.eyebrow}>Priljubljena regija</p>
+              <h2 style={styles.sectionTitle}>Območje fokusa zemljevida</h2>
             </div>
           </div>
 
@@ -255,15 +218,7 @@ function EcoProfilePage() {
               <button
                 key={region}
                 onClick={() => setProfile(p => ({ ...p, preferredRegion: region }))}
-                style={{
-                  ...styles.regionButton,
-                  background: profile.preferredRegion === region
-                    ? 'linear-gradient(135deg, #6366f1, #38bdf8)'
-                    : 'rgba(15,23,42,0.72)',
-                  borderColor: profile.preferredRegion === region
-                    ? '#818cf8'
-                    : 'rgba(148,163,184,0.18)'
-                }}
+                style={profile.preferredRegion === region ? styles.regionButtonActive : styles.regionButton}
               >
                 {region}
               </button>
@@ -274,18 +229,18 @@ function EcoProfilePage() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
-              <p style={styles.eyebrow}>Environmental alerts</p>
-              <h2 style={styles.sectionTitle}>Alert preferences</h2>
+              <p style={styles.eyebrow}>Okoljska opozorila</p>
+              <h2 style={styles.sectionTitle}>Nastavitve opozoril</h2>
             </div>
 
             <button
               type="button"
-              aria-label={profile.alertsEnabled ? 'Disable environmental alerts' : 'Enable environmental alerts'}
+              aria-label={profile.alertsEnabled ? 'Onemogoči okoljska opozorila' : 'Omogoči okoljska opozorila'}
               aria-pressed={profile.alertsEnabled}
               onClick={handleAlertsToggle}
               style={{
                 ...styles.toggle,
-                background: profile.alertsEnabled ? '#22c55e' : '#334155'
+                background: profile.alertsEnabled ? 'var(--brand)' : 'var(--border-strong)'
               }}
             >
               <div style={{
@@ -296,26 +251,18 @@ function EcoProfilePage() {
           </div>
 
           <p style={styles.sectionDesc}>
-            Get notified when environmental conditions are less suitable for outdoor activity.
+            Prejmi obvestilo, ko so okoljski pogoji manj primerni za aktivnosti na prostem.
           </p>
 
           {profile.alertsEnabled && (
             <div style={styles.regionGrid}>
-              {['POOR', 'MODERATE', 'ANY'].map(level => (
+              {ALERT_LEVELS.map(level => (
                 <button
-                  key={level}
-                  onClick={() => setProfile(p => ({ ...p, alertThreshold: level }))}
-                  style={{
-                    ...styles.regionButton,
-                    background: profile.alertThreshold === level
-                      ? 'linear-gradient(135deg, #f59e0b, #f97316)'
-                      : 'rgba(15,23,42,0.72)',
-                    borderColor: profile.alertThreshold === level
-                      ? '#f59e0b'
-                      : 'rgba(148,163,184,0.18)'
-                  }}
+                  key={level.value}
+                  onClick={() => setProfile(p => ({ ...p, alertThreshold: level.value }))}
+                  style={profile.alertThreshold === level.value ? styles.regionButtonActiveWarning : styles.regionButton}
                 >
-                  {level}
+                  {level.label}
                 </button>
               ))}
             </div>
@@ -325,12 +272,12 @@ function EcoProfilePage() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
-              <p style={styles.eyebrow}>Completeness</p>
-              <h2 style={styles.sectionTitle}>Profile readiness</h2>
+              <p style={styles.eyebrow}>Popolnost</p>
+              <h2 style={styles.sectionTitle}>Pripravljenost profila</h2>
             </div>
 
             <span style={completeness === 100 ? styles.pillSuccess : styles.pillWarning}>
-              {completeness}% complete
+              {completeness}% dokončano
             </span>
           </div>
 
@@ -338,27 +285,25 @@ function EcoProfilePage() {
             <div style={{
               ...styles.progressFill,
               width: `${completeness}%`,
-              background: completeness === 100
-                ? 'linear-gradient(135deg, #10b981, #22c55e)'
-                : 'linear-gradient(135deg, #f59e0b, #f97316)'
+              backgroundColor: completeness === 100 ? 'var(--brand)' : 'var(--warning)'
             }} />
           </div>
 
           <div style={styles.progressLabels}>
-            <span>Priority</span>
-            <span>Activity</span>
-            <span>Region</span>
-            <span>Alerts</span>
+            <span>Prioriteta</span>
+            <span>Aktivnost</span>
+            <span>Regija</span>
+            <span>Opozorila</span>
           </div>
         </section>
 
         <div style={styles.buttonRow}>
           <button onClick={handleSave} style={styles.saveButton}>
-            {saved ? '✓ Saved!' : 'Save preferences'}
+            {saved ? 'Shranjeno!' : 'Shrani nastavitve'}
           </button>
 
           <button onClick={handleReset} style={styles.resetButton}>
-            Reset to defaults
+            Ponastavi na privzeto
           </button>
         </div>
       </main>
@@ -366,46 +311,20 @@ function EcoProfilePage() {
   )
 }
 
-const glassCard = {
-  background: 'linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.96))',
-  border: '1px solid rgba(148,163,184,0.22)',
-  boxShadow: '0 26px 90px rgba(0,0,0,0.36)',
-  backdropFilter: 'blur(16px)'
+const card = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  boxShadow: 'var(--shadow-sm)'
 }
 
 const styles = {
   page: {
     minHeight: '100vh',
-    position: 'relative',
-    overflow: 'hidden',
-    background:
-      'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 15%, rgba(168,85,247,0.12), transparent 28%), linear-gradient(135deg, #020617, #0f172a)',
-    color: '#e5e7eb',
-    fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
-  },
-  glowOne: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(34,197,94,0.14)',
-    filter: 'blur(90px)',
-    top: '-130px',
-    left: '-130px'
-  },
-  glowTwo: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(168,85,247,0.14)',
-    filter: 'blur(90px)',
-    right: '-130px',
-    bottom: '-130px'
+    background: 'var(--bg)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font)'
   },
   header: {
-    position: 'relative',
-    zIndex: 1,
     maxWidth: '1240px',
     margin: '0 auto',
     padding: '32px 24px 22px',
@@ -416,144 +335,176 @@ const styles = {
   },
   eyebrow: {
     margin: 0,
-    color: '#38bdf8',
+    color: 'var(--brand)',
     textTransform: 'uppercase',
-    letterSpacing: '0.12em',
+    letterSpacing: '0.1em',
     fontSize: '11px',
-    fontWeight: 900
+    fontWeight: 700
   },
   title: {
-    margin: '5px 0 0',
-    fontSize: '44px',
-    lineHeight: 1,
-    fontWeight: 900,
-    letterSpacing: '-0.06em',
-    color: '#f8fafc'
+    margin: '4px 0 0',
+    fontSize: '30px',
+    lineHeight: 1.1,
+    fontWeight: 800,
+    letterSpacing: '-0.02em',
+    color: 'var(--text)'
   },
   subtitle: {
-    marginTop: '10px',
-    color: '#94a3b8',
-    fontSize: '16px'
+    marginTop: '8px',
+    color: 'var(--text-muted)',
+    fontSize: '15px'
   },
   backButton: {
-    padding: '11px 16px',
-    background: 'linear-gradient(135deg, #334155, #475569)',
-    color: '#fff',
+    padding: '10px 16px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border-strong)',
+    color: 'var(--text)',
     textDecoration: 'none',
-    borderRadius: '12px',
-    fontWeight: 800,
-    boxShadow: '0 14px 34px rgba(0,0,0,0.24)'
+    borderRadius: 'var(--radius-md)',
+    fontWeight: 600
   },
   container: {
-    position: 'relative',
-    zIndex: 1,
     maxWidth: '1240px',
     margin: '0 auto',
     padding: '0 24px 44px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px'
+    gap: '20px'
   },
   heroGrid: {
     display: 'grid',
     gridTemplateColumns: '1.4fr 0.8fr',
-    gap: '24px'
+    gap: '20px'
   },
   profileCard: {
-    ...glassCard,
-    borderRadius: '24px',
-    padding: '26px'
+    ...card,
+    borderRadius: 'var(--radius-lg)',
+    padding: '24px'
   },
   scoreCard: {
-    ...glassCard,
-    borderRadius: '24px',
-    padding: '26px',
+    ...card,
+    borderRadius: 'var(--radius-lg)',
+    padding: '24px',
     textAlign: 'center'
   },
   section: {
-    ...glassCard,
-    borderRadius: '24px',
-    padding: '26px'
+    ...card,
+    borderRadius: 'var(--radius-lg)',
+    padding: '24px'
   },
   sectionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: '16px',
-    marginBottom: '18px'
+    marginBottom: '16px'
   },
   sectionTitle: {
-    margin: '5px 0 0',
-    color: '#f8fafc',
-    fontSize: '25px',
-    fontWeight: 850,
-    letterSpacing: '-0.04em'
+    margin: '4px 0 0',
+    color: 'var(--text)',
+    fontSize: '20px',
+    fontWeight: 700,
+    letterSpacing: '-0.01em'
   },
   sectionDesc: {
-    color: '#94a3b8',
-    marginTop: '10px',
+    color: 'var(--text-muted)',
+    marginTop: '8px',
     fontSize: '14px',
-    lineHeight: 1.65
+    lineHeight: 1.6
   },
   summaryList: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: '14px',
-    marginTop: '22px'
+    gap: '12px',
+    marginTop: '18px'
   },
   summaryItem: {
     display: 'flex',
     gap: '12px',
     alignItems: 'center',
-    background: 'rgba(15,23,42,0.72)',
-    border: '1px solid rgba(148,163,184,0.14)',
-    borderRadius: '16px',
-    padding: '14px'
+    background: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px'
+  },
+  summaryDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--brand)',
+    flexShrink: 0
   },
   scoreCircle: {
-    width: '142px',
-    height: '142px',
+    width: '128px',
+    height: '128px',
     borderRadius: '50%',
-    border: '7px solid',
-    margin: '24px auto 14px',
+    border: '4px solid var(--brand)',
+    margin: '20px auto 14px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(15,23,42,0.6)'
+    padding: '8px',
+    background: 'var(--brand-soft)'
   },
-  scoreLabel: {
-    margin: '0 0 8px',
-    fontSize: '24px'
+  scoreCircleLabel: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: 'var(--brand-hover)',
+    textAlign: 'center'
   },
   optionGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-    gap: '14px'
+    gap: '12px'
   },
   optionCard: {
-    padding: '20px',
-    borderRadius: '18px',
-    border: '1px solid',
+    padding: '18px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border)',
     cursor: 'pointer',
-    color: '#fff',
+    color: 'var(--text)',
+    background: 'var(--surface)',
     textAlign: 'left',
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px'
+    gap: '6px',
+    fontFamily: 'var(--font)'
   },
-  optionIcon: {
-    fontSize: '30px'
+  optionCardActive: {
+    padding: '18px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--brand)',
+    cursor: 'pointer',
+    color: 'var(--text)',
+    background: 'var(--brand-soft)',
+    textAlign: 'left',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    fontFamily: 'var(--font)'
+  },
+  optionCardActiveInfo: {
+    padding: '18px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--info)',
+    cursor: 'pointer',
+    color: 'var(--text)',
+    background: 'var(--info-soft)',
+    textAlign: 'left',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    fontFamily: 'var(--font)'
   },
   selectedBadge: {
-    marginTop: '6px',
+    marginTop: '4px',
     alignSelf: 'flex-start',
-    padding: '5px 10px',
-    background: '#22c55e',
+    padding: '4px 10px',
+    background: 'var(--brand)',
     color: '#fff',
     borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: 900,
+    fontSize: '11px',
+    fontWeight: 700,
     fontStyle: 'normal'
   },
   regionGrid: {
@@ -562,16 +513,38 @@ const styles = {
     gap: '10px'
   },
   regionButton: {
-    padding: '11px 18px',
-    borderRadius: '14px',
-    border: '1px solid',
-    color: '#fff',
+    padding: '10px 18px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-strong)',
+    color: 'var(--text)',
+    background: 'var(--surface)',
     cursor: 'pointer',
-    fontWeight: 850
+    fontWeight: 600,
+    fontFamily: 'var(--font)'
+  },
+  regionButtonActive: {
+    padding: '10px 18px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--brand)',
+    color: '#fff',
+    background: 'var(--brand)',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontFamily: 'var(--font)'
+  },
+  regionButtonActiveWarning: {
+    padding: '10px 18px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--warning)',
+    color: '#fff',
+    background: 'var(--warning)',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontFamily: 'var(--font)'
   },
   toggle: {
-    width: '54px',
-    height: '30px',
+    width: '48px',
+    height: '28px',
     borderRadius: '999px',
     cursor: 'pointer',
     position: 'relative',
@@ -582,7 +555,7 @@ const styles = {
   },
   toggleThumb: {
     position: 'absolute',
-    top: '3px',
+    top: '2px',
     width: '24px',
     height: '24px',
     borderRadius: '50%',
@@ -590,29 +563,29 @@ const styles = {
     transition: 'transform 0.2s'
   },
   pillSuccess: {
-    padding: '7px 10px',
+    padding: '6px 10px',
     borderRadius: '999px',
-    background: 'rgba(34,197,94,0.12)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    color: '#86efac',
+    background: 'var(--brand-soft)',
+    border: '1px solid var(--brand-soft-border)',
+    color: 'var(--brand-hover)',
     fontSize: '12px',
-    fontWeight: 900
+    fontWeight: 700
   },
   pillWarning: {
-    padding: '7px 10px',
+    padding: '6px 10px',
     borderRadius: '999px',
-    background: 'rgba(245,158,11,0.12)',
-    border: '1px solid rgba(245,158,11,0.35)',
-    color: '#fde68a',
+    background: 'var(--warning-soft)',
+    border: '1px solid var(--warning-soft-border)',
+    color: 'var(--warning)',
     fontSize: '12px',
-    fontWeight: 900
+    fontWeight: 700
   },
   progressTrack: {
-    height: '14px',
-    backgroundColor: 'rgba(15,23,42,0.82)',
+    height: '12px',
+    backgroundColor: 'var(--surface-muted)',
     borderRadius: '999px',
     overflow: 'hidden',
-    border: '1px solid rgba(148,163,184,0.14)'
+    border: '1px solid var(--border)'
   },
   progressFill: {
     height: '100%',
@@ -622,36 +595,37 @@ const styles = {
   progressLabels: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginTop: '10px',
-    color: '#64748b',
+    marginTop: '8px',
+    color: 'var(--text-faint)',
     fontSize: '12px',
-    fontWeight: 800
+    fontWeight: 700
   },
   buttonRow: {
     display: 'flex',
-    gap: '14px',
+    gap: '12px',
     flexWrap: 'wrap'
   },
   saveButton: {
-    padding: '13px 28px',
-    background: 'linear-gradient(135deg, #10b981, #22c55e)',
+    padding: '12px 28px',
+    background: 'var(--brand)',
     color: '#fff',
     border: 'none',
-    borderRadius: '14px',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
-    fontWeight: 900,
+    fontWeight: 700,
     fontSize: '15px',
-    boxShadow: '0 18px 40px rgba(34,197,94,0.22)'
+    fontFamily: 'var(--font)'
   },
   resetButton: {
-    padding: '13px 28px',
-    background: 'linear-gradient(135deg, #334155, #475569)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '14px',
+    padding: '12px 28px',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    border: '1px solid var(--border-strong)',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
-    fontWeight: 850,
-    fontSize: '15px'
+    fontWeight: 600,
+    fontSize: '15px',
+    fontFamily: 'var(--font)'
   }
 }
 

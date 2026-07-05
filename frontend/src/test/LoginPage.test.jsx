@@ -66,6 +66,6 @@ describe('LoginPage', () => {
 
   it('has link to register page', () => {
     renderLoginPage()
-    expect(screen.getByText('Create one')).toBeInTheDocument()
+    expect(screen.getByText('Ustvari ga')).toBeInTheDocument()
   })
 })

@@ -2,6 +2,20 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 
+function formatActivity(type) {
+  if (type === 'WALKING') return 'Hoja'
+  if (type === 'CYCLING') return 'Kolesarjenje'
+  if (type === 'RUNNING') return 'Tek'
+  return type
+}
+
+function formatPriority(type) {
+  if (type === 'AIR_QUALITY') return 'Kakovost zraka'
+  if (type === 'WATER_QUALITY') return 'Kakovost vode'
+  if (type === 'LAND_TEMPERATURE') return 'Temperatura tal'
+  return type
+}
+
 function GpxUploadPage() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploadStatus, setUploadStatus] = useState('')
@@ -16,7 +30,7 @@ function GpxUploadPage() {
     if (!file) return
 
     if (!file.name.toLowerCase().endsWith('.gpx')) {
-      setUploadStatus('Please select a valid GPX file.')
+      setUploadStatus('Prosimo, izberi veljavno GPX datoteko.')
       setSelectedFile(null)
       setUploadedRoute(null)
       return
@@ -29,12 +43,12 @@ function GpxUploadPage() {
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      setUploadStatus('Please select a GPX file first.')
+      setUploadStatus('Najprej izberi GPX datoteko.')
       return
     }
 
     setLoading(true)
-    setUploadStatus('Uploading and analysing GPX route...')
+    setUploadStatus('Nalaganje in analiziranje GPX poti ...')
     setUploadedRoute(null)
 
     try {
@@ -61,10 +75,10 @@ function GpxUploadPage() {
       )
 
       setUploadedRoute(response.data)
-      setUploadStatus('GPX route uploaded and analysed successfully.')
+      setUploadStatus('GPX pot je bila uspešno naložena in analizirana.')
     } catch (error) {
       console.error(error)
-      setUploadStatus(error.response?.data?.error || 'Failed to upload GPX route.')
+      setUploadStatus(error.response?.data?.error || 'Nalaganje GPX poti ni uspelo.')
     } finally {
       setLoading(false)
     }
@@ -72,20 +86,17 @@ function GpxUploadPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.glowOne} />
-      <div style={styles.glowTwo} />
-
       <header style={styles.header} className="eco-gpx-header">
         <div>
-          <p style={styles.eyebrow}>GPX route processing</p>
-          <h1 style={styles.title}>Upload & analyse route</h1>
+          <p style={styles.eyebrow}>Obdelava GPX poti</p>
+          <h1 style={styles.title}>Naloži in analiziraj pot</h1>
           <p style={styles.subtitle}>
-            Import GPS tracks and calculate route eco-score using backend analysis.
+            Uvozi GPS sledi in izračunaj eko-oceno poti z uporabo analize na strežniku.
           </p>
         </div>
 
         <Link to="/" style={styles.backButton}>
-          ← Back to map
+          ← Nazaj na zemljevid
         </Link>
       </header>
 
@@ -94,25 +105,25 @@ function GpxUploadPage() {
         {/* Eco Profile indicator */}
         {ecoProfile ? (
           <div style={styles.profileBanner}>
-            🌿 Eco Profile active — score will be personalized for:
-            <strong> {ecoProfile.activityType}</strong> ·
-            <strong> {ecoProfile.ecoPriority?.replaceAll('_', ' ')}</strong> ·
+            Eko profil je aktiven — ocena bo prilagojena za:
+            <strong> {formatActivity(ecoProfile.activityType)}</strong> ·
+            <strong> {formatPriority(ecoProfile.ecoPriority)}</strong> ·
             <strong> {ecoProfile.preferredRegion}</strong>
-            <Link to="/profile" style={styles.profileLink}>Edit →</Link>
+            <Link to="/profile" style={styles.profileLink}>Uredi →</Link>
           </div>
         ) : (
           <div style={styles.profileBannerWarning}>
-            ⚠️ No Eco Profile set — score will use default settings.
-            <Link to="/profile" style={styles.profileLinkWarning}>Create profile →</Link>
+            Eko profil ni nastavljen — ocena bo uporabila privzete nastavitve.
+            <Link to="/profile" style={styles.profileLinkWarning}>Ustvari profil →</Link>
           </div>
         )}
 
         <section style={styles.heroCard}>
           <div>
-            <p style={styles.eyebrow}>Route file</p>
-            <h2 style={styles.sectionTitle}>Select GPX file</h2>
+            <p style={styles.eyebrow}>Datoteka poti</p>
+            <h2 style={styles.sectionTitle}>Izberi GPX datoteko</h2>
             <p style={styles.text}>
-              Upload a GPX file exported from Strava, Komoot, Garmin, AllTrails or another GPS tracking app.
+              Naloži GPX datoteko, izvoženo iz Strave, Komoota, Garmina, AllTrails ali druge aplikacije za sledenje GPS.
             </p>
           </div>
 
@@ -123,9 +134,8 @@ function GpxUploadPage() {
               onChange={handleFileChange}
               style={styles.hiddenInput}
             />
-            <div style={styles.dropIcon}>🗺️</div>
-            <strong>Click to choose GPX file</strong>
-            <span>Only .gpx route files are supported</span>
+            <strong>Klikni za izbiro GPX datoteke</strong>
+            <span>Podprte so samo datoteke .gpx</span>
           </label>
 
           {selectedFile && (
@@ -134,7 +144,7 @@ function GpxUploadPage() {
                 <strong>{selectedFile.name}</strong>
                 <p>{(selectedFile.size / 1024).toFixed(2)} KB</p>
               </div>
-              <span style={styles.fileBadge}>Ready</span>
+              <span style={styles.fileBadge}>Pripravljeno</span>
             </div>
           )}
 
@@ -143,12 +153,12 @@ function GpxUploadPage() {
             disabled={loading}
             style={{ ...styles.uploadButton, opacity: loading ? 0.7 : 1 }}
           >
-            {loading ? 'Analysing route...' : 'Upload and analyse route'}
+            {loading ? 'Analiziranje poti ...' : 'Naloži in analiziraj pot'}
           </button>
 
           {uploadStatus && (
             <p style={
-              uploadStatus.includes('Failed') || uploadStatus.includes('valid') || uploadStatus.includes('first')
+              uploadStatus.includes('ni uspelo') || uploadStatus.includes('veljavno') || uploadStatus.includes('Najprej')
                 ? styles.errorStatus
                 : styles.status
             }>
@@ -160,8 +170,8 @@ function GpxUploadPage() {
         {uploadedRoute && (
           <section style={styles.resultCard}>
             <div>
-              <p style={styles.eyebrow}>Analysis complete</p>
-              <h2 style={styles.sectionTitle}>Eco-score result</h2>
+              <p style={styles.eyebrow}>Analiza zaključena</p>
+              <h2 style={styles.sectionTitle}>Rezultat eko-ocene</h2>
             </div>
 
             <div style={styles.resultGrid}>
@@ -175,32 +185,32 @@ function GpxUploadPage() {
 
                 <div style={styles.resultStats}>
                   <div style={styles.statBox}>
-                    <span>Status</span>
+                    <span>Stanje</span>
                     <strong>{uploadedRoute.ecoScoreLabel}</strong>
                   </div>
                   <div style={styles.statBox}>
-                    <span>Track points</span>
+                    <span>Točke sledi</span>
                     <strong>{uploadedRoute.pointCount}</strong>
                   </div>
                   {uploadedRoute.activityType && uploadedRoute.activityType !== 'DEFAULT' && (
                     <div style={styles.statBox}>
-                      <span>Activity</span>
-                      <strong>{uploadedRoute.activityType}</strong>
+                      <span>Aktivnost</span>
+                      <strong>{formatActivity(uploadedRoute.activityType)}</strong>
                     </div>
                   )}
                   {uploadedRoute.ecoPriority && uploadedRoute.ecoPriority !== 'DEFAULT' && (
                     <div style={styles.statBox}>
-                      <span>Priority</span>
-                      <strong>{uploadedRoute.ecoPriority?.replaceAll('_', ' ')}</strong>
+                      <span>Prioriteta</span>
+                      <strong>{formatPriority(uploadedRoute.ecoPriority)}</strong>
                     </div>
                   )}
                 </div>
 
                 <p style={styles.text}>
-                  The route is now stored in PostgreSQL and displayed on the Leaflet map.
+                  Pot je zdaj shranjena v PostgreSQL in prikazana na Leaflet zemljevidu.
                 </p>
 
-                <Link to="/" style={styles.mapButton}>View route on map</Link>
+                <Link to="/" style={styles.mapButton}>Prikaži pot na zemljevidu</Link>
               </div>
             </div>
           </section>
@@ -210,117 +220,104 @@ function GpxUploadPage() {
   )
 }
 
-const glassCard = {
-  background: 'linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.96))',
-  border: '1px solid rgba(148,163,184,0.22)',
-  boxShadow: '0 26px 90px rgba(0,0,0,0.36)',
-  backdropFilter: 'blur(16px)'
+const card = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  boxShadow: 'var(--shadow-sm)'
 }
 
 const styles = {
   page: {
     minHeight: '100vh',
-    position: 'relative',
-    overflow: 'hidden',
-    background: 'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 15%, rgba(56,189,248,0.12), transparent 28%), linear-gradient(135deg, #020617, #0f172a)',
-    color: '#e5e7eb',
-    fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
-  },
-  glowOne: {
-    position: 'fixed', width: '420px', height: '420px', borderRadius: '50%',
-    background: 'rgba(34,197,94,0.14)', filter: 'blur(90px)', top: '-130px', left: '-130px'
-  },
-  glowTwo: {
-    position: 'fixed', width: '420px', height: '420px', borderRadius: '50%',
-    background: 'rgba(59,130,246,0.14)', filter: 'blur(90px)', right: '-130px', bottom: '-130px'
+    background: 'var(--bg)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font)'
   },
   header: {
-    position: 'relative', zIndex: 1, maxWidth: '1120px', margin: '0 auto',
+    maxWidth: '1120px', margin: '0 auto',
     padding: '32px 24px 22px', display: 'flex', justifyContent: 'space-between',
     alignItems: 'center', gap: '20px'
   },
   eyebrow: {
-    margin: 0, color: '#38bdf8', textTransform: 'uppercase',
-    letterSpacing: '0.12em', fontSize: '11px', fontWeight: 900
+    margin: 0, color: 'var(--brand)', textTransform: 'uppercase',
+    letterSpacing: '0.1em', fontSize: '11px', fontWeight: 700
   },
   title: {
-    margin: '5px 0 0', fontSize: '44px', lineHeight: 1,
-    fontWeight: 900, letterSpacing: '-0.06em', color: '#f8fafc'
+    margin: '4px 0 0', fontSize: '30px', lineHeight: 1.1,
+    fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)'
   },
-  subtitle: { marginTop: '10px', color: '#94a3b8', fontSize: '16px' },
+  subtitle: { marginTop: '8px', color: 'var(--text-muted)', fontSize: '15px' },
   backButton: {
-    padding: '11px 16px', background: 'linear-gradient(135deg, #334155, #475569)',
-    color: '#fff', textDecoration: 'none', borderRadius: '12px',
-    fontWeight: 800, boxShadow: '0 14px 34px rgba(0,0,0,0.24)'
+    padding: '10px 16px', background: 'var(--surface)',
+    color: 'var(--text)', textDecoration: 'none', borderRadius: 'var(--radius-md)',
+    fontWeight: 600, border: '1px solid var(--border-strong)'
   },
   container: {
-    position: 'relative', zIndex: 1, maxWidth: '1120px',
-    margin: '0 auto', padding: '0 24px 44px', display: 'grid', gap: '24px'
+    maxWidth: '1120px',
+    margin: '0 auto', padding: '0 24px 44px', display: 'grid', gap: '20px'
   },
   profileBanner: {
-    background: 'rgba(20,83,45,0.34)', border: '1px solid rgba(34,197,94,0.35)',
-    borderRadius: '14px', padding: '12px 16px', fontSize: '13px', color: '#bbf7d0'
+    background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-border)',
+    borderRadius: 'var(--radius-md)', padding: '12px 16px', fontSize: '13px', color: 'var(--brand-hover)'
   },
   profileBannerWarning: {
-    background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.36)',
-    borderRadius: '14px', padding: '12px 16px', fontSize: '13px', color: '#fde68a'
+    background: 'var(--warning-soft)', border: '1px solid var(--warning-soft-border)',
+    borderRadius: 'var(--radius-md)', padding: '12px 16px', fontSize: '13px', color: 'var(--warning)'
   },
-  profileLink: { color: '#86efac', marginLeft: '10px', fontWeight: 800, textDecoration: 'none' },
-  profileLinkWarning: { color: '#fbbf24', marginLeft: '10px', fontWeight: 800, textDecoration: 'none' },
-  heroCard: { ...glassCard, borderRadius: '24px', padding: '28px' },
-  resultCard: { ...glassCard, borderRadius: '24px', padding: '28px' },
-  sectionTitle: { margin: '5px 0 0', color: '#f8fafc', fontSize: '28px', fontWeight: 850, letterSpacing: '-0.04em' },
-  text: { color: '#cbd5e1', lineHeight: 1.65, marginTop: '10px' },
+  profileLink: { color: 'inherit', marginLeft: '10px', fontWeight: 700, textDecoration: 'none' },
+  profileLinkWarning: { color: 'inherit', marginLeft: '10px', fontWeight: 700, textDecoration: 'none' },
+  heroCard: { ...card, borderRadius: 'var(--radius-lg)', padding: '24px' },
+  resultCard: { ...card, borderRadius: 'var(--radius-lg)', padding: '24px' },
+  sectionTitle: { margin: '4px 0 0', color: 'var(--text)', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.01em' },
+  text: { color: 'var(--text-muted)', lineHeight: 1.6, marginTop: '8px', fontSize: '14px' },
   dropZone: {
-    marginTop: '22px', minHeight: '190px', border: '1px dashed rgba(134,239,172,0.48)',
-    borderRadius: '22px', background: 'rgba(15,23,42,0.72)', display: 'flex',
+    marginTop: '20px', minHeight: '160px', border: '1px dashed var(--border-strong)',
+    borderRadius: 'var(--radius-lg)', background: 'var(--surface-muted)', display: 'flex',
     flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: '8px', cursor: 'pointer', color: '#e5e7eb'
+    gap: '6px', cursor: 'pointer', color: 'var(--text)'
   },
   hiddenInput: { display: 'none' },
-  dropIcon: { fontSize: '42px', marginBottom: '4px' },
   fileInfo: {
-    marginTop: '18px', padding: '16px', borderRadius: '16px',
-    background: 'rgba(15,23,42,0.78)', border: '1px solid rgba(148,163,184,0.18)',
+    marginTop: '16px', padding: '14px', borderRadius: 'var(--radius-md)',
+    background: 'var(--surface-muted)', border: '1px solid var(--border)',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px'
   },
   fileBadge: {
-    padding: '6px 10px', borderRadius: '999px', background: 'rgba(34,197,94,0.16)',
-    border: '1px solid rgba(34,197,94,0.35)', color: '#86efac', fontWeight: 900, fontSize: '12px'
+    padding: '5px 10px', borderRadius: '999px', background: 'var(--brand-soft)',
+    border: '1px solid var(--brand-soft-border)', color: 'var(--brand-hover)', fontWeight: 700, fontSize: '12px'
   },
   uploadButton: {
-    marginTop: '18px', minHeight: '50px', width: '100%', border: 'none',
-    borderRadius: '14px', background: 'linear-gradient(135deg, #10b981, #22c55e)',
-    color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer',
-    boxShadow: '0 18px 40px rgba(34,197,94,0.22)'
+    marginTop: '16px', minHeight: '46px', width: '100%', border: 'none',
+    borderRadius: 'var(--radius-md)', background: 'var(--brand)',
+    color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)'
   },
   status: {
-    marginTop: '14px', padding: '12px 14px', borderRadius: '14px',
-    background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.32)',
-    color: '#bbf7d0', fontWeight: 800
+    marginTop: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)',
+    background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-border)',
+    color: 'var(--brand-hover)', fontWeight: 600
   },
   errorStatus: {
-    marginTop: '14px', padding: '12px 14px', borderRadius: '14px',
-    background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.32)',
-    color: '#fecaca', fontWeight: 800
+    marginTop: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)',
+    background: 'var(--danger-soft)', border: '1px solid var(--danger-soft-border)',
+    color: 'var(--danger)', fontWeight: 600
   },
-  resultGrid: { marginTop: '22px', display: 'grid', gridTemplateColumns: '150px 1fr', gap: '24px', alignItems: 'center' },
+  resultGrid: { marginTop: '20px', display: 'grid', gridTemplateColumns: '150px 1fr', gap: '24px', alignItems: 'center' },
   scoreCircle: {
-    width: '140px', height: '140px', borderRadius: '50%', border: '7px solid #22c55e',
+    width: '128px', height: '128px', borderRadius: '50%', border: '4px solid var(--brand)',
     display: 'flex', flexDirection: 'column', alignItems: 'center',
-    justifyContent: 'center', background: 'rgba(34,197,94,0.08)'
+    justifyContent: 'center', background: 'var(--brand-soft)', color: 'var(--brand-hover)'
   },
   resultContent: { minWidth: 0 },
-  routeName: { margin: 0, color: '#f8fafc', fontSize: '24px', wordBreak: 'break-word' },
-  resultStats: { marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' },
+  routeName: { margin: 0, color: 'var(--text)', fontSize: '20px', wordBreak: 'break-word' },
+  resultStats: { marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' },
   statBox: {
-    background: 'rgba(15,23,42,0.78)', border: '1px solid rgba(148,163,184,0.18)',
-    borderRadius: '16px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '4px'
+    background: 'var(--surface-muted)', border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-md)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px'
   },
   mapButton: {
-    display: 'inline-flex', marginTop: '18px', padding: '11px 16px',
-    background: 'linear-gradient(135deg, #3b82f6, #38bdf8)', color: '#fff',
-    textDecoration: 'none', borderRadius: '12px', fontWeight: 900
+    display: 'inline-flex', marginTop: '16px', padding: '10px 16px',
+    background: 'var(--info)', color: '#fff',
+    textDecoration: 'none', borderRadius: 'var(--radius-md)', fontWeight: 700
   }
 }
 

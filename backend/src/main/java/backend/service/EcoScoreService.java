@@ -1,7 +1,9 @@
 package backend.service;
 
+import backend.model.ArsoAirQuality;
 import backend.model.CopernicusProduct;
 import backend.model.RoutePoint;
+import backend.repository.ArsoAirQualityRepository;
 import backend.repository.CopernicusProductRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -9,10 +11,44 @@ import java.util.List;
 @Service
 public class EcoScoreService {
 
-    private final CopernicusProductRepository copernicusProductRepository;
+    private static final double MAX_AIR_QUALITY_DISTANCE_KM = 35.0;
 
-    public EcoScoreService(CopernicusProductRepository copernicusProductRepository) {
+    private final CopernicusProductRepository copernicusProductRepository;
+    private final ArsoAirQualityRepository arsoAirQualityRepository;
+
+    public EcoScoreService(CopernicusProductRepository copernicusProductRepository,
+                            ArsoAirQualityRepository arsoAirQualityRepository) {
         this.copernicusProductRepository = copernicusProductRepository;
+        this.arsoAirQualityRepository = arsoAirQualityRepository;
+    }
+
+    private static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        double radius = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // Real signal: is a real ARSO air-quality station actually near this
+    // route's real coordinates, rather than "does any Copernicus product with
+    // a matching name happen to exist anywhere in the database" - which said
+    // nothing about the route's actual location.
+    private boolean hasNearbyRealAirQualityStation(List<RoutePoint> points) {
+        if (points == null || points.isEmpty()) return false;
+
+        double avgLat = points.stream().mapToDouble(RoutePoint::getLatitude).average().orElse(0.0);
+        double avgLon = points.stream().mapToDouble(RoutePoint::getLongitude).average().orElse(0.0);
+
+        List<ArsoAirQuality> stations = arsoAirQualityRepository.findLatestBatch();
+        if (stations == null) return false;
+
+        return stations.stream().anyMatch(station ->
+                station.getLatitude() != null && station.getLongitude() != null
+                        && haversineKm(avgLat, avgLon, station.getLatitude(), station.getLongitude())
+                        <= MAX_AIR_QUALITY_DISTANCE_KM);
     }
 
     public double calculate(List<RoutePoint> points, String activityType, String ecoPriority) {
@@ -20,13 +56,7 @@ public class EcoScoreService {
 
         double score = 50.0;
 
-        long airQualityCount = products.stream()
-                .filter(p -> p.getName() != null && (
-                        p.getName().contains("OL_1") ||
-                        p.getName().contains("OL_2_WRR") ||
-                        p.getName().contains("OL_2_LFR")
-                ))
-                .count();
+        long airQualityCount = hasNearbyRealAirQualityStation(points) ? 1 : 0;
 
         long waterQualityCount = products.stream()
                 .filter(p -> p.getName() != null && (
