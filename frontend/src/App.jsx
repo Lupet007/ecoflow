@@ -23,6 +23,7 @@ import { isLoggedIn, logout } from './services/authService'
 import { useRealGeolocation } from './hooks/useRealGeolocation'
 import {
   buildRouteWaypoints,
+  calculateAirQualityIndex,
   calculateRouteAirQuality,
   evaluateAirQualityAlert,
   normalizeAirQualityStations,
@@ -44,18 +45,18 @@ function getEnvironmentalType(productName) {
 }
 
 function formatEnvironmentalType(type) {
-  if (type === 'ALL') return 'All environmental data'
-  if (type === 'AIR_QUALITY') return 'Air quality'
-  if (type === 'LAND_TEMPERATURE') return 'Land temperature'
-  if (type === 'WATER_QUALITY') return 'Water quality'
-  return 'Other environmental data'
+  if (type === 'ALL') return 'Vsi okoljski podatki'
+  if (type === 'AIR_QUALITY') return 'Kakovost zraka'
+  if (type === 'LAND_TEMPERATURE') return 'Temperatura tal'
+  if (type === 'WATER_QUALITY') return 'Kakovost vode'
+  return 'Drugi okoljski podatki'
 }
 
-function formatRecommendation(type) {
-  if (type === 'AIR_QUALITY') return 'Excellent conditions for walking and outdoor activity.'
-  if (type === 'LAND_TEMPERATURE') return 'Temperature conditions should be monitored.'
-  if (type === 'WATER_QUALITY') return 'Suitable for routes near rivers and lakes.'
-  return 'Environmental information available.'
+function formatActivityType(type) {
+  if (type === 'WALKING') return 'Hoja'
+  if (type === 'CYCLING') return 'Kolesarjenje'
+  if (type === 'RUNNING') return 'Tek'
+  return type
 }
 
 function calculateDistanceKm(routePoints) {
@@ -175,6 +176,44 @@ function FlyToRoute({ routeCoordinates }) {
   return null
 }
 
+function FlyToPlannedRoute({ startPoint, endPoint, routePoints }) {
+  const map = useMap()
+
+  useEffect(() => {
+    // Once the actual routed path is known, fit to its real shape rather than
+    // just the straight-line box between the two endpoints.
+    if (routePoints && routePoints.length > 1) {
+      const bounds = [
+        [Math.min(...routePoints.map(p => p[0])), Math.min(...routePoints.map(p => p[1]))],
+        [Math.max(...routePoints.map(p => p[0])), Math.max(...routePoints.map(p => p[1]))]
+      ]
+      map.fitBounds(bounds, { padding: [60, 60] })
+      return
+    }
+
+    if (startPoint && endPoint) {
+      const bounds = [
+        [Math.min(startPoint[0], endPoint[0]), Math.min(startPoint[1], endPoint[1])],
+        [Math.max(startPoint[0], endPoint[0]), Math.max(startPoint[1], endPoint[1])]
+      ]
+      map.fitBounds(bounds, { padding: [60, 60] })
+      return
+    }
+
+    // Only the start (or only the destination) is known yet - jump straight
+    // there so it's visible immediately, instead of leaving the map wherever
+    // it happened to be centered (e.g. the user's real, possibly far-away,
+    // GPS location).
+    if (startPoint) {
+      map.flyTo(startPoint, 13, { duration: 1.2 })
+    } else if (endPoint) {
+      map.flyTo(endPoint, 13, { duration: 1.2 })
+    }
+  }, [startPoint, endPoint, routePoints, map])
+
+  return null
+}
+
 function RouteClickHandler({ onSelectPoint }) {
   useMapEvents({
     click(event) {
@@ -194,17 +233,21 @@ const regionCoordinates = {
 }
 
 const trendColors = {
-  AIR_QUALITY: '#60a5fa',
-  LAND_TEMPERATURE: '#fbbf24',
-  WATER_QUALITY: '#34d399'
+  AIR_QUALITY: '#2563eb',
+  LAND_TEMPERATURE: '#b45309',
+  WATER_QUALITY: '#0891b2'
 }
 
 function formatShortDate(value) {
-  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value)
+  return new Intl.DateTimeFormat('sl-SI', { month: 'short', day: 'numeric' }).format(value)
 }
 
 function getProductDate(product) {
-  const value = product.publicationDate || product.originDate || product.createdAt
+  // Prefers createdAt (when our system actually ingested the record) over
+  // publicationDate (when the satellite originally captured it), since the
+  // "last 30/90 days" trend filter is meant to reflect recent system
+  // activity, not the age of the underlying satellite imagery.
+  const value = product.createdAt || product.publicationDate || product.originDate
   const date = value ? new Date(value) : null
   return date && !Number.isNaN(date.getTime()) ? date : null
 }
@@ -286,12 +329,12 @@ function HistoricalTrends({ products, routes }) {
     <section style={styles.trendsSection} className="eco-trends">
       <div style={styles.trendsHeader}>
         <div>
-          <p style={styles.eyebrow}>Historical overview</p>
-          <h2 style={styles.sectionTitle}>Environmental trends</h2>
-          <p style={styles.text}>Publication activity and route quality over time.</p>
+          <p style={styles.eyebrow}>Zgodovinski pregled</p>
+          <h2 style={styles.sectionTitle}>Okoljski trendi</h2>
+          <p style={styles.text}>Aktivnost objav in kakovost poti skozi čas.</p>
         </div>
-        <div className="trend-period-control" aria-label="Historical period">
-          {[['30', '30 days'], ['90', '90 days'], ['ALL', 'All time']].map(([value, label]) => (
+        <div className="trend-period-control" aria-label="Zgodovinsko obdobje">
+          {[['30', '30 dni'], ['90', '90 dni'], ['ALL', 'Celotno obdobje']].map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -306,18 +349,18 @@ function HistoricalTrends({ products, routes }) {
       </div>
 
       <div className="trend-summary-row">
-        <div><strong>{productTrend.length}</strong><span>active data days</span></div>
-        <div><strong>{productTrend.reduce((sum, day) => sum + day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY, 0)}</strong><span>published records</span></div>
-        <div><strong>{routeTrend.length}</strong><span>routes tracked</span></div>
-        <div><strong>{averageScore ?? '--'}</strong><span>average eco-score</span></div>
+        <div><strong>{productTrend.length}</strong><span>aktivnih dni s podatki</span></div>
+        <div><strong>{productTrend.reduce((sum, day) => sum + day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY, 0)}</strong><span>objavljenih zapisov</span></div>
+        <div><strong>{routeTrend.length}</strong><span>spremljanih poti</span></div>
+        <div><strong>{averageScore ?? '--'}</strong><span>povprečna eko-ocena</span></div>
       </div>
 
       <div className="trend-chart-grid">
         <article className="trend-chart-panel">
           <div className="trend-chart-heading">
             <div>
-              <h3>Environmental data activity</h3>
-              <p>Published records per day</p>
+              <h3>Aktivnost okoljskih podatkov</h3>
+              <p>Objavljeni zapisi na dan</p>
             </div>
             <div className="trend-legend">
               {Object.entries(trendColors).map(([type, color]) => (
@@ -327,7 +370,7 @@ function HistoricalTrends({ products, routes }) {
           </div>
           {productTrend.length ? (
             <div className="trend-chart-scroll">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Daily environmental records by category">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Dnevni okoljski zapisi po kategorijah">
                 {renderGrid(maxDailyCount)}
                 {productTrend.map((day, index) => {
                   const x = plot.left + index * barSlot + (barSlot - barWidth) / 2
@@ -341,7 +384,7 @@ function HistoricalTrends({ products, routes }) {
                         stackedHeight += height
                         return day[type] > 0 ? (
                           <rect key={type} x={x} y={y} width={barWidth} height={height} fill={trendColors[type]} rx="2">
-                            <title>{`${formatShortDate(day.date)}: ${day[type]} ${formatEnvironmentalType(type).toLowerCase()} record(s)`}</title>
+                            <title>{`${formatShortDate(day.date)}: ${day[type]} zapisov (${formatEnvironmentalType(type).toLowerCase()})`}</title>
                           </rect>
                         ) : null
                       })}
@@ -350,26 +393,26 @@ function HistoricalTrends({ products, routes }) {
                           {formatShortDate(day.date)}
                         </text>
                       )}
-                      <title>{`${formatShortDate(day.date)}: ${total} total records`}</title>
+                      <title>{`${formatShortDate(day.date)}: ${total} zapisov skupaj`}</title>
                     </g>
                   )
                 })}
               </svg>
             </div>
-          ) : <div className="trend-empty">No environmental history in this period.</div>}
+          ) : <div className="trend-empty">V tem obdobju ni okoljske zgodovine.</div>}
         </article>
 
         <article className="trend-chart-panel">
           <div className="trend-chart-heading">
             <div>
-              <h3>Route eco-score history</h3>
-              <p>Score at upload, out of 100</p>
+              <h3>Zgodovina eko-ocen poti</h3>
+              <p>Ocena ob nalaganju, od 100</p>
             </div>
-            {averageScore !== null && <span className="trend-average">Average {averageScore}</span>}
+            {averageScore !== null && <span className="trend-average">Povprečje {averageScore}</span>}
           </div>
           {routePoints.length ? (
             <div className="trend-chart-scroll">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Uploaded route eco-scores over time">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Eko-ocene naloženih poti skozi čas">
                 {renderGrid(100)}
                 {routePoints.length > 1 && (
                   <polyline
@@ -381,7 +424,7 @@ function HistoricalTrends({ products, routes }) {
                 {routePoints.map((point, index) => (
                   <g key={`${point.name}-${point.date.toISOString()}-${index}`}>
                     <circle cx={point.x} cy={point.y} r="6" fill={getScoreColor(point.score)} className="route-trend-point">
-                      <title>{`${point.name}: ${point.score}/100 on ${formatShortDate(point.date)}`}</title>
+                      <title>{`${point.name}: ${point.score}/100 dne ${formatShortDate(point.date)}`}</title>
                     </circle>
                     {(index === 0 || index === routePoints.length - 1 || routePoints.length <= 6) && (
                       <text x={point.x} y={chartHeight - 17} textAnchor="middle" className="trend-axis-label">
@@ -392,7 +435,7 @@ function HistoricalTrends({ products, routes }) {
                 ))}
               </svg>
             </div>
-          ) : <div className="trend-empty">Upload a GPX route to start an eco-score history.</div>}
+          ) : <div className="trend-empty">Naloži GPX pot za začetek zgodovine eko-ocen.</div>}
         </article>
       </div>
     </section>
@@ -405,9 +448,9 @@ function MapPage() {
 
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
-  const [sensorStatus, setSensorStatus] = useState('Loading live sensor data...')
+  const [sensorStatus, setSensorStatus] = useState('Nalaganje podatkov senzorjev v živo ...')
   const [airQualityStations, setAirQualityStations] = useState([])
-  const [airQualityStatus, setAirQualityStatus] = useState('Loading ARSO air quality stations...')
+  const [airQualityStatus, setAirQualityStatus] = useState('Nalaganje ARSO postaj za kakovost zraka ...')
 
   // Read-only "you are here" marker - no measurement is recorded here (that
   // stays on the Dashboard's "Share my real location" action); this just
@@ -418,8 +461,8 @@ function MapPage() {
     ? calculateRouteAirQuality([[myPosition.latitude, myPosition.longitude]], airQualityStations)
     : null
 
-  const [status, setStatus] = useState('Loading environmental data...')
-  const [routesStatus, setRoutesStatus] = useState('Loading uploaded GPX routes...')
+  const [status, setStatus] = useState('Nalaganje okoljskih podatkov ...')
+  const [routesStatus, setRoutesStatus] = useState('Nalaganje naloženih GPX poti ...')
 
   const [ecoProfile, setEcoProfile] = useState(() => {
     const stored = localStorage.getItem('ecoProfile')
@@ -494,7 +537,7 @@ function MapPage() {
   const [endPoint, setEndPoint] = useState(null)
   const [routePoints, setRoutePoints] = useState([])
   const [routeAlternatives, setRouteAlternatives] = useState([])
-  const [routeStatus, setRouteStatus] = useState('Click on the map to set your start point, then click again for your destination.')
+  const [routeStatus, setRouteStatus] = useState('Klikni na zemljevid, da nastaviš začetno točko, nato še enkrat za cilj.')
   const [routeInfo, setRouteInfo] = useState(null)
 
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
@@ -502,6 +545,135 @@ function MapPage() {
   const [alertTestScenario, setAlertTestScenario] = useState(null)
   const lastNotification = useRef(null)
   const routeRequestId = useRef(0)
+
+  // Address search for start/destination - real geocoding via the free OSM
+  // Nominatim service (no API key), consistent with the rest of the app's
+  // real-data-only sources. Debounced per field so typing doesn't hammer the
+  // (rate-limited) public endpoint on every keystroke.
+  const [startQuery, setStartQuery] = useState('')
+  const [endQuery, setEndQuery] = useState('')
+  const [startSuggestions, setStartSuggestions] = useState([])
+  const [endSuggestions, setEndSuggestions] = useState([])
+  const [searchingField, setSearchingField] = useState(null)
+  const searchDebounce = useRef({})
+
+  const searchAddress = async (query, field) => {
+    if (query.trim().length < 3) {
+      if (field === 'START') setStartSuggestions([])
+      else setEndSuggestions([])
+      return
+    }
+
+    setSearchingField(field)
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`
+      )
+      const data = await response.json()
+      const results = data.map(item => ({
+        label: item.display_name,
+        point: [parseFloat(item.lat), parseFloat(item.lon)]
+      }))
+
+      if (field === 'START') setStartSuggestions(results)
+      else setEndSuggestions(results)
+    } catch (error) {
+      console.error('Address search failed:', error)
+    } finally {
+      setSearchingField(current => (current === field ? null : current))
+    }
+  }
+
+  const handleStartQueryChange = (value) => {
+    setStartQuery(value)
+    clearTimeout(searchDebounce.current.start)
+    searchDebounce.current.start = setTimeout(() => searchAddress(value, 'START'), 600)
+  }
+
+  const handleEndQueryChange = (value) => {
+    setEndQuery(value)
+    clearTimeout(searchDebounce.current.end)
+    searchDebounce.current.end = setTimeout(() => searchAddress(value, 'END'), 600)
+  }
+
+  const selectStartSuggestion = (suggestion) => {
+    setStartQuery(suggestion.label)
+    setStartSuggestions([])
+    setStartPoint(suggestion.point)
+
+    if (endPoint) {
+      setRouteStatus('Izračunavanje tvoje poti ...')
+      calculateRoute(undefined, { start: suggestion.point, end: endPoint })
+    } else {
+      setRouteStatus('Začetna točka izbrana. Išči ali klikni na zemljevid za določitev cilja.')
+    }
+  }
+
+  const selectEndSuggestion = (suggestion) => {
+    setEndQuery(suggestion.label)
+    setEndSuggestions([])
+    setEndPoint(suggestion.point)
+
+    if (startPoint) {
+      setRouteStatus('Izračunavanje tvoje poti ...')
+      calculateRoute(undefined, { start: startPoint, end: suggestion.point })
+    } else {
+      setRouteStatus('Cilj izbran. Išči ali klikni na zemljevid za določitev začetne točke.')
+    }
+  }
+
+  // Favorite routes are a lightweight, purely local (localStorage) quick-access
+  // list for planned routes - separate from the backend-driven Recommendations
+  // page, which only ever reflects real uploaded GPX routes. Saving a favorite
+  // never touches the backend, so it cannot affect uploaded routes, the
+  // Environmental trends chart, or the Recommendations engine.
+  const [favoriteRoutes, setFavoriteRoutes] = useState(() => {
+    const stored = localStorage.getItem('favoriteRoutes')
+    return stored ? JSON.parse(stored) : []
+  })
+
+  const saveFavoriteRoute = () => {
+    if (!startPoint || !endPoint) return
+
+    const defaultName = `${startQuery || `${startPoint[0].toFixed(3)}, ${startPoint[1].toFixed(3)}`} → ${endQuery || `${endPoint[0].toFixed(3)}, ${endPoint[1].toFixed(3)}`}`
+    const name = window.prompt('Ime za to omiljeno pot:', defaultName)
+    if (!name) return
+
+    const favorite = {
+      id: Date.now(),
+      name,
+      start: startPoint,
+      end: endPoint,
+      startQuery,
+      endQuery,
+      routeType: selectedRouteType
+    }
+
+    setFavoriteRoutes(current => {
+      const updated = [...current, favorite]
+      localStorage.setItem('favoriteRoutes', JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const loadFavoriteRoute = (favorite) => {
+    setStartPoint(favorite.start)
+    setEndPoint(favorite.end)
+    setStartQuery(favorite.startQuery || '')
+    setEndQuery(favorite.endQuery || '')
+    setSelectedRouteType(favorite.routeType || 'ECO')
+    setRouteStatus('Izračunavanje shranjene poti ...')
+    calculateRoute(favorite.routeType || 'ECO', { start: favorite.start, end: favorite.end })
+  }
+
+  const deleteFavoriteRoute = (id) => {
+    setFavoriteRoutes(current => {
+      const updated = current.filter(favorite => favorite.id !== id)
+      localStorage.setItem('favoriteRoutes', JSON.stringify(updated))
+      return updated
+    })
+  }
 
   const environmentalAlert = useMemo(() => {
     if (!ecoProfile?.alertsEnabled) return null
@@ -511,7 +683,7 @@ function MapPage() {
       const critical = alertTestScenario === 'POOR'
       return evaluateAirQualityAlert([{
         id: `alert-test-${alertTestScenario}`,
-        stationName: 'Test station',
+        stationName: 'Testna postaja',
         latitude: regionCenter[0],
         longitude: regionCenter[1],
         // pm2.5 concentrations chosen to land in the EAQI "Poor" (60 ug/m3)
@@ -540,37 +712,44 @@ function MapPage() {
     lastNotification.current = notificationKey
   }, [environmentalAlert])
 
-  const heatmapPoints = [
-    { position: [46.5547, 15.6459], intensity: 0.9, label: 'Maribor – Air Quality', color: '#3b82f6' },
-    { position: [46.2397, 14.3556], intensity: 0.7, label: 'Gorenjska – Air Quality', color: '#3b82f6' },
-    { position: [45.5481, 13.7302], intensity: 0.8, label: 'Koper – Water Quality', color: '#06b6d4' },
-    { position: [46.0569, 14.5058], intensity: 1.0, label: 'Ljubljana – Air Quality', color: '#3b82f6' },
-    { position: [46.1512, 15.2372], intensity: 0.6, label: 'Celje – Land Temperature', color: '#f59e0b' },
-    { position: [46.3600, 13.7200], intensity: 0.5, label: 'Tolmin – Air Quality', color: '#3b82f6' },
-    { position: [45.9631, 15.1708], intensity: 0.7, label: 'Novo Mesto – Water Quality', color: '#06b6d4' },
-    { position: [46.4992, 15.0466], intensity: 0.6, label: 'Slovenj Gradec – Land Temperature', color: '#f59e0b' },
-    { position: [46.6592, 16.1635], intensity: 0.8, label: 'Murska Sobota – Air Quality', color: '#3b82f6' },
-    { position: [45.8100, 14.0000], intensity: 0.9, label: 'Postojna – Water Quality', color: '#06b6d4' },
-  ]
+  // Real ARSO stations only - each point's intensity comes from that
+  // station's actual current EAQI reading (worse real air quality = larger,
+  // more prominent circle), not a fabricated per-city value. Stations with
+  // no usable pollutant reading right now are simply left out.
+  const heatmapPoints = useMemo(() => {
+    return airQualityStations
+      .map(station => {
+        const score = calculateAirQualityIndex(station)
+        if (score === null) return null
+
+        return {
+          position: [station.latitude, station.longitude],
+          intensity: Math.max(0.3, (100 - score) / 100),
+          label: `${station.stationName || 'ARSO postaja'} – kakovost zraka: ${score}/100`,
+          color: getScoreColor(score)
+        }
+      })
+      .filter(Boolean)
+  }, [airQualityStations])
 
   const routeOptions = [
     {
       id: 'ECO',
-      name: 'Eco Route',
-      color: '#22c55e',
-      description: 'Cleaner air and healthier walking conditions.'
+      name: 'Eko pot',
+      color: '#15803d',
+      description: 'Čistejši zrak in bolj zdravi pogoji za hojo.'
     },
     {
       id: 'FAST',
-      name: 'Fast Route',
-      color: '#3b82f6',
-      description: 'Shortest travel duration.'
+      name: 'Hitra pot',
+      color: '#2563eb',
+      description: 'Najkrajši čas potovanja.'
     },
     {
       id: 'BALANCED',
-      name: 'Balanced Route',
-      color: '#f59e0b',
-      description: 'Balanced travel and environmental conditions.'
+      name: 'Uravnotežena pot',
+      color: '#b45309',
+      description: 'Uravnoteženo razmerje med hitrostjo in okoljskimi pogoji.'
     }
   ]
 
@@ -580,11 +759,11 @@ function MapPage() {
     })
       .then(response => {
         setUploadedRoutes(response.data)
-        setRoutesStatus(`Loaded ${response.data.length} uploaded GPX route(s).`)
+        setRoutesStatus(`Naloženih ${response.data.length} GPX poti.`)
       })
       .catch(error => {
         console.error(error)
-        setRoutesStatus('Failed to load uploaded GPX routes.')
+        setRoutesStatus('Nalaganje naloženih GPX poti ni uspelo.')
       })
   }
 
@@ -595,14 +774,14 @@ function MapPage() {
       })
         .then(response => {
           setProducts(response.data)
-          setStatus(`Environmental data refreshed at ${new Date().toLocaleTimeString()}`)
+          setStatus(`Okoljski podatki osveženi ob ${new Date().toLocaleTimeString()}`)
         })
         .catch(error => {
           console.error(error)
           if (error.response?.status === 401 || error.response?.status === 403) {
-            setStatus('Session invalid. Sign in again to load environmental data.')
+            setStatus('Seja ni veljavna. Znova se prijavi za nalaganje okoljskih podatkov.')
           } else {
-            setStatus('Failed to load environmental data')
+            setStatus('Nalaganje okoljskih podatkov ni uspelo')
           }
         })
 
@@ -624,12 +803,12 @@ function MapPage() {
         .then(response => {
           const readings = normalizeSensorData(response.data).slice(-500)
           setSensorStatus(readings.length
-            ? `${readings.length} recent live measurements`
-            : 'No live measurements available')
+            ? `${readings.length} nedavnih meritev v živo`
+            : 'Ni razpoložljivih meritev v živo')
         })
         .catch(error => {
           console.error(error)
-          setSensorStatus('Live sensor service unavailable')
+          setSensorStatus('Storitev senzorjev v živo ni na voljo')
         })
     }
 
@@ -645,12 +824,12 @@ function MapPage() {
           const stations = normalizeAirQualityStations(response.data)
           setAirQualityStations(stations)
           setAirQualityStatus(stations.length
-            ? `${stations.length} ARSO station(s) reporting`
-            : 'No ARSO air quality data available')
+            ? `${stations.length} ARSO postaj poroča`
+            : 'Ni razpoložljivih ARSO podatkov o kakovosti zraka')
         })
         .catch(error => {
           console.error(error)
-          setAirQualityStatus('ARSO air quality service unavailable')
+          setAirQualityStatus('Storitev ARSO kakovosti zraka ni na voljo')
         })
     }
 
@@ -689,14 +868,6 @@ function MapPage() {
     })
   }, [products, environmentFilter, dateFromFilter, dateToFilter])
 
-  const productLocations = [
-    { position: [46.5547, 15.6459], city: 'Maribor' },
-    { position: [46.2397, 14.3556], city: 'Gorenjska' },
-    { position: [45.5481, 13.7302], city: 'Koper' },
-    { position: [46.0569, 14.5058], city: 'Ljubljana' },
-    { position: [46.1512, 15.2372], city: 'Celje' }
-  ]
-
   const handleLogout = () => {
     logout()
     window.location.href = '/login'
@@ -713,21 +884,23 @@ function MapPage() {
     // override, e.g. to redo just one point of an already-planned route.
     if (selectionMode === 'START') {
       setStartPoint(point)
+      setStartQuery('')
       setSelectionMode(null)
       if (endPoint) {
-        setRouteStatus('Calculating your route...')
+        setRouteStatus('Izračunavanje tvoje poti ...')
         calculateRoute(undefined, { start: point, end: endPoint })
       } else {
-        setRouteStatus('Start point selected. Click on the map again to set your destination.')
+        setRouteStatus('Začetna točka izbrana. Ponovno klikni na zemljevid za določitev cilja.')
       }
       return
     }
 
     if (selectionMode === 'END') {
       setEndPoint(point)
+      setEndQuery('')
       setSelectionMode(null)
       if (startPoint) {
-        setRouteStatus('Calculating your route...')
+        setRouteStatus('Izračunavanje tvoje poti ...')
         calculateRoute(undefined, { start: startPoint, end: point })
       }
       return
@@ -738,47 +911,42 @@ function MapPage() {
     // scrolling back up to press a button first.
     if (!startPoint) {
       setStartPoint(point)
-      setRouteStatus('Start point selected. Click on the map again to set your destination.')
+      setStartQuery('')
+      setRouteStatus('Začetna točka izbrana. Ponovno klikni na zemljevid za določitev cilja.')
       return
     }
 
     if (!endPoint) {
       setEndPoint(point)
-      setRouteStatus('Calculating your route...')
+      setEndQuery('')
+      setRouteStatus('Izračunavanje tvoje poti ...')
       calculateRoute(undefined, { start: startPoint, end: point })
       return
     }
 
     // Both points already set - this click starts a fresh selection.
     setStartPoint(point)
+    setStartQuery('')
     setEndPoint(null)
+    setEndQuery('')
     setRoutePoints([])
     setRouteAlternatives([])
     setRouteInfo(null)
-    setRouteStatus('New start point selected. Click on the map again to set your destination.')
+    setRouteStatus('Nova začetna točka izbrana. Ponovno klikni na zemljevid za določitev cilja.')
   }
 
   const clearRoute = () => {
     setStartPoint(null)
     setEndPoint(null)
+    setStartQuery('')
+    setEndQuery('')
+    setStartSuggestions([])
+    setEndSuggestions([])
     setRoutePoints([])
     setRouteAlternatives([])
     setRouteInfo(null)
     setSelectionMode(null)
-    setRouteStatus('Click on the map to set your start point, then click again for your destination.')
-  }
-
-  const useDemoRoute = () => {
-    const start = [46.5547, 15.6459]
-    const end = [46.5602, 15.6487]
-    setStartPoint(start)
-    setEndPoint(end)
-    setRoutePoints([])
-    setRouteAlternatives([])
-    setRouteInfo(null)
-    setSelectionMode(null)
-    setRouteStatus('Calculating demo route...')
-    calculateRoute(undefined, { start, end })
+    setRouteStatus('Klikni na zemljevid, da nastaviš začetno točko, nato še enkrat za cilj.')
   }
 
   const calculateRoute = async (routeTypeOverride, pointsOverride) => {
@@ -791,7 +959,7 @@ function MapPage() {
     const effectiveEnd = pointsOverride?.end ?? endPoint
 
     if (!effectiveStart || !effectiveEnd) {
-      setRouteStatus('Please select start and destination points first.')
+      setRouteStatus('Najprej izberi začetno točko in cilj.')
       return
     }
 
@@ -804,7 +972,7 @@ function MapPage() {
     const requestId = ++routeRequestId.current
     const isStale = () => requestId !== routeRequestId.current
 
-    setRouteStatus('Calculating route...')
+    setRouteStatus('Izračunavanje poti ...')
 
     try {
       const routingService = ecoProfile?.activityType === 'CYCLING' ? 'routed-bike' : 'routed-foot'
@@ -861,12 +1029,12 @@ function MapPage() {
 
       const selectedRoute = selectRouteByStrategy(candidates, routeType)
       const strategyReason = selectedRoute.ecoDataUnavailable
-        ? 'No ARSO air-quality station is close enough to this route - showing the fastest candidate instead.'
+        ? 'Nobena ARSO postaja za kakovost zraka ni dovolj blizu tej poti - prikazana je najhitrejša možna pot.'
         : routeType === 'FAST'
-          ? 'Selected the shortest-duration candidate.'
+          ? 'Izbrana je bila pot z najkrajšim trajanjem.'
           : routeType === 'ECO'
-            ? 'Selected the candidate with the best real air-quality index nearby.'
-            : 'Selected the candidate with the median duration as a balance of speed and environment.'
+            ? 'Izbrana je bila pot z najboljšim resničnim indeksom kakovosti zraka v bližini.'
+            : 'Izbrana je bila pot z mediano trajanja kot ravnotežje med hitrostjo in okoljem.'
 
       setRouteAlternatives(candidates.map(candidate => candidate.points))
       setRoutePoints(selectedRoute.points)
@@ -883,15 +1051,15 @@ function MapPage() {
         strategyReason,
         recommendation:
           selectedRoute.environmentScore === null
-            ? 'No nearby ARSO station - environmental score unavailable for this route.'
+            ? 'Ni bližnje ARSO postaje - okoljska ocena za to pot ni na voljo.'
             : selectedRoute.environmentScore >= 85
-              ? 'Excellent route for outdoor activity.'
+              ? 'Odlična pot za aktivnosti na prostem.'
               : selectedRoute.environmentScore >= 70
-                ? 'Good route with acceptable environmental conditions.'
-                : 'Environmental conditions are less suitable.'
+                ? 'Dobra pot s sprejemljivimi okoljskimi pogoji.'
+                : 'Okoljski pogoji so manj primerni.'
       })
 
-      setRouteStatus(`${routeOptions.find(option => option.id === routeType)?.name} selected from ${candidates.length} candidate route(s).`)
+      setRouteStatus(`${routeOptions.find(option => option.id === routeType)?.name} izbrana izmed ${candidates.length} možnih poti.`)
     } catch (error) {
       console.error(error)
 
@@ -919,13 +1087,13 @@ function MapPage() {
         stationCount: fallbackAirQuality?.stationCount ?? 0,
         stationNames: fallbackAirQuality?.stationNames ?? [],
         nearestStationKm: fallbackAirQuality?.nearestDistanceKm ?? null,
-        strategyReason: 'The routing service was unavailable, so a direct preview was used.',
+        strategyReason: 'Storitev za izračun poti ni bila na voljo, zato je bil uporabljen neposreden prikaz.',
         recommendation: fallbackAirQuality?.score != null
-          ? 'Fallback route preview generated using the nearest real ARSO station.'
-          : 'Fallback route preview generated - no nearby ARSO station to score it.'
+          ? 'Nadomestni prikaz poti je bil ustvarjen z uporabo najbližje resnične ARSO postaje.'
+          : 'Nadomestni prikaz poti je bil ustvarjen - brez bližnje ARSO postaje za oceno.'
       })
 
-      setRouteStatus('Fallback route generated.')
+      setRouteStatus('Ustvarjena je bila nadomestna pot.')
     }
   }
 
@@ -939,17 +1107,14 @@ function MapPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.backgroundGlowOne} />
-      <div style={styles.backgroundGlowTwo} />
-
       <header style={styles.header} className="eco-header">
         <div style={styles.brandBlock}>
           <div style={styles.logoRow}>
-            <div style={styles.logoBadge}>🌿</div>
+            <div style={styles.logoBadge}>EF</div>
             <div>
               <h1 style={styles.title} className="eco-title">EcoFlow</h1>
               <p style={styles.description}>
-                Intelligent environmental route planning with satellite, GPX and sensor data.
+                Inteligentno načrtovanje okolju prijaznih poti z uporabo satelitskih, GPX in senzorskih podatkov.
               </p>
             </div>
           </div>
@@ -961,24 +1126,24 @@ function MapPage() {
         </div>
 
         <nav style={styles.nav} className="eco-header-buttons">
-          <Link to="/gpx-upload" style={styles.navButtonGreen}>
-            Upload GPX
+          <Link to="/gpx-upload" style={styles.navButtonPrimary}>
+            Naloži GPX
           </Link>
 
-          <Link to="/dashboard" style={styles.navButtonBlue}>
-            Dashboard
+          <Link to="/dashboard" style={styles.navButtonSecondary}>
+            Nadzorna plošča
           </Link>
 
-          <Link to="/profile" style={styles.navButtonOrange}>
-            Eco Profile
+          <Link to="/profile" style={styles.navButtonSecondary}>
+            Eko profil
           </Link>
 
-          <Link to="/recommendations" style={styles.navButtonPurple}>
-            Recommendations
+          <Link to="/recommendations" style={styles.navButtonSecondary}>
+            Priporočila
           </Link>
 
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            Sign out
+          <button onClick={handleLogout} style={styles.navButtonGhost}>
+            Odjava
           </button>
         </nav>
       </header>
@@ -991,267 +1156,31 @@ function MapPage() {
           >
             <div>
               <strong>
-                {alertTestScenario ? 'TEST MODE: ' : ''}
-                {environmentalAlert?.title || `Conditions near ${ecoProfile.preferredRegion} are within your threshold`}
+                {alertTestScenario ? 'TESTNI NAČIN: ' : ''}
+                {environmentalAlert?.title || `Razmere v bližini ${ecoProfile.preferredRegion} so znotraj tvojega praga`}
               </strong>
-              <p>{environmentalAlert?.message || `${sensorStatus}. Alert level: ${ecoProfile.alertThreshold}.`}</p>
+              <p>{environmentalAlert?.message || `${sensorStatus}. Nivo opozorila: ${ecoProfile.alertThreshold}.`}</p>
             </div>
             <div style={styles.alertActions}>
               <button type="button" onClick={() => setAlertTestScenario('MODERATE')} style={styles.alertTestButton}>
-                Test warning
+                Testiraj opozorilo
               </button>
               <button type="button" onClick={() => setAlertTestScenario('POOR')} style={styles.alertTestButton}>
-                Test critical
+                Testiraj kritično
               </button>
               {alertTestScenario && (
                 <button type="button" onClick={() => setAlertTestScenario(null)} style={styles.alertTestButton}>
-                  Use live data
+                  Uporabi žive podatke
                 </button>
               )}
-              <Link to="/profile" style={styles.alertSettingsLink}>Alert settings</Link>
+              <Link to="/profile" style={styles.alertSettingsLink}>Nastavitve opozoril</Link>
             </div>
           </div>
         )}
 
-        <div style={styles.topGrid}>
-          <div style={styles.routePanel}>
-            <div style={styles.panelHeader}>
-              <div>
-                <p style={styles.eyebrow}>Route intelligence</p>
-                <h2 style={styles.sectionTitle}>Plan your route</h2>
-              </div>
-              <div style={styles.routeTypeBadge}>{selectedRouteType}</div>
-            </div>
-
-            {ecoProfile && (
-              <div style={profileUpdated ? styles.profileNoticeActive : styles.profileNotice}>
-                {profileUpdated
-                  ? '✅ Eco Profile updated. Map filters and route preferences were applied.'
-                  : (
-                    <>
-                      🌿 Eco Profile active: <strong>{ecoProfile.activityType}</strong> ·{' '}
-                      <strong>{ecoProfile.ecoPriority.replaceAll('_', ' ')}</strong> ·{' '}
-                      <strong>{ecoProfile.preferredRegion}</strong>
-                      <Link to="/profile" style={styles.inlineLink}>Edit profile →</Link>
-                    </>
-                  )}
-              </div>
-            )}
-
-            {!ecoProfile && (
-              <div style={styles.profileNoticeWarning}>
-                Create an Eco Profile to unlock personalized route recommendations.
-                <Link to="/profile" style={styles.inlineLinkWarning}>Create profile →</Link>
-              </div>
-            )}
-
-            {selectedRouteFromRecommendations && (
-              <div style={styles.loadedRouteNotice}>
-                ✅ Route loaded: <strong>{selectedRouteFromRecommendations.name}</strong>
-                <br />
-                <small>Eco-score: {selectedRouteFromRecommendations.ecoScore}/100</small>
-              </div>
-            )}
-
-            <p style={styles.text}>
-              Select start and destination points directly on the Leaflet map, compare route options and evaluate environmental suitability.
-            </p>
-
-            <div style={styles.buttonRow} className="eco-button-row">
-              <button
-                onClick={() => {
-                  setSelectionMode('START')
-                  setRouteStatus('Click on the map to select start point.')
-                }}
-                style={styles.primaryButton}
-              >
-                Select start
-              </button>
-
-              <button
-                onClick={() => {
-                  setSelectionMode('END')
-                  setRouteStatus('Click on the map to select destination point.')
-                }}
-                style={styles.primaryButton}
-              >
-                Select destination
-              </button>
-
-              <button onClick={() => calculateRoute()} style={styles.greenButton}>
-                Calculate route
-              </button>
-
-              <button onClick={useDemoRoute} style={styles.secondaryDarkButton}>
-                Demo route
-              </button>
-
-              <button onClick={clearRoute} style={styles.dangerButton}>
-                Clear route
-              </button>
-
-              <button
-                onClick={() => setShowHeatmap(h => !h)}
-                style={showHeatmap ? styles.heatmapButtonActive : styles.heatmapButton}
-              >
-                {showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
-              </button>
-
-              <button onClick={requestMyLocation} style={styles.secondaryDarkButton}>
-                📍 Show my location
-              </button>
-            </div>
-
-            {myLocationError && (
-              <p style={{ marginTop: '10px', color: '#fbbf24', fontWeight: 700, textAlign: 'center' }}>
-                {myLocationError}
-              </p>
-            )}
-
-            <div style={styles.optionRow} className="eco-option-row">
-              {routeOptions.map(route => (
-                <button
-                  key={route.id}
-                  onClick={() => selectRouteType(route.id)}
-                  style={{
-                    ...styles.routeOptionButton,
-                    borderColor:
-                      selectedRouteType === route.id
-                        ? route.color
-                        : 'rgba(148, 163, 184, 0.18)',
-                    background:
-                      selectedRouteType === route.id
-                        ? `linear-gradient(135deg, ${route.color}, ${route.color}cc)`
-                        : 'rgba(15, 23, 42, 0.72)'
-                  }}
-                >
-                  <span>{route.name}</span>
-                  <small style={styles.routeOptionDesc}>{route.description}</small>
-                </button>
-              ))}
-            </div>
-
-            <p style={styles.routeStatus}>{routeStatus}</p>
-
-            {routeInfo && (
-              <div style={styles.insightGrid}>
-                <div style={styles.routeSummary}>
-                  <p style={styles.eyebrow}>Recommendation</p>
-                  <h3 style={styles.cardTitle}>Route analysis</h3>
-
-                  <div style={styles.metricGrid}>
-                    <div style={styles.metricBox}>
-                      <span style={styles.metricLabel}>Distance</span>
-                      <strong style={styles.metricValue}>{routeInfo.distanceKm} km</strong>
-                    </div>
-                    <div style={styles.metricBox}>
-                      <span style={styles.metricLabel}>Duration</span>
-                      <strong style={styles.metricValue}>{formatDuration(routeInfo.durationMin)}</strong>
-                    </div>
-                    <div style={styles.metricBox}>
-                      <span style={styles.metricLabel}>Eco-score</span>
-                      <strong style={{ ...styles.metricValue, color: getScoreColor(routeInfo.ecoScore) }}>
-                        {routeInfo.ecoScore !== null ? `${routeInfo.ecoScore}/100` : 'No data'}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <p style={styles.text}>
-                    <strong>Layer:</strong> {formatEnvironmentalType(routeInfo.environmentType)}
-                  </p>
-                  <p style={styles.text}>
-                    <strong>Selection:</strong> {routeInfo.strategyReason}
-                  </p>
-                  <p style={styles.mutedText}>
-                    Compared {routeInfo.alternativeCount} candidate route(s) using {routeInfo.stationCount} nearby ARSO station(s).
-                  </p>
-                  <p style={styles.text}>{routeInfo.recommendation}</p>
-                </div>
-
-                <div style={styles.conditionsPanel}>
-                  <p style={styles.eyebrow}>Real air-quality data</p>
-                  <h3 style={styles.cardTitle}>ARSO station coverage</h3>
-                  <p style={styles.text}>
-                    <strong>Nearby stations:</strong> {routeInfo.stationCount || 'None in range'}
-                  </p>
-                  <p style={styles.text}>
-                    <strong>Nearest station:</strong> {routeInfo.nearestStationKm !== null ? `${routeInfo.nearestStationKm} km away` : 'No station within 35 km'}
-                  </p>
-                  {routeInfo.stationNames?.length > 0 && (
-                    <p style={styles.text}>
-                      <strong>Station(s) used:</strong> {routeInfo.stationNames.join(', ')}
-                    </p>
-                  )}
-                  <p style={styles.text}><strong>Air quality feed status:</strong> {airQualityStatus}</p>
-                  <p style={routeInfo.stationCount ? styles.successText : styles.mutedText}>
-                    {routeInfo.stationCount
-                      ? 'Eco-score is based on real ARSO air-quality measurements near this route.'
-                      : 'No real air-quality station is close enough to score this route honestly.'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={styles.infoPanel}>
-            <p style={styles.eyebrow}>System status</p>
-            <h2 style={styles.sectionTitle}>Project modules</h2>
-
-            <div style={styles.moduleList}>
-              <div style={styles.moduleItem}>
-                <span style={styles.moduleIcon}>🛰️</span>
-                <div>
-                  <strong>Copernicus data</strong>
-                  <p>{filteredProducts.length} visible products</p>
-                </div>
-              </div>
-
-              <div style={styles.moduleItem}>
-                <span style={styles.moduleIcon}>🗺️</span>
-                <div>
-                  <strong>GPX routes</strong>
-                  <p>{uploadedRoutes.length} uploaded route(s)</p>
-                </div>
-              </div>
-
-              <div style={styles.moduleItem}>
-                <span style={styles.moduleIcon}>🔥</span>
-                <div>
-                  <strong>Heatmap</strong>
-                  <p>{showHeatmap ? 'Enabled' : 'Disabled'}</p>
-                </div>
-              </div>
-
-              <div style={styles.moduleItem}>
-                <span style={styles.moduleIcon}>👤</span>
-                <div>
-                  <strong>Eco Profile</strong>
-                  <p>{ecoProfile ? 'Active' : 'Not configured'}</p>
-                </div>
-              </div>
-
-              <div style={styles.moduleItem}>
-                <span style={styles.moduleIcon}>🏭</span>
-                <div>
-                  <strong>ARSO air quality</strong>
-                  <p>{airQualityStatus}</p>
-                </div>
-              </div>
-
-              <div style={styles.moduleItem}>
-                <span style={styles.moduleIcon}>LIVE</span>
-                <div>
-                  <strong>Simulated IoT sensors (demo)</strong>
-                  <p>{sensorStatus}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div style={styles.filters} className="eco-filters">
           <div>
-            <label style={styles.label}>Environmental layer</label>
+            <label style={styles.label}>Okoljski sloj</label>
             <select
               value={environmentFilter}
               onChange={(e) => setEnvironmentFilter(e.target.value)}
@@ -1266,7 +1195,7 @@ function MapPage() {
           </div>
 
           <div>
-            <label style={styles.label}>Data date from</label>
+            <label style={styles.label}>Datum podatkov od</label>
             <input
               type="date"
               value={dateFromFilter}
@@ -1276,7 +1205,7 @@ function MapPage() {
           </div>
 
           <div>
-            <label style={styles.label}>Data date to</label>
+            <label style={styles.label}>Datum podatkov do</label>
             <input
               type="date"
               value={dateToFilter}
@@ -1285,233 +1214,523 @@ function MapPage() {
             />
           </div>
 
-          <button onClick={resetFilters} style={styles.dangerButtonLarge}>
-            Reset filters
+          <button onClick={resetFilters} style={styles.resetButton}>
+            Ponastavi filtre
           </button>
         </div>
 
-        <div style={styles.mapBox}>
-          <div style={styles.mapHeader}>
-            <div>
-              <p style={styles.eyebrow}>Interactive GIS map</p>
-              <h2 style={styles.mapTitle}>Environmental route visualization</h2>
+        <div style={styles.plannerRow} className="eco-planner-row">
+          <aside style={styles.sidebar} className="eco-sidebar">
+            <div style={styles.panelHeader}>
+              <div>
+                <p style={styles.eyebrow}>Pametno načrtovanje poti</p>
+                <h2 style={styles.sectionTitle}>Načrtuj svojo pot</h2>
+              </div>
+              <div style={styles.routeTypeBadge}>{selectedRouteType}</div>
             </div>
+
+            {ecoProfile && (
+              <div style={profileUpdated ? styles.profileNoticeActive : styles.profileNotice}>
+                {profileUpdated
+                  ? 'Eko profil posodobljen. Filtri zemljevida in nastavitve poti so bili uporabljeni.'
+                  : (
+                    <>
+                      Eko profil je aktiven: <strong>{formatActivityType(ecoProfile.activityType)}</strong> ·{' '}
+                      <strong>{formatEnvironmentalType(ecoProfile.ecoPriority)}</strong> ·{' '}
+                      <strong>{ecoProfile.preferredRegion}</strong>
+                      <Link to="/profile" style={styles.inlineLink}>Uredi profil →</Link>
+                    </>
+                  )}
+              </div>
+            )}
+
+            {!ecoProfile && (
+              <div style={styles.profileNoticeWarning}>
+                Ustvari eko profil za prilagojena priporočila poti.
+                <Link to="/profile" style={styles.inlineLinkWarning}>Ustvari profil →</Link>
+              </div>
+            )}
+
+            {selectedRouteFromRecommendations && (
+              <div style={styles.loadedRouteNotice}>
+                Pot naložena: <strong>{selectedRouteFromRecommendations.name}</strong>
+                <br />
+                <small>Eko-ocena: {selectedRouteFromRecommendations.ecoScore}/100</small>
+              </div>
+            )}
+
+            <p style={styles.text}>
+              Išči naslov spodaj ali klikni na zemljevid, da določiš začetno točko, nato cilj. Poti se primerjajo in izračunajo samodejno.
+            </p>
+
+            <div style={styles.searchField}>
+              <input
+                type="text"
+                value={startQuery}
+                onChange={(e) => handleStartQueryChange(e.target.value)}
+                placeholder="Išči začetni naslov ali ulico ..."
+                style={styles.searchInput}
+              />
+              {searchingField === 'START' && startQuery.trim().length >= 3 && (
+                <span style={styles.searchStatus}>Iskanje ...</span>
+              )}
+              {startSuggestions.length > 0 && (
+                <div style={styles.searchResults}>
+                  {startSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => selectStartSuggestion(suggestion)}
+                      style={styles.searchResultItem}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.searchField}>
+              <input
+                type="text"
+                value={endQuery}
+                onChange={(e) => handleEndQueryChange(e.target.value)}
+                placeholder="Išči naslov ali ulico cilja ..."
+                style={styles.searchInput}
+              />
+              {searchingField === 'END' && endQuery.trim().length >= 3 && (
+                <span style={styles.searchStatus}>Iskanje ...</span>
+              )}
+              {endSuggestions.length > 0 && (
+                <div style={styles.searchResults}>
+                  {endSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => selectEndSuggestion(suggestion)}
+                      style={styles.searchResultItem}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.pointsBlock}>
+              <div style={styles.pointRow}>
+                <span style={styles.pointDotStart} />
+                <span>{startPoint
+                  ? `Začetek: ${startPoint[0].toFixed(4)}, ${startPoint[1].toFixed(4)}`
+                  : 'Začetna točka še ni določena'}</span>
+              </div>
+              <div style={styles.pointRow}>
+                <span style={styles.pointDotEnd} />
+                <span>{endPoint
+                  ? `Cilj: ${endPoint[0].toFixed(4)}, ${endPoint[1].toFixed(4)}`
+                  : 'Cilj še ni določen'}</span>
+              </div>
+
+              {(startPoint || endPoint) && (
+                <button
+                  onClick={clearRoute}
+                  style={styles.clearButton}
+                  aria-label="Počisti pot"
+                  title="Počisti pot"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <p style={styles.routeStatus}>{routeStatus}</p>
+
+            {myLocationError && (
+              <p style={styles.errorText}>{myLocationError}</p>
+            )}
+
+            <div style={styles.buttonRow} className="eco-button-row">
+              <button onClick={() => calculateRoute()} style={styles.secondaryButton}>
+                Ponovno izračunaj
+              </button>
+
+              <button
+                onClick={() => setShowHeatmap(h => !h)}
+                style={showHeatmap ? styles.heatmapButtonActive : styles.secondaryButton}
+              >
+                {showHeatmap ? 'Skrij toplotno karto' : 'Prikaži toplotno karto'}
+              </button>
+
+              {startPoint && endPoint && (
+                <button onClick={saveFavoriteRoute} style={styles.secondaryButton}>
+                  Sačuvaj rutu
+                </button>
+              )}
+            </div>
+
+            {favoriteRoutes.length > 0 && (
+              <div style={styles.favoritesBlock}>
+                <p style={styles.favoritesLabel}>Omiljene rute</p>
+                <div style={styles.favoritesList}>
+                  {favoriteRoutes.map(favorite => (
+                    <div key={favorite.id} style={styles.favoriteItem}>
+                      <button
+                        onClick={() => loadFavoriteRoute(favorite)}
+                        style={styles.favoriteButton}
+                        title="Naloži to omiljeno pot"
+                      >
+                        {favorite.name}
+                      </button>
+                      <button
+                        onClick={() => deleteFavoriteRoute(favorite.id)}
+                        style={styles.favoriteRemoveButton}
+                        aria-label="Odstrani iz omiljenih"
+                        title="Odstrani iz omiljenih"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={styles.optionRow} className="eco-option-row">
+              {routeOptions.map(route => {
+                const isSelected = selectedRouteType === route.id
+                const showDetail = isSelected && routeInfo
+
+                return (
+                  <div key={route.id} style={styles.optionCard}>
+                    <button
+                      onClick={() => selectRouteType(route.id)}
+                      style={isSelected ? styles.optionButtonActive : styles.optionButton}
+                    >
+                      <span style={{ ...styles.optionDot, backgroundColor: route.color }} />
+                      <span style={styles.optionName}>{route.name}</span>
+                      {showDetail && (
+                        <span style={styles.optionMeta}>
+                          {routeInfo.distanceKm} km · {formatDuration(routeInfo.durationMin)}
+                        </span>
+                      )}
+                    </button>
+
+                    {!showDetail && (
+                      <p style={styles.optionDesc}>{route.description}</p>
+                    )}
+
+                    {showDetail && (
+                      <div style={styles.optionDetail}>
+                        <div style={styles.metricGrid}>
+                          <div style={styles.metricBox}>
+                            <span style={styles.metricLabel}>Razdalja</span>
+                            <strong style={styles.metricValue}>{routeInfo.distanceKm} km</strong>
+                          </div>
+                          <div style={styles.metricBox}>
+                            <span style={styles.metricLabel}>Trajanje</span>
+                            <strong style={styles.metricValue}>{formatDuration(routeInfo.durationMin)}</strong>
+                          </div>
+                          <div style={styles.metricBox}>
+                            <span style={styles.metricLabel}>Eko-ocena</span>
+                            <strong style={{ ...styles.metricValue, color: getScoreColor(routeInfo.ecoScore) }}>
+                              {routeInfo.ecoScore !== null ? `${routeInfo.ecoScore}/100` : 'Ni podatkov'}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <p style={styles.text}>
+                          <strong>Sloj:</strong> {formatEnvironmentalType(routeInfo.environmentType)}
+                        </p>
+                        <p style={styles.text}>
+                          <strong>Izbira:</strong> {routeInfo.strategyReason}
+                        </p>
+                        <p style={styles.mutedText}>
+                          Primerjanih {routeInfo.alternativeCount} možnih poti z uporabo {routeInfo.stationCount} bližnjih ARSO postaj.
+                        </p>
+                        <p style={styles.text}>{routeInfo.recommendation}</p>
+
+                        <p style={styles.text}>
+                          <strong>Najbližja ARSO postaja:</strong> {routeInfo.nearestStationKm !== null ? `${routeInfo.nearestStationKm} km stran` : 'Nobena v okviru 35 km'}
+                        </p>
+                        {routeInfo.stationNames?.length > 0 && (
+                          <p style={styles.text}>
+                            <strong>Uporabljene postaje:</strong> {routeInfo.stationNames.join(', ')}
+                          </p>
+                        )}
+                        <p style={routeInfo.stationCount ? styles.successText : styles.mutedText}>
+                          {routeInfo.stationCount
+                            ? 'Eko-ocena temelji na resničnih ARSO meritvah kakovosti zraka v bližini te poti.'
+                            : 'Nobena resnična postaja za kakovost zraka ni dovolj blizu, da bi lahko pošteno ocenili to pot.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </aside>
+
+          <div style={styles.mapBox}>
             <div style={styles.mapLegend}>
-              <span><i style={{ ...styles.legendDot, backgroundColor: '#22c55e' }} /> Eco</span>
-              <span><i style={{ ...styles.legendDot, backgroundColor: '#3b82f6' }} /> Fast</span>
-              <span><i style={{ ...styles.legendDot, backgroundColor: '#f59e0b' }} /> Balanced</span>
+              <span><i style={{ ...styles.legendDot, backgroundColor: '#15803d' }} /> Eko</span>
+              <span><i style={{ ...styles.legendDot, backgroundColor: '#2563eb' }} /> Hitro</span>
+              <span><i style={{ ...styles.legendDot, backgroundColor: '#b45309' }} /> Uravnoteženo</span>
             </div>
-          </div>
 
-          <MapContainer
-            center={ecoProfile?.preferredRegion ? regionCoordinates[ecoProfile.preferredRegion] : [46.1512, 14.9955]}
-            zoom={8}
-            style={styles.map}
-            className="eco-map"
-          >
-            <RouteClickHandler
-              onSelectPoint={handleSelectPoint}
-            />
+            <button onClick={requestMyLocation} style={styles.locateButton} title="Prikaži mojo resnično lokacijo">
+              Moja lokacija
+            </button>
 
-            <FlyToRegion
-              center={ecoProfile?.preferredRegion
-                ? regionCoordinates[ecoProfile.preferredRegion]
-                : null}
-            />
-
-            <FlyToUserLocation position={myPosition} />
-
-            {selectedRouteCoordinates.length > 0 && (
-              <FlyToRoute routeCoordinates={selectedRouteCoordinates} />
-            )}
-
-            <TileLayer
-              attribution='&copy; OpenStreetMap contributors'
-              url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-            />
-
-            {filteredProducts.map((product, index) => {
-              const location = productLocations[index % productLocations.length]
-              const environmentalType = getEnvironmentalType(product.name)
-
-              return (
-                <Marker key={product.id} position={location.position}>
-                  <Popup>
-                    <strong>{location.city}</strong>
-                    <br />
-                    {formatEnvironmentalType(environmentalType)}
-                    <br />
-                    {formatRecommendation(environmentalType)}
-                  </Popup>
-                </Marker>
-              )
-            })}
-
-            {myPosition && (
-              <CircleMarker
-                center={[myPosition.latitude, myPosition.longitude]}
-                radius={9}
-                pathOptions={{
-                  color: '#38bdf8',
-                  fillColor: '#38bdf8',
-                  fillOpacity: 0.85,
-                  weight: 3
-                }}
-              >
-                <Popup>
-                  <strong>You are here</strong>
-                  <br />
-                  {myAirQuality?.score != null
-                    ? <>Real air quality index: {myAirQuality.score}/100
-                        <br />Nearest station: {myAirQuality.stationNames?.[0] ?? 'ARSO station'} ({myAirQuality.nearestDistanceKm} km)</>
-                    : 'No real ARSO air-quality station is within range of your location (ARSO only covers Slovenia).'}
-                </Popup>
-              </CircleMarker>
-            )}
-
-            {showHeatmap && heatmapPoints.map((point, index) => (
-              <CircleMarker
-                key={`heat-${index}`}
-                center={point.position}
-                radius={40 * point.intensity}
-                pathOptions={{
-                  color: point.color,
-                  fillColor: point.color,
-                  fillOpacity: 0.25,
-                  weight: 0
-                }}
-              >
-                <Popup>{point.label}</Popup>
-              </CircleMarker>
-            ))}
-
-            {showHeatmap && heatmapPoints.map((point, index) => (
-              <CircleMarker
-                key={`heat-core-${index}`}
-                center={point.position}
-                radius={14 * point.intensity}
-                pathOptions={{
-                  color: point.color,
-                  fillColor: point.color,
-                  fillOpacity: 0.7,
-                  weight: 1
-                }}
-              >
-                <Popup>{point.label}</Popup>
-              </CircleMarker>
-            ))}
-
-            {startPoint && (
-              <Marker position={startPoint}>
-                <Popup>Start point</Popup>
-              </Marker>
-            )}
-
-            {endPoint && (
-              <Marker position={endPoint}>
-                <Popup>Destination point</Popup>
-              </Marker>
-            )}
-
-            {routeAlternatives.map((alternative, index) => (
-              <Polyline
-                key={`alternative-${index}`}
-                positions={alternative}
-                pathOptions={{
-                  color: '#94a3b8',
-                  weight: 3,
-                  opacity: 0.38,
-                  dashArray: '7, 8'
-                }}
+            <MapContainer
+              center={ecoProfile?.preferredRegion ? regionCoordinates[ecoProfile.preferredRegion] : [46.1512, 14.9955]}
+              zoom={8}
+              style={styles.map}
+              className="eco-map"
+            >
+              <RouteClickHandler
+                onSelectPoint={handleSelectPoint}
               />
-            ))}
 
-            {routePoints.length > 0 && (
-              <Polyline
-                positions={routePoints}
-                pathOptions={{
-                  color:
-                    selectedRouteType === 'ECO'
-                      ? '#22c55e'
-                      : selectedRouteType === 'FAST'
-                        ? '#3b82f6'
-                        : '#f59e0b',
-                  weight: 6,
-                  opacity: 0.9
-                }}
+              <FlyToRegion
+                center={ecoProfile?.preferredRegion
+                  ? regionCoordinates[ecoProfile.preferredRegion]
+                  : null}
               />
-            )}
 
-            {selectedRouteCoordinates.length > 0 && (
-              <>
-                <Polyline
-                  positions={selectedRouteCoordinates}
+              <FlyToUserLocation position={myPosition} />
+
+              <FlyToPlannedRoute startPoint={startPoint} endPoint={endPoint} routePoints={routePoints} />
+
+              {selectedRouteCoordinates.length > 0 && (
+                <FlyToRoute routeCoordinates={selectedRouteCoordinates} />
+              )}
+
+              <TileLayer
+                attribution='&copy; OpenStreetMap contributors'
+                url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+              />
+
+              {myPosition && (
+                <CircleMarker
+                  center={[myPosition.latitude, myPosition.longitude]}
+                  radius={9}
                   pathOptions={{
-                    color: '#22c55e',
-                    weight: 5,
-                    opacity: 0.85,
-                    dashArray: '5, 5'
-                  }}
-                />
-                {selectedRouteCoordinates.length > 0 && (
-                  <CircleMarker
-                    center={selectedRouteCoordinates[0]}
-                    radius={6}
-                    pathOptions={{
-                      color: '#10b981',
-                      fillColor: '#86efac',
-                      fillOpacity: 0.8,
-                      weight: 2
-                    }}
-                  >
-                    <Popup>Start</Popup>
-                  </CircleMarker>
-                )}
-                {selectedRouteCoordinates.length > 0 && (
-                  <CircleMarker
-                    center={selectedRouteCoordinates[selectedRouteCoordinates.length - 1]}
-                    radius={6}
-                    pathOptions={{
-                      color: '#ef4444',
-                      fillColor: '#fca5a5',
-                      fillOpacity: 0.8,
-                      weight: 2
-                    }}
-                  >
-                    <Popup>End</Popup>
-                  </CircleMarker>
-                )}
-              </>
-            )}
-
-            {uploadedRoutes.map(route => {
-              const positions = parseRouteCoordinates(route)
-
-              if (positions.length === 0) return null
-
-              return (
-                <Polyline
-                  key={`uploaded-${route.id}`}
-                  positions={positions}
-                  pathOptions={{
-                    color: getScoreColor(route.ecoScore),
-                    weight: 5,
-                    opacity: 0.85
+                    color: '#2563eb',
+                    fillColor: '#2563eb',
+                    fillOpacity: 0.85,
+                    weight: 3
                   }}
                 >
                   <Popup>
-                    <strong>{route.name}</strong>
+                    <strong>Tukaj si</strong>
                     <br />
-                    Eco-score: {route.ecoScore}/100
-                    <br />
-                    Status: {route.ecoScoreLabel}
-                    <br />
-                    Points: {route.pointCount}
+                    {myAirQuality?.score != null
+                      ? <>Resnični indeks kakovosti zraka: {myAirQuality.score}/100
+                          <br />Najbližja postaja: {myAirQuality.stationNames?.[0] ?? 'ARSO postaja'} ({myAirQuality.nearestDistanceKm} km)</>
+                      : 'Nobena resnična ARSO postaja za kakovost zraka ni v dosegu tvoje lokacije (ARSO pokriva samo Slovenijo).'}
                   </Popup>
-                </Polyline>
-              )
-            })}
-          </MapContainer>
+                </CircleMarker>
+              )}
+
+              {showHeatmap && heatmapPoints.map((point, index) => (
+                <CircleMarker
+                  key={`heat-${index}`}
+                  center={point.position}
+                  radius={40 * point.intensity}
+                  pathOptions={{
+                    color: point.color,
+                    fillColor: point.color,
+                    fillOpacity: 0.25,
+                    weight: 0
+                  }}
+                >
+                  <Popup>{point.label}</Popup>
+                </CircleMarker>
+              ))}
+
+              {showHeatmap && heatmapPoints.map((point, index) => (
+                <CircleMarker
+                  key={`heat-core-${index}`}
+                  center={point.position}
+                  radius={14 * point.intensity}
+                  pathOptions={{
+                    color: point.color,
+                    fillColor: point.color,
+                    fillOpacity: 0.7,
+                    weight: 1
+                  }}
+                >
+                  <Popup>{point.label}</Popup>
+                </CircleMarker>
+              ))}
+
+              {startPoint && (
+                <Marker position={startPoint}>
+                  <Popup>Začetna točka</Popup>
+                </Marker>
+              )}
+
+              {endPoint && (
+                <Marker position={endPoint}>
+                  <Popup>Cilj</Popup>
+                </Marker>
+              )}
+
+              {routeAlternatives.map((alternative, index) => (
+                <Polyline
+                  key={`alternative-${index}`}
+                  positions={alternative}
+                  pathOptions={{
+                    color: '#94a3b8',
+                    weight: 3,
+                    opacity: 0.38,
+                    dashArray: '7, 8'
+                  }}
+                />
+              ))}
+
+              {routePoints.length > 0 && (
+                <Polyline
+                  positions={routePoints}
+                  pathOptions={{
+                    color:
+                      selectedRouteType === 'ECO'
+                        ? '#15803d'
+                        : selectedRouteType === 'FAST'
+                          ? '#2563eb'
+                          : '#b45309',
+                    weight: 6,
+                    opacity: 0.9
+                  }}
+                />
+              )}
+
+              {selectedRouteCoordinates.length > 0 && (
+                <>
+                  <Polyline
+                    positions={selectedRouteCoordinates}
+                    pathOptions={{
+                      color: '#15803d',
+                      weight: 5,
+                      opacity: 0.85,
+                      dashArray: '5, 5'
+                    }}
+                  />
+                  {selectedRouteCoordinates.length > 0 && (
+                    <CircleMarker
+                      center={selectedRouteCoordinates[0]}
+                      radius={6}
+                      pathOptions={{
+                        color: '#15803d',
+                        fillColor: '#86efac',
+                        fillOpacity: 0.8,
+                        weight: 2
+                      }}
+                    >
+                      <Popup>Začetek</Popup>
+                    </CircleMarker>
+                  )}
+                  {selectedRouteCoordinates.length > 0 && (
+                    <CircleMarker
+                      center={selectedRouteCoordinates[selectedRouteCoordinates.length - 1]}
+                      radius={6}
+                      pathOptions={{
+                        color: '#b91c1c',
+                        fillColor: '#fca5a5',
+                        fillOpacity: 0.8,
+                        weight: 2
+                      }}
+                    >
+                      <Popup>Konec</Popup>
+                    </CircleMarker>
+                  )}
+                </>
+              )}
+
+              {uploadedRoutes.map(route => {
+                const positions = parseRouteCoordinates(route)
+
+                if (positions.length === 0) return null
+
+                return (
+                  <Polyline
+                    key={`uploaded-${route.id}`}
+                    positions={positions}
+                    pathOptions={{
+                      color: getScoreColor(route.ecoScore),
+                      weight: 5,
+                      opacity: 0.85
+                    }}
+                  >
+                    <Popup>
+                      <strong>{route.name}</strong>
+                      <br />
+                      Eko-ocena: {route.ecoScore}/100
+                      <br />
+                      Stanje: {route.ecoScoreLabel}
+                      <br />
+                      Točke: {route.pointCount}
+                    </Popup>
+                  </Polyline>
+                )
+              })}
+            </MapContainer>
+          </div>
+        </div>
+
+        <div style={styles.infoPanel}>
+          <p style={styles.eyebrow}>Stanje sistema</p>
+          <h2 style={styles.sectionTitle}>Moduli projekta</h2>
+
+          <div style={styles.moduleList}>
+            <div style={styles.moduleItem}>
+              <span style={styles.moduleDot} />
+              <div>
+                <strong>Copernicus podatki</strong>
+                <p>{filteredProducts.length} vidnih produktov</p>
+              </div>
+            </div>
+
+            <div style={styles.moduleItem}>
+              <span style={styles.moduleDot} />
+              <div>
+                <strong>GPX poti</strong>
+                <p>{uploadedRoutes.length} naloženih poti</p>
+              </div>
+            </div>
+
+            <div style={styles.moduleItem}>
+              <span style={styles.moduleDot} />
+              <div>
+                <strong>Toplotna karta</strong>
+                <p>{showHeatmap ? 'Omogočeno' : 'Onemogočeno'}</p>
+              </div>
+            </div>
+
+            <div style={styles.moduleItem}>
+              <span style={styles.moduleDot} />
+              <div>
+                <strong>Eko profil</strong>
+                <p>{ecoProfile ? 'Aktiven' : 'Ni nastavljen'}</p>
+              </div>
+            </div>
+
+            <div style={styles.moduleItem}>
+              <span style={styles.moduleDot} />
+              <div>
+                <strong>ARSO kakovost zraka</strong>
+                <p>{airQualityStatus}</p>
+              </div>
+            </div>
+
+            <div style={styles.moduleItem}>
+              <span style={styles.moduleDot} />
+              <div>
+                <strong>Simulirani IoT senzorji (demo)</strong>
+                <p>{sensorStatus}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <HistoricalTrends products={filteredProducts} routes={uploadedRoutes} />
@@ -1519,22 +1738,21 @@ function MapPage() {
         <section style={styles.uploadedRoutesSection}>
           <div style={styles.uploadedRoutesHeader} className="eco-uploaded-header">
             <div>
-              <p style={styles.eyebrow}>Route archive</p>
-              <h2 style={styles.sectionTitle}>Uploaded GPX Routes</h2>
+              <p style={styles.eyebrow}>Arhiv poti</p>
+              <h2 style={styles.sectionTitle}>Naložene GPX poti</h2>
               <p style={styles.text}>{routesStatus}</p>
             </div>
 
-            <button onClick={loadUploadedRoutes} style={styles.greenButton}>
-              Refresh routes
+            <button onClick={loadUploadedRoutes} style={styles.secondaryButton}>
+              Osveži poti
             </button>
           </div>
 
           {uploadedRoutes.length === 0 ? (
             <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>🗺️</div>
-              <h3>No GPX routes uploaded yet</h3>
-              <p>Upload a GPX route to analyse its eco-score and display it on the map.</p>
-              <Link to="/gpx-upload" style={styles.emptyButton}>Upload GPX route</Link>
+              <h3>Še ni naloženih GPX poti</h3>
+              <p>Naloži GPX pot za analizo eko-ocene in prikaz na zemljevidu.</p>
+              <Link to="/gpx-upload" style={styles.emptyButton}>Naloži GPX pot</Link>
             </div>
           ) : (
             <div style={styles.routeCardsGrid} className="eco-route-cards">
@@ -1553,12 +1771,12 @@ function MapPage() {
                     </div>
                   </div>
 
-                  <p style={styles.text}><strong>Status:</strong> {route.ecoScoreLabel}</p>
-                  <p style={styles.text}><strong>Track points:</strong> {route.pointCount}</p>
-                  <p style={styles.text}><strong>Uploaded:</strong> {route.uploadedAt || 'N/A'}</p>
+                  <p style={styles.text}><strong>Stanje:</strong> {route.ecoScoreLabel}</p>
+                  <p style={styles.text}><strong>Točke sledi:</strong> {route.pointCount}</p>
+                  <p style={styles.text}><strong>Naloženo:</strong> {route.uploadedAt || 'ni na voljo'}</p>
 
                   <p style={styles.mutedText}>
-                    This uploaded GPX route is drawn on the map using stored route coordinates from the backend.
+                    Ta naložena GPX pot je narisana na zemljevidu z uporabo shranjenih koordinat poti iz strežnika.
                   </p>
                 </div>
               ))}
@@ -1574,9 +1792,29 @@ function PrivateRoute({ children }) {
   return isLoggedIn() ? children : <Navigate to="/login" />
 }
 
+function ThemeToggle() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('ecoTheme') || 'light')
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('ecoTheme', theme)
+  }, [theme])
+
+  return (
+    <button
+      onClick={() => setTheme(current => (current === 'dark' ? 'light' : 'dark'))}
+      style={themeToggleStyle}
+      title={theme === 'dark' ? 'Preklopi na svetli način' : 'Preklopi na temni način'}
+    >
+      {theme === 'dark' ? 'Svetli način' : 'Temni način'}
+    </button>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <ThemeToggle />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -1630,63 +1868,61 @@ function App() {
   )
 }
 
-const glassCard = {
-  background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.94))',
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  boxShadow: '0 24px 80px rgba(0, 0, 0, 0.28)',
-  backdropFilter: 'blur(14px)'
+const themeToggleStyle = {
+  position: 'fixed',
+  bottom: '20px',
+  right: '20px',
+  zIndex: 1000,
+  padding: '10px 16px',
+  borderRadius: '999px',
+  border: '1px solid var(--border-strong)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  cursor: 'pointer',
+  fontWeight: 600,
+  fontSize: '13px',
+  fontFamily: 'var(--font)',
+  boxShadow: 'var(--shadow-md)'
 }
 
 const baseButton = {
-  padding: '11px 16px',
-  color: '#fff',
+  padding: '10px 16px',
+  color: '#ffffff',
   border: 'none',
-  borderRadius: '12px',
+  borderRadius: 'var(--radius-md)',
   cursor: 'pointer',
-  fontWeight: '800',
+  fontWeight: 600,
+  fontSize: '14px',
+  fontFamily: 'var(--font)',
   textDecoration: 'none',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   gap: '8px',
-  boxShadow: '0 12px 30px rgba(0,0,0,0.24)'
+  background: 'var(--brand)'
+}
+
+const outlineButton = {
+  ...baseButton,
+  color: 'var(--text)',
+  background: 'var(--surface)',
+  border: '1px solid var(--border-strong)'
+}
+
+const card = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  boxShadow: 'var(--shadow-sm)'
 }
 
 const styles = {
   page: {
-    position: 'relative',
     minHeight: '100vh',
-    overflow: 'hidden',
-    background:
-      'radial-gradient(circle at 15% 0%, rgba(34,197,94,0.18), transparent 30%), radial-gradient(circle at 90% 10%, rgba(56,189,248,0.12), transparent 26%), linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%)',
-    color: '#e5e7eb',
-    fontFamily: 'Inter, system-ui, Segoe UI, Arial, sans-serif'
-  },
-  backgroundGlowOne: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(34,197,94,0.14)',
-    filter: 'blur(90px)',
-    top: '-120px',
-    left: '-120px',
-    pointerEvents: 'none'
-  },
-  backgroundGlowTwo: {
-    position: 'fixed',
-    width: '420px',
-    height: '420px',
-    borderRadius: '50%',
-    background: 'rgba(59,130,246,0.12)',
-    filter: 'blur(90px)',
-    right: '-140px',
-    top: '180px',
-    pointerEvents: 'none'
+    background: 'var(--bg)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font)'
   },
   header: {
-    position: 'relative',
-    zIndex: 1,
     maxWidth: '1280px',
     margin: '0 auto',
     padding: '30px 28px 22px',
@@ -1706,56 +1942,55 @@ const styles = {
     gap: '16px'
   },
   logoBadge: {
-    width: '58px',
-    height: '58px',
-    borderRadius: '18px',
-    background: 'linear-gradient(135deg, rgba(34,197,94,0.28), rgba(56,189,248,0.18))',
-    border: '1px solid rgba(134,239,172,0.35)',
+    width: '48px',
+    height: '48px',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--brand)',
+    color: '#ffffff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '28px',
-    boxShadow: '0 18px 50px rgba(34,197,94,0.18)'
+    fontSize: '16px',
+    fontWeight: 800,
+    letterSpacing: '0.02em'
   },
   title: {
     margin: 0,
-    fontSize: '48px',
-    lineHeight: 1,
-    fontWeight: 900,
-    letterSpacing: '-0.06em',
-    color: '#f8fafc'
+    fontSize: '32px',
+    lineHeight: 1.1,
+    fontWeight: 800,
+    letterSpacing: '-0.03em',
+    color: 'var(--text)'
   },
   description: {
-    color: '#93c5fd',
-    marginTop: '8px',
-    fontSize: '17px'
+    color: 'var(--text-muted)',
+    marginTop: '6px',
+    fontSize: '15px'
   },
   statusPill: {
     alignSelf: 'flex-start',
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
-    padding: '8px 12px',
+    padding: '7px 12px',
     borderRadius: '999px',
-    background: 'rgba(15, 23, 42, 0.72)',
-    border: '1px solid rgba(148, 163, 184, 0.22)',
-    color: '#cbd5e1',
+    background: 'var(--surface-muted)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-muted)',
     fontSize: '13px',
-    fontWeight: 700
+    fontWeight: 600
   },
   statusDot: {
     width: '8px',
     height: '8px',
     borderRadius: '50%',
-    backgroundColor: '#22c55e',
-    boxShadow: '0 0 16px rgba(34,197,94,0.8)'
+    backgroundColor: 'var(--brand)'
   },
   statusDotError: {
     width: '8px',
     height: '8px',
     borderRadius: '50%',
-    backgroundColor: '#ef4444',
-    boxShadow: '0 0 16px rgba(239,68,68,0.8)'
+    backgroundColor: 'var(--danger)'
   },
   nav: {
     display: 'flex',
@@ -1763,38 +1998,21 @@ const styles = {
     flexWrap: 'wrap',
     justifyContent: 'flex-end'
   },
-  navButtonGreen: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #10b981, #22c55e)'
+  navButtonPrimary: {
+    ...baseButton
   },
-  navButtonBlue: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #4f46e5, #38bdf8)'
+  navButtonSecondary: {
+    ...outlineButton
   },
-  navButtonOrange: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #f59e0b, #f97316)'
-  },
-  navButtonPurple: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)'
-  },
-  logoutButton: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #a855f7, #ec4899)'
+  navButtonGhost: {
+    ...outlineButton,
+    color: 'var(--danger)',
+    borderColor: 'var(--border)'
   },
   container: {
-    position: 'relative',
-    zIndex: 1,
     maxWidth: '1280px',
     margin: '0 auto',
     padding: '0 28px 52px'
-  },
-  topGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 0.8fr)',
-    gap: '22px',
-    marginBottom: '22px'
   },
   environmentAlert: {
     display: 'flex',
@@ -1803,10 +2021,10 @@ const styles = {
     gap: '18px',
     marginBottom: '18px',
     padding: '16px 18px',
-    borderRadius: '8px',
-    border: '1px solid rgba(251, 146, 60, 0.6)',
-    background: 'rgba(124, 45, 18, 0.72)',
-    color: '#fff7ed'
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid #fed7aa',
+    background: 'var(--warning-soft)',
+    color: 'var(--warning)'
   },
   environmentAlertClear: {
     display: 'flex',
@@ -1815,14 +2033,14 @@ const styles = {
     gap: '18px',
     marginBottom: '18px',
     padding: '16px 18px',
-    borderRadius: '8px',
-    border: '1px solid rgba(34, 197, 94, 0.45)',
-    background: 'rgba(20, 83, 45, 0.65)',
-    color: '#f0fdf4'
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--brand-soft-border)',
+    background: 'var(--brand-soft)',
+    color: 'var(--brand-hover)'
   },
   alertSettingsLink: {
-    color: '#ffffff',
-    fontWeight: 800,
+    color: 'inherit',
+    fontWeight: 700,
     whiteSpace: 'nowrap'
   },
   alertActions: {
@@ -1833,24 +2051,54 @@ const styles = {
     flexWrap: 'wrap'
   },
   alertTestButton: {
-    padding: '8px 10px',
-    borderRadius: '6px',
-    border: '1px solid rgba(255, 255, 255, 0.42)',
-    background: 'rgba(15, 23, 42, 0.52)',
-    color: '#ffffff',
+    padding: '7px 10px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid currentColor',
+    background: 'transparent',
+    color: 'inherit',
     cursor: 'pointer',
-    fontWeight: 750,
+    fontWeight: 600,
     whiteSpace: 'nowrap'
   },
-  routePanel: {
-    ...glassCard,
-    padding: '24px',
-    borderRadius: '22px'
+  filters: {
+    ...card,
+    padding: '18px',
+    borderRadius: 'var(--radius-lg)',
+    marginBottom: '20px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr)) auto',
+    gap: '16px',
+    alignItems: 'end'
   },
-  infoPanel: {
-    ...glassCard,
-    padding: '24px',
-    borderRadius: '22px'
+  label: {
+    display: 'block',
+    marginBottom: '8px',
+    color: 'var(--text-muted)',
+    fontWeight: 600,
+    fontSize: '13px'
+  },
+  input: {
+    width: '100%',
+    minHeight: '42px',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-sm)'
+  },
+  resetButton: {
+    ...outlineButton,
+    color: 'var(--danger)',
+    minHeight: '42px'
+  },
+  plannerRow: {
+    display: 'flex',
+    gap: '20px',
+    alignItems: 'flex-start',
+    marginBottom: '20px'
+  },
+  sidebar: {
+    ...card,
+    flex: '0 0 380px',
+    padding: '20px',
+    borderRadius: 'var(--radius-lg)'
   },
   panelHeader: {
     display: 'flex',
@@ -1861,306 +2109,454 @@ const styles = {
   },
   eyebrow: {
     margin: 0,
-    color: '#38bdf8',
+    color: 'var(--brand)',
     textTransform: 'uppercase',
-    letterSpacing: '0.12em',
+    letterSpacing: '0.1em',
     fontSize: '11px',
-    fontWeight: 900
+    fontWeight: 700
   },
   sectionTitle: {
-    margin: '5px 0 0',
-    color: '#f8fafc',
-    fontSize: '26px',
-    fontWeight: 850,
-    letterSpacing: '-0.04em'
-  },
-  mapTitle: {
-    margin: '5px 0 0',
-    color: '#f8fafc',
+    margin: '4px 0 0',
+    color: 'var(--text)',
     fontSize: '22px',
-    fontWeight: 850,
-    letterSpacing: '-0.04em'
+    fontWeight: 700,
+    letterSpacing: '-0.02em'
   },
   cardTitle: {
     margin: '6px 0 12px',
-    color: '#f8fafc',
-    fontSize: '20px',
-    fontWeight: 800
+    color: 'var(--text)',
+    fontSize: '18px',
+    fontWeight: 700
   },
   routeTypeBadge: {
-    padding: '8px 12px',
+    padding: '6px 12px',
     borderRadius: '999px',
-    background: 'rgba(34,197,94,0.12)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    color: '#86efac',
-    fontWeight: 900,
+    background: 'var(--brand-soft)',
+    border: '1px solid var(--brand-soft-border)',
+    color: 'var(--brand-hover)',
+    fontWeight: 700,
     fontSize: '12px'
   },
   text: {
-    color: '#cbd5e1',
-    lineHeight: 1.65
+    color: 'var(--text-muted)',
+    lineHeight: 1.6,
+    fontSize: '14px'
   },
   mutedText: {
-    color: '#94a3b8',
+    color: 'var(--text-faint)',
     lineHeight: 1.55,
-    marginTop: '12px'
+    marginTop: '10px',
+    fontSize: '13px'
   },
   profileNotice: {
-    background: 'rgba(20, 83, 45, 0.34)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    borderRadius: '14px',
+    background: 'var(--brand-soft)',
+    border: '1px solid var(--brand-soft-border)',
+    borderRadius: 'var(--radius-md)',
     padding: '12px 14px',
     marginBottom: '14px',
     fontSize: '13px',
-    color: '#bbf7d0'
+    color: 'var(--brand-hover)'
   },
   profileNoticeActive: {
-    background: 'rgba(20, 83, 45, 0.72)',
-    border: '1px solid rgba(74,222,128,0.8)',
-    borderRadius: '14px',
+    background: 'var(--brand)',
+    border: '1px solid var(--brand)',
+    borderRadius: 'var(--radius-md)',
     padding: '12px 14px',
     marginBottom: '14px',
     fontSize: '13px',
-    color: '#dcfce7',
-    boxShadow: '0 0 28px rgba(34,197,94,0.24)'
+    color: '#ffffff'
   },
   loadedRouteNotice: {
-    background: 'rgba(34,197,94,0.15)',
-    border: '1px solid rgba(74,222,128,0.6)',
-    borderRadius: '14px',
+    background: 'var(--info-soft)',
+    border: '1px solid var(--info-soft-border)',
+    borderRadius: 'var(--radius-md)',
     padding: '12px 14px',
     marginBottom: '14px',
     fontSize: '13px',
-    color: '#86efac'
+    color: 'var(--info)'
   },
   profileNoticeWarning: {
-    background: 'rgba(245,158,11,0.12)',
-    border: '1px solid rgba(245,158,11,0.36)',
-    borderRadius: '14px',
+    background: 'var(--warning-soft)',
+    border: '1px solid var(--warning-soft-border)',
+    borderRadius: 'var(--radius-md)',
     padding: '12px 14px',
     marginBottom: '14px',
     fontSize: '13px',
-    color: '#fde68a'
+    color: 'var(--warning)'
   },
   inlineLink: {
-    color: '#86efac',
+    color: 'inherit',
     marginLeft: '10px',
-    fontWeight: 800,
+    fontWeight: 700,
     textDecoration: 'none'
   },
   inlineLinkWarning: {
-    color: '#fbbf24',
+    color: 'inherit',
     marginLeft: '10px',
-    fontWeight: 800,
+    fontWeight: 700,
     textDecoration: 'none'
+  },
+  searchField: {
+    position: 'relative',
+    marginTop: '8px'
+  },
+  searchInput: {
+    width: '100%',
+    minHeight: '40px',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-md)',
+    fontSize: '13px'
+  },
+  searchStatus: {
+    position: 'absolute',
+    top: '11px',
+    right: '12px',
+    color: 'var(--text-faint)',
+    fontSize: '12px'
+  },
+  searchResults: {
+    position: 'absolute',
+    top: 'calc(100% + 4px)',
+    left: 0,
+    right: 0,
+    zIndex: 600,
+    background: 'var(--surface)',
+    border: '1px solid var(--border-strong)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--shadow-md)',
+    maxHeight: '220px',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  searchResultItem: {
+    padding: '10px 12px',
+    border: 'none',
+    borderBottom: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontFamily: 'var(--font)'
+  },
+  pointsBlock: {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    padding: '12px 40px 12px 14px',
+    background: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-md)',
+    marginTop: '6px',
+    marginBottom: '6px'
+  },
+  pointRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontSize: '14px',
+    color: 'var(--text)'
+  },
+  pointDotStart: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--brand)',
+    flexShrink: 0
+  },
+  pointDotEnd: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '2px',
+    backgroundColor: 'var(--danger)',
+    flexShrink: 0
+  },
+  clearButton: {
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    width: '26px',
+    height: '26px',
+    borderRadius: '50%',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    fontSize: '16px',
+    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0
+  },
+  routeStatus: {
+    marginTop: '4px',
+    marginBottom: '4px',
+    color: 'var(--text-muted)',
+    fontSize: '13px',
+    fontWeight: 600
+  },
+  errorText: {
+    color: 'var(--warning)',
+    fontWeight: 600,
+    fontSize: '13px'
   },
   buttonRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '10px',
-    marginTop: '18px',
-    marginBottom: '14px'
+    gap: '8px',
+    marginTop: '10px',
+    marginBottom: '16px'
   },
-  optionRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-    gap: '10px',
-    marginTop: '14px'
-  },
-  primaryButton: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #6366f1, #818cf8)'
-  },
-  greenButton: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #10b981, #22c55e)'
-  },
-  secondaryDarkButton: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #334155, #475569)'
-  },
-  dangerButton: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #ef4444, #fb7185)'
-  },
-  dangerButtonLarge: {
-    ...baseButton,
-    minHeight: '48px',
-    background: 'linear-gradient(135deg, #ef4444, #fb7185)'
-  },
-  heatmapButton: {
-    ...baseButton,
-    background: 'linear-gradient(135deg, #334155, #475569)'
+  secondaryButton: {
+    ...outlineButton,
+    padding: '8px 14px',
+    fontSize: '13px'
   },
   heatmapButtonActive: {
     ...baseButton,
-    background: 'linear-gradient(135deg, #0284c7, #38bdf8)'
+    background: 'var(--info)',
+    padding: '8px 14px',
+    fontSize: '13px'
   },
-  routeOptionButton: {
-    padding: '14px',
-    borderRadius: '16px',
-    border: '1px solid',
-    cursor: 'pointer',
-    color: '#fff',
-    fontWeight: 850,
-    textAlign: 'left',
+  favoritesBlock: {
+    marginBottom: '16px'
+  },
+  favoritesLabel: {
+    margin: '0 0 8px',
+    color: 'var(--text-muted)',
+    fontSize: '12px',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em'
+  },
+  favoritesList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px'
+    gap: '6px'
   },
-  routeOptionDesc: {
-    color: 'rgba(226,232,240,0.78)',
+  favoriteItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  favoriteButton: {
+    flex: 1,
+    minWidth: 0,
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface-muted)',
+    color: 'var(--text)',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 600,
+    textAlign: 'left',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontFamily: 'var(--font)'
+  },
+  favoriteRemoveButton: {
+    width: '28px',
+    height: '28px',
+    flexShrink: 0,
+    borderRadius: '50%',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    fontSize: '15px',
+    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0
+  },
+  optionRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  optionCard: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-md)',
+    overflow: 'hidden'
+  },
+  optionButton: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 14px',
+    border: 'none',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontSize: '14px',
+    fontFamily: 'var(--font)',
+    textAlign: 'left'
+  },
+  optionButtonActive: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 14px',
+    border: 'none',
+    background: 'var(--surface-muted)',
+    color: 'var(--text)',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+    fontFamily: 'var(--font)',
+    textAlign: 'left',
+    borderLeft: '3px solid var(--brand)'
+  },
+  optionDot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    flexShrink: 0
+  },
+  optionName: {
+    flex: 1
+  },
+  optionMeta: {
+    color: 'var(--text-muted)',
+    fontSize: '12px',
     fontWeight: 500,
-    lineHeight: 1.35
+    whiteSpace: 'nowrap'
   },
-  routeStatus: {
-    marginTop: '16px',
-    color: '#86efac',
-    fontWeight: 800,
-    textAlign: 'center'
+  optionDesc: {
+    margin: 0,
+    padding: '0 14px 12px 34px',
+    color: 'var(--text-muted)',
+    fontSize: '13px',
+    background: 'var(--surface)'
   },
-  insightGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-    marginTop: '18px'
-  },
-  routeSummary: {
-    background: 'rgba(15, 23, 42, 0.78)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    padding: '18px',
-    borderRadius: '18px'
-  },
-  conditionsPanel: {
-    background: 'rgba(15, 23, 42, 0.78)',
-    padding: '18px',
-    borderRadius: '18px',
-    border: '1px solid rgba(148, 163, 184, 0.22)'
+  optionDetail: {
+    padding: '4px 14px 16px',
+    background: 'var(--surface-muted)',
+    borderTop: '1px solid var(--border)'
   },
   metricGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '10px',
-    marginBottom: '14px'
+    gap: '8px',
+    margin: '12px 0'
   },
   metricBox: {
-    background: 'rgba(2, 6, 23, 0.7)',
-    border: '1px solid rgba(148,163,184,0.14)',
-    borderRadius: '14px',
-    padding: '12px'
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '10px'
   },
   metricLabel: {
     display: 'block',
-    color: '#94a3b8',
-    fontSize: '12px',
+    color: 'var(--text-faint)',
+    fontSize: '11px',
     marginBottom: '4px'
   },
   metricValue: {
-    color: '#f8fafc',
-    fontSize: '18px'
+    color: 'var(--text)',
+    fontSize: '15px'
   },
   successText: {
-    color: '#22c55e',
-    fontWeight: 900,
-    marginTop: '8px'
+    color: 'var(--brand)',
+    fontWeight: 700,
+    marginTop: '8px',
+    fontSize: '13px'
+  },
+  mapBox: {
+    ...card,
+    flex: '1 1 auto',
+    padding: '10px',
+    borderRadius: 'var(--radius-lg)',
+    position: 'relative',
+    minWidth: 0
+  },
+  mapLegend: {
+    position: 'absolute',
+    top: '20px',
+    left: '20px',
+    zIndex: 500,
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '999px',
+    padding: '6px 12px',
+    color: 'var(--text-muted)',
+    fontSize: '12px',
+    fontWeight: 600,
+    boxShadow: 'var(--shadow-sm)'
+  },
+  legendDot: {
+    display: 'inline-block',
+    width: '9px',
+    height: '9px',
+    borderRadius: '50%',
+    marginRight: '5px'
+  },
+  locateButton: {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    zIndex: 500,
+    padding: '8px 14px',
+    borderRadius: '999px',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontSize: '13px',
+    fontFamily: 'var(--font)',
+    boxShadow: 'var(--shadow-sm)'
+  },
+  map: {
+    height: '600px',
+    width: '100%',
+    borderRadius: 'var(--radius-md)',
+    overflow: 'hidden'
+  },
+  infoPanel: {
+    ...card,
+    padding: '20px',
+    borderRadius: 'var(--radius-lg)',
+    marginBottom: '20px'
   },
   moduleList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    marginTop: '18px'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '10px',
+    marginTop: '16px'
   },
   moduleItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    background: 'rgba(15, 23, 42, 0.66)',
-    border: '1px solid rgba(148, 163, 184, 0.16)',
-    borderRadius: '16px',
-    padding: '14px'
-  },
-  moduleIcon: {
-    width: '42px',
-    height: '42px',
-    borderRadius: '14px',
-    background: 'rgba(34,197,94,0.12)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '20px'
-  },
-  filters: {
-    ...glassCard,
-    padding: '20px',
-    borderRadius: '22px',
-    marginBottom: '22px',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr)) auto',
-    gap: '16px',
-    alignItems: 'end'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    color: '#e2e8f0',
-    fontWeight: 850,
+    background: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px 14px',
     fontSize: '13px'
   },
-  input: {
-    width: '100%',
-    minHeight: '48px',
-    padding: '10px 12px',
-    borderRadius: '14px',
-    border: '1px solid rgba(148,163,184,0.28)',
-    backgroundColor: '#0f172a',
-    color: '#f8fafc'
-  },
-  mapBox: {
-    ...glassCard,
-    padding: '14px',
-    borderRadius: '24px',
-    position: 'relative'
-  },
-  mapHeader: {
-    padding: '8px 8px 14px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '14px',
-    flexWrap: 'wrap'
-  },
-  mapLegend: {
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap',
-    color: '#cbd5e1',
-    fontSize: '13px',
-    fontWeight: 700
-  },
-  legendDot: {
-    display: 'inline-block',
-    width: '10px',
-    height: '10px',
+  moduleDot: {
+    width: '8px',
+    height: '8px',
     borderRadius: '50%',
-    marginRight: '5px'
-  },
-  map: {
-    height: '570px',
-    width: '100%',
-    borderRadius: '18px',
-    overflow: 'hidden'
-  },
-  uploadedRoutesSection: {
-    ...glassCard,
-    marginTop: '24px',
-    padding: '24px',
-    borderRadius: '22px'
+    backgroundColor: 'var(--brand)',
+    flexShrink: 0
   },
   trendsSection: {
-    ...glassCard,
-    marginTop: '18px',
+    ...card,
+    marginTop: '20px',
     padding: '18px',
-    borderRadius: '22px'
+    borderRadius: 'var(--radius-lg)'
   },
   trendsHeader: {
     display: 'flex',
@@ -2168,6 +2564,12 @@ const styles = {
     alignItems: 'flex-start',
     gap: '16px',
     marginBottom: '12px'
+  },
+  uploadedRoutesSection: {
+    ...card,
+    marginTop: '20px',
+    padding: '20px',
+    borderRadius: 'var(--radius-lg)'
   },
   uploadedRoutesHeader: {
     display: 'flex',
@@ -2182,10 +2584,10 @@ const styles = {
     gap: '16px'
   },
   gpxCard: {
-    background: 'rgba(15, 23, 42, 0.78)',
-    padding: '18px',
-    borderRadius: '18px',
-    border: '1px solid rgba(148, 163, 184, 0.18)'
+    background: 'var(--surface-muted)',
+    padding: '16px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border)'
   },
   gpxCardHeader: {
     display: 'flex',
@@ -2196,28 +2598,24 @@ const styles = {
   },
   scoreBadge: {
     display: 'inline-block',
-    padding: '8px 12px',
+    padding: '6px 12px',
     borderRadius: '999px',
     color: '#fff',
-    fontWeight: '900',
+    fontWeight: '700',
     fontSize: '13px',
     whiteSpace: 'nowrap'
   },
   emptyState: {
-    background: 'rgba(15,23,42,0.72)',
-    border: '1px dashed rgba(148,163,184,0.28)',
-    borderRadius: '20px',
+    border: '1px dashed var(--border-strong)',
+    borderRadius: 'var(--radius-lg)',
     padding: '34px',
-    textAlign: 'center'
-  },
-  emptyIcon: {
-    fontSize: '40px',
-    marginBottom: '10px'
+    textAlign: 'center',
+    color: 'var(--text-muted)'
   },
   emptyButton: {
     ...baseButton,
     marginTop: '16px',
-    background: 'linear-gradient(135deg, #10b981, #22c55e)'
+    display: 'inline-flex'
   }
 }
 
