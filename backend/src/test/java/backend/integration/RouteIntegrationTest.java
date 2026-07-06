@@ -63,7 +63,7 @@ class RouteIntegrationTest {
         route.setName("saved-route.gpx");
         route.setPointCount(50);
         route.setEcoScore(72.0);
-        route.setEcoScoreLabel("Good");
+        route.setEcoScoreLabel("Dobro");
         route.setCoordinates("[]");
         route.setUploadedAt(LocalDateTime.now());
         routeRepository.save(route);
@@ -72,7 +72,7 @@ class RouteIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("saved-route.gpx"))
                 .andExpect(jsonPath("$[0].ecoScore").value(72.0))
-                .andExpect(jsonPath("$[0].ecoScoreLabel").value("Good"));
+                .andExpect(jsonPath("$[0].ecoScoreLabel").value("Dobro"));
     }
 
     @Test
@@ -87,7 +87,7 @@ class RouteIntegrationTest {
 
         mockMvc.perform(multipart("/api/routes/upload").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("No track points found in GPX file."));
+                .andExpect(jsonPath("$.error").value("V GPX datoteki ni najdenih točk sledi."));
 
         assertThat(routeRepository.findAll()).isEmpty();
     }
@@ -99,7 +99,7 @@ class RouteIntegrationTest {
         route.setName("by-id-route.gpx");
         route.setPointCount(10);
         route.setEcoScore(60.0);
-        route.setEcoScoreLabel("Moderate");
+        route.setEcoScoreLabel("Zmerno");
         route.setCoordinates("[]");
         route.setUploadedAt(LocalDateTime.now());
         Route saved = routeRepository.save(route);

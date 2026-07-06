@@ -2,14 +2,16 @@ from succulent.api import SucculentAPI
 
 # The container's entrypoint runs `gunicorn -b 0.0.0.0:8080 -w N run:app`, which
 # imports this module and looks for a WSGI-callable named `app` - it does NOT
-# call api.start(). SucculentAPI.start() calls Flask's own blocking dev server
-# (app.run()), which was previously happening at import time on the wrong port
-# (9090 instead of the 8080 gunicorn actually binds, per the 9090:8080 mapping
-# in docker-compose.yml). With multiple gunicorn workers each importing this
-# module, every worker independently tried to bind that same hardcoded port and
-# crashed with "Address already in use" - so the container crash-looped forever
-# and nothing was ever reachable on the port Docker actually forwards.
-api = SucculentAPI(host='0.0.0.0', port=8080, config='configuration.yml', format='csv')
+# call api.start(). gunicorn binds its own listening socket from the `-b` flag
+# and never reads SucculentAPI's `port` attribute, so the value below only
+# matters for the standalone path.
+#
+# Standalone `python run.py` (outside Docker/gunicorn) calls api.start(), which
+# runs Flask's own dev server on this exact port - 9090, the same port the
+# frontend and simulate_data.py already call (http://localhost:9090), and
+# distinct from the backend's own 8080 so the two servers don't collide when
+# both run on the same machine.
+api = SucculentAPI(host='0.0.0.0', port=9090, config='configuration.yml', format='csv')
 app = api.app
 
 if __name__ == '__main__':

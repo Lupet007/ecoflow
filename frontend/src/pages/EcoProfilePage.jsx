@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import AppHeader from '../components/AppHeader'
+import AppFooter from '../components/AppFooter'
 
 const REGIONS = ['Ljubljana', 'Maribor', 'Koper', 'Celje', 'Kranj']
 
@@ -85,17 +86,15 @@ function EcoProfilePage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header} className="eco-header">
-        <div>
-          <p style={styles.eyebrow}>Personalizacija</p>
-          <h1 style={styles.title}>Eko profil</h1>
-          <p style={styles.subtitle}>
-            Nastavi svojo aktivnost, regijo in okoljske prioritete za pametnejša priporočila poti.
-          </p>
-        </div>
+      <AppHeader />
 
-        <Link to="/" style={styles.backButton}>← Nazaj na zemljevid</Link>
-      </header>
+      <div style={styles.header}>
+        <p style={styles.eyebrow}>Personalizacija</p>
+        <h1 style={styles.title}>Eko profil</h1>
+        <p style={styles.subtitle}>
+          Nastavi svojo aktivnost, regijo in okoljske prioritete za pametnejša priporočila poti.
+        </p>
+      </div>
 
       <main style={styles.container} className="eco-container">
         <section style={styles.heroGrid}>
@@ -307,6 +306,8 @@ function EcoProfilePage() {
           </button>
         </div>
       </main>
+
+      <AppFooter />
     </div>
   )
 }
@@ -327,11 +328,7 @@ const styles = {
   header: {
     maxWidth: '1240px',
     margin: '0 auto',
-    padding: '32px 24px 22px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '20px'
+    padding: '32px 24px 22px'
   },
   eyebrow: {
     margin: 0,
@@ -353,15 +350,6 @@ const styles = {
     marginTop: '8px',
     color: 'var(--text-muted)',
     fontSize: '15px'
-  },
-  backButton: {
-    padding: '10px 16px',
-    background: 'var(--surface)',
-    border: '1px solid var(--border-strong)',
-    color: 'var(--text)',
-    textDecoration: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 600
   },
   container: {
     maxWidth: '1240px',

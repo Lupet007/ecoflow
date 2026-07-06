@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { register } from '../services/authService'
+import AppFooter from '../components/AppFooter'
 
 function RegisterPage() {
   const navigate = useNavigate()
@@ -39,7 +40,7 @@ function RegisterPage() {
       await register(formData.firstName, formData.lastName, formData.email, formData.password)
       navigate('/login')
     } catch (err) {
-      setError(err.response?.data?.message || 'Registracija ni uspela. Poskusi znova.')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Registracija ni uspela. Poskusi znova.')
     } finally {
       setLoading(false)
     }
@@ -47,103 +48,107 @@ function RegisterPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}>EF</div>
-          <div>
-            <h1 style={styles.logoText}>EcoFlow</h1>
-            <p style={styles.logoSub}>Ustvari svoj okoljski račun</p>
+      <div style={styles.centerArea}>
+        <div style={styles.card}>
+          <div style={styles.logo}>
+            <div style={styles.logoIcon}>EF</div>
+            <div>
+              <h1 style={styles.logoText}>EcoFlow</h1>
+              <p style={styles.logoSub}>Ustvari svoj okoljski račun</p>
+            </div>
           </div>
+
+          <h2 style={styles.title}>Ustvari račun</h2>
+          <p style={styles.subtitle}>Pridruži se platformi EcoFlow za priporočila poti.</p>
+
+          <form onSubmit={handleSubmit} style={styles.form}>
+            <div style={styles.row}>
+              <div style={styles.field}>
+                <label style={styles.label} htmlFor="firstName">Ime</label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="Ana"
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.field}>
+                <label style={styles.label} htmlFor="lastName">Priimek</label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Novak"
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="email">E-poštni naslov</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="ti@primer.com"
+                style={styles.input}
+              />
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="password">Geslo</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Vsaj 6 znakov"
+                style={styles.input}
+              />
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="confirmPassword">Potrdi geslo</label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="••••••••"
+                style={styles.input}
+              />
+            </div>
+
+            {error && <p style={styles.error}>{error}</p>}
+
+            <button type="submit" disabled={loading} style={styles.button}>
+              {loading ? 'Ustvarjanje računa ...' : 'Ustvari račun'}
+            </button>
+          </form>
+
+          <p style={styles.footer}>
+            Že imaš račun?{' '}
+            <Link to="/login" style={styles.link}>Prijava</Link>
+          </p>
         </div>
-
-        <h2 style={styles.title}>Ustvari račun</h2>
-        <p style={styles.subtitle}>Pridruži se platformi EcoFlow za priporočila poti.</p>
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label} htmlFor="firstName">Ime</label>
-              <input
-                id="firstName"
-                name="firstName"
-                type="text"
-                required
-                value={formData.firstName}
-                onChange={handleChange}
-                placeholder="Ana"
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label} htmlFor="lastName">Priimek</label>
-              <input
-                id="lastName"
-                name="lastName"
-                type="text"
-                required
-                value={formData.lastName}
-                onChange={handleChange}
-                placeholder="Novak"
-                style={styles.input}
-              />
-            </div>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label} htmlFor="email">E-poštni naslov</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="ti@primer.com"
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label} htmlFor="password">Geslo</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Vsaj 6 znakov"
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label} htmlFor="confirmPassword">Potrdi geslo</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="••••••••"
-              style={styles.input}
-            />
-          </div>
-
-          {error && <p style={styles.error}>{error}</p>}
-
-          <button type="submit" disabled={loading} style={styles.button}>
-            {loading ? 'Ustvarjanje računa ...' : 'Ustvari račun'}
-          </button>
-        </form>
-
-        <p style={styles.footer}>
-          Že imaš račun?{' '}
-          <Link to="/login" style={styles.link}>Prijava</Link>
-        </p>
       </div>
+
+      <AppFooter />
     </div>
   )
 }
@@ -152,11 +157,16 @@ const styles = {
   page: {
     minHeight: '100vh',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
+    flexDirection: 'column',
     background: 'var(--bg)',
     fontFamily: 'var(--font)'
+  },
+  centerArea: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px'
   },
   card: {
     width: '100%',

@@ -34,7 +34,7 @@ export function useRealGeolocation(onPosition) {
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setStatus('unsupported')
-      setError('Geolocation is not supported by this browser.')
+      setError('Ta brskalnik ne podpira geolokacije.')
       return
     }
 
@@ -50,7 +50,7 @@ export function useRealGeolocation(onPosition) {
       },
       () => {
         setStatus('denied')
-        setError('Location permission was denied or is unavailable.')
+        setError('Dovoljenje za lokacijo je bilo zavrnjeno ali ni na voljo.')
       }
     )
   }, [])

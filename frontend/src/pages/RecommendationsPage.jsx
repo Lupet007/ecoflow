@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import AppHeader from '../components/AppHeader'
+import AppFooter from '../components/AppFooter'
 
 function RecommendationsPage() {
   const navigate = useNavigate()
@@ -123,16 +125,15 @@ function RecommendationsPage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
-        <div>
-          <p style={styles.eyebrow}>Prilagojeno zate</p>
-          <h1 style={styles.title}>Poti izbrane zate</h1>
-          <p style={styles.subtitle}>
-            EcoFlow poišče poti, ki se najbolje ujemajo s tvojimi nastavitvami. Klikni na katerokoli pot za prikaz na zemljevidu.
-          </p>
-        </div>
-        <Link to="/" style={styles.backButton}>← Nazaj na zemljevid</Link>
-      </header>
+      <AppHeader />
+
+      <div style={styles.header}>
+        <p style={styles.eyebrow}>Prilagojeno zate</p>
+        <h1 style={styles.title}>Poti izbrane zate</h1>
+        <p style={styles.subtitle}>
+          EcoFlow poišče poti, ki se najbolje ujemajo s tvojimi nastavitvami. Klikni na katerokoli pot za prikaz na zemljevidu.
+        </p>
+      </div>
 
       <div style={styles.container}>
 
@@ -290,7 +291,7 @@ function RecommendationsPage() {
                         </span>
                         <span style={styles.reasonText}>
                           {rec.reason
-                            ? rec.reason.replace(/^Recommended because:\s*/i, '')
+                            ? rec.reason.replace(/^Priporočeno, ker:\s*/i, '')
                             : 'Dobro splošno ujemanje s tvojim profilom.'}
                         </span>
                       </div>
@@ -308,6 +309,8 @@ function RecommendationsPage() {
           </button>
         )}
       </div>
+
+      <AppFooter />
 
       <style>{`
         @keyframes ecoSpin { to { transform: rotate(360deg); } }
@@ -339,8 +342,7 @@ const styles = {
   },
   header: {
     maxWidth: '1120px', margin: '0 auto',
-    padding: '32px 24px 18px', display: 'flex', justifyContent: 'space-between',
-    alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap'
+    padding: '32px 24px 18px'
   },
   eyebrow: {
     margin: 0, color: 'var(--brand)', textTransform: 'uppercase',
@@ -351,11 +353,6 @@ const styles = {
     fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)'
   },
   subtitle: { marginTop: '8px', color: 'var(--text-muted)', fontSize: '14px', maxWidth: '520px' },
-  backButton: {
-    padding: '10px 16px', background: 'var(--surface)',
-    color: 'var(--text)', textDecoration: 'none', borderRadius: 'var(--radius-md)',
-    fontWeight: 600, border: '1px solid var(--border-strong)', whiteSpace: 'nowrap'
-  },
   container: {
     maxWidth: '1120px',
     margin: '0 auto', padding: '0 24px 44px', display: 'grid', gap: '16px'

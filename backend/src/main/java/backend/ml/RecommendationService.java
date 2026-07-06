@@ -267,54 +267,55 @@ public class RecommendationService {
     }
 
     /**
-     * Builds a human-readable reason like:
-     * "High elevation and excellent eco-score match your Air quality priority."
+     * Builds a human-readable reason (in Slovenian, matching the rest of the
+     * frontend) like:
+     * "Priporočeno, ker: visoka nadmorska višina, odlična eko-ocena (85)."
      */
     private String buildReason(RouteFeatures f, String activityType, String ecoPriority,
                                boolean matchesLearnedCluster) {
-        StringBuilder sb = new StringBuilder("Recommended because: ");
+        StringBuilder sb = new StringBuilder("Priporočeno, ker: ");
         List<String> parts = new ArrayList<>();
 
         if (f.getEcoScore() >= 80) {
-            parts.add("excellent eco-score (" + Math.round(f.getEcoScore()) + ")");
+            parts.add("odlična eko-ocena (" + Math.round(f.getEcoScore()) + ")");
         } else if (f.getEcoScore() >= 60) {
-            parts.add("good eco-score (" + Math.round(f.getEcoScore()) + ")");
+            parts.add("dobra eko-ocena (" + Math.round(f.getEcoScore()) + ")");
         }
 
         if (f.getAvgElevation() >= 800) {
-            parts.add("high elevation (cleaner air)");
+            parts.add("visoka nadmorska višina (čistejši zrak)");
         } else if (f.getAvgElevation() <= 300) {
-            parts.add("low, easy terrain");
+            parts.add("nizek, lahek teren");
         }
 
         if (activityType != null) {
             String a = activityType.toUpperCase();
             if (a.equals("CYCLING") && f.getLengthKm() >= 20) {
-                parts.add("long distance suited for cycling");
+                parts.add("dolga razdalja, primerna za kolesarjenje");
             } else if (a.equals("WALKING") && f.getLengthKm() <= 10) {
-                parts.add("comfortable length for walking");
+                parts.add("udobna dolžina za hojo");
             } else if (a.equals("RUNNING") && f.getElevationGain() <= 200) {
-                parts.add("flat profile ideal for running");
+                parts.add("raven profil, idealen za tek");
             }
         }
 
         if (ecoPriority != null) {
             String p = ecoPriority.toUpperCase();
             if (p.equals("AIR_QUALITY") && f.getAvgElevation() >= 600) {
-                parts.add("matches your air-quality priority");
+                parts.add("ustreza tvoji prioriteti kakovosti zraka");
             } else if (p.equals("WATER_QUALITY") && f.getAvgElevation() <= 500) {
-                parts.add("near-water profile matches your priority");
+                parts.add("profil blizu vode ustreza tvoji prioriteti");
             } else if (p.equals("LAND_TEMPERATURE") && f.getAvgElevation() >= 600) {
-                parts.add("cooler elevation matches your priority");
+                parts.add("hladnejša nadmorska višina ustreza tvoji prioriteti");
             }
         }
 
         if (matchesLearnedCluster) {
-            parts.add("part of a learned cluster of similar real routes");
+            parts.add("del naučene skupine podobnih resničnih poti");
         }
 
         if (parts.isEmpty()) {
-            parts.add("balanced match for your profile");
+            parts.add("uravnotežen odgovor za tvoj profil");
         }
 
         sb.append(String.join(", ", parts)).append(".");

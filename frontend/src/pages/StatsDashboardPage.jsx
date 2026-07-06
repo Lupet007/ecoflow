@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { calculateRouteAirQuality, normalizeAirQualityStations } from '../utils/environment'
 import { useRealGeolocation } from '../hooks/useRealGeolocation'
+import AppHeader from '../components/AppHeader'
+import AppFooter from '../components/AppFooter'
 
 function getAuthHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` }
+}
+
+// Succulent stores measurements in a CSV and reports a genuinely missing
+// numeric value (e.g. air quality for a location with no nearby real ARSO
+// station) as the literal token NaN, rather than fabricating a number - this
+// just renders that honestly as "no data" instead of the raw "NaN" text.
+function formatMetric(value) {
+  if (value === null || value === undefined) return '—'
+  return Number.isFinite(Number(value)) ? value : '—'
 }
 
 function getEnvironmentalType(name) {
@@ -187,17 +197,15 @@ function StatsDashboardPage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header} className="eco-header">
-        <div>
-          <p style={styles.eyebrow}>Analitski center</p>
-          <h1 style={styles.title}>Okoljska nadzorna plošča</h1>
-          <p style={styles.subtitle}>
-            Pregled satelitskih produktov, GPX poti in okoljskih meritev v realnem času.
-          </p>
-        </div>
+      <AppHeader />
 
-        <Link to="/" style={styles.backButton}>← Nazaj na zemljevid</Link>
-      </header>
+      <div style={styles.header}>
+        <p style={styles.eyebrow}>Analitski center</p>
+        <h1 style={styles.title}>Okoljska nadzorna plošča</h1>
+        <p style={styles.subtitle}>
+          Pregled satelitskih produktov, GPX poti in okoljskih meritev v realnem času.
+        </p>
+      </div>
 
       {loading ? (
         <div style={styles.loadingCard}>
@@ -308,7 +316,7 @@ function StatsDashboardPage() {
           <section style={styles.section}>
             <div style={styles.sectionHeader}>
               <div>
-                <p style={styles.eyebrow}>IoT integracija (simulirani demo)</p>
+                <p style={styles.eyebrow}>IoT senzorji</p>
                 <h2 style={styles.sectionTitle}>Podatki senzorjev v živo</h2>
               </div>
               <span style={sensorStatus === 'ok' ? styles.pillSuccess : styles.pillWarning}>
@@ -317,8 +325,8 @@ function StatsDashboardPage() {
             </div>
 
             <p style={styles.sectionDesc}>
-              Simulirani odčitki senzorjev, ustvarjeni z demo skripto (brez povezanih fizičnih IoT naprav), poslani preko ogrodja
-              Succulent za zbiranje podatkov, ki ponazarja, kako bi podatki naprav v živo potovali skozi sistem.
+              Meritve simuliranih naprav (brez fizičnega strojnega dela) z resničnimi podatki o kakovosti zraka in vremenu,
+              zbrane prek ogrodja Succulent.
             </p>
 
             <div style={styles.locationRecorder}>
@@ -413,12 +421,14 @@ function StatsDashboardPage() {
                       <span>{row.longitude}</span>
                       <span>{row.activity_type}</span>
                       <span style={{
-                        color: row.air_quality >= 70 ? '#15803d' : row.air_quality >= 40 ? '#b45309' : '#b91c1c',
+                        color: !Number.isFinite(Number(row.air_quality))
+                          ? 'var(--text-faint)'
+                          : Number(row.air_quality) >= 70 ? '#15803d' : Number(row.air_quality) >= 40 ? '#b45309' : '#b91c1c',
                         fontWeight: 700
                       }}>
-                        {row.air_quality}
+                        {formatMetric(row.air_quality)}
                       </span>
-                      <span style={{ color: 'var(--info)', fontWeight: 700 }}>{row.eco_score}</span>
+                      <span style={{ color: Number.isFinite(Number(row.eco_score)) ? 'var(--info)' : 'var(--text-faint)', fontWeight: 700 }}>{formatMetric(row.eco_score)}</span>
                       <span style={{ color: 'var(--text-faint)' }}>{row.timestamp || '—'}</span>
                     </div>
                   ))}
@@ -434,6 +444,8 @@ function StatsDashboardPage() {
           </section>
         </main>
       )}
+
+      <AppFooter />
     </div>
   )
 }
@@ -454,11 +466,7 @@ const styles = {
   header: {
     maxWidth: '1240px',
     margin: '0 auto',
-    padding: '32px 24px 22px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '20px'
+    padding: '32px 24px 22px'
   },
   eyebrow: {
     margin: 0,
@@ -480,15 +488,6 @@ const styles = {
     marginTop: '8px',
     color: 'var(--text-muted)',
     fontSize: '15px'
-  },
-  backButton: {
-    padding: '10px 16px',
-    background: 'var(--surface)',
-    border: '1px solid var(--border-strong)',
-    color: 'var(--text)',
-    textDecoration: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 600
   },
   loadingCard: {
     ...card,

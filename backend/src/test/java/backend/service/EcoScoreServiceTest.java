@@ -82,32 +82,32 @@ class EcoScoreServiceTest {
 
     @Test
     void getLabel_returnsExcellent_forHighScore() {
-        assertThat(ecoScoreService.getLabel(85.0)).isEqualTo("Excellent");
-        assertThat(ecoScoreService.getLabel(80.0)).isEqualTo("Excellent");
+        assertThat(ecoScoreService.getLabel(85.0)).isEqualTo("Odlično");
+        assertThat(ecoScoreService.getLabel(80.0)).isEqualTo("Odlično");
     }
 
     @Test
     void getLabel_returnsGood_forMediumHighScore() {
-        assertThat(ecoScoreService.getLabel(70.0)).isEqualTo("Good");
-        assertThat(ecoScoreService.getLabel(60.0)).isEqualTo("Good");
+        assertThat(ecoScoreService.getLabel(70.0)).isEqualTo("Dobro");
+        assertThat(ecoScoreService.getLabel(60.0)).isEqualTo("Dobro");
     }
 
     @Test
     void getLabel_returnsModerate_forMediumScore() {
-        assertThat(ecoScoreService.getLabel(50.0)).isEqualTo("Moderate");
-        assertThat(ecoScoreService.getLabel(40.0)).isEqualTo("Moderate");
+        assertThat(ecoScoreService.getLabel(50.0)).isEqualTo("Zmerno");
+        assertThat(ecoScoreService.getLabel(40.0)).isEqualTo("Zmerno");
     }
 
     @Test
     void getLabel_returnsPoor_forLowScore() {
-        assertThat(ecoScoreService.getLabel(30.0)).isEqualTo("Poor");
-        assertThat(ecoScoreService.getLabel(20.0)).isEqualTo("Poor");
+        assertThat(ecoScoreService.getLabel(30.0)).isEqualTo("Slabo");
+        assertThat(ecoScoreService.getLabel(20.0)).isEqualTo("Slabo");
     }
 
     @Test
     void getLabel_returnsBad_forVeryLowScore() {
-        assertThat(ecoScoreService.getLabel(10.0)).isEqualTo("Bad");
-        assertThat(ecoScoreService.getLabel(0.0)).isEqualTo("Bad");
+        assertThat(ecoScoreService.getLabel(10.0)).isEqualTo("Zelo slabo");
+        assertThat(ecoScoreService.getLabel(0.0)).isEqualTo("Zelo slabo");
     }
 
     // --- Tests for Copernicus product type detection ---

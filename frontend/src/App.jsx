@@ -13,13 +13,15 @@ import {
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
+import AppHeader from './components/AppHeader'
+import AppFooter from './components/AppFooter'
 import RecommendationsPage from './pages/RecommendationsPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import GpxUploadPage from './pages/GpxUploadPage'
 import StatsDashboardPage from './pages/StatsDashboardPage'
 import EcoProfilePage from './pages/EcoProfilePage'
-import { isLoggedIn, logout } from './services/authService'
+import { isLoggedIn } from './services/authService'
 import { useRealGeolocation } from './hooks/useRealGeolocation'
 import {
   buildRouteWaypoints,
@@ -87,6 +89,8 @@ function calculateDistanceKm(routePoints) {
 }
 
 function formatDuration(totalMinutes) {
+  if (totalMinutes === null || totalMinutes === undefined) return 'ni podatkov'
+
   const rounded = Math.max(0, Math.round(totalMinutes))
   const hours = Math.floor(rounded / 60)
   const minutes = rounded % 60
@@ -443,7 +447,7 @@ function HistoricalTrends({ products, routes }) {
 }
 
 function MapPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const routeIdParam = searchParams.get('routeId')
 
   const [products, setProducts] = useState([])
@@ -461,7 +465,29 @@ function MapPage() {
     ? calculateRouteAirQuality([[myPosition.latitude, myPosition.longitude]], airQualityStations)
     : null
 
+  // The marker itself shows as soon as a real position is known (including a
+  // silent auto-resolve on mount if permission was already granted), but the
+  // map should only ever fly the camera there in response to the user
+  // explicitly clicking "Moja lokacija" - otherwise it would keep yanking the
+  // view away from a route the user just navigated to (e.g. an uploaded GPX
+  // near Maribor, or manual panning), which is what was happening before.
+  const [flyToMyPosition, setFlyToMyPosition] = useState(null)
+  const explicitLocateRef = useRef(false)
+
+  useEffect(() => {
+    if (myPosition && explicitLocateRef.current) {
+      setFlyToMyPosition(myPosition)
+      explicitLocateRef.current = false
+    }
+  }, [myPosition])
+
+  const handleLocateClick = () => {
+    explicitLocateRef.current = true
+    requestMyLocation()
+  }
+
   const [status, setStatus] = useState('Nalaganje okoljskih podatkov ...')
+  const [statusIsError, setStatusIsError] = useState(false)
   const [routesStatus, setRoutesStatus] = useState('Nalaganje naloženih GPX poti ...')
 
   const [ecoProfile, setEcoProfile] = useState(() => {
@@ -531,6 +557,16 @@ function MapPage() {
         })
     }
   }, [routeIdParam])
+
+  const clearLoadedRecommendation = () => {
+    setSelectedRouteFromRecommendations(null)
+    setSelectedRouteCoordinates([])
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      next.delete('routeId')
+      return next
+    })
+  }
 
   const [selectionMode, setSelectionMode] = useState(null)
   const [startPoint, setStartPoint] = useState(null)
@@ -775,6 +811,7 @@ function MapPage() {
         .then(response => {
           setProducts(response.data)
           setStatus(`Okoljski podatki osveženi ob ${new Date().toLocaleTimeString()}`)
+          setStatusIsError(false)
         })
         .catch(error => {
           console.error(error)
@@ -783,6 +820,7 @@ function MapPage() {
           } else {
             setStatus('Nalaganje okoljskih podatkov ni uspelo')
           }
+          setStatusIsError(true)
         })
 
       loadUploadedRoutes()
@@ -867,11 +905,6 @@ function MapPage() {
       return matchesType && matchesFrom && matchesTo
     })
   }, [products, environmentFilter, dateFromFilter, dateToFilter])
-
-  const handleLogout = () => {
-    logout()
-    window.location.href = '/login'
-  }
 
   const resetFilters = () => {
     setEnvironmentFilter('ALL')
@@ -1080,14 +1113,18 @@ function MapPage() {
 
       setRouteInfo({
         distanceKm: distanceKm.toFixed(2),
-        durationMin: Math.round(distanceKm * 12),
+        // No real routing duration exists for this fallback (straight-line
+        // preview only) - showing a guessed number under the same "Trajanje"
+        // label as a real routed time would misrepresent it, so this stays
+        // null and the UI shows "ni podatkov" instead.
+        durationMin: null,
         ecoScore: fallbackAirQuality?.score ?? null,
         environmentType: selectedEnvironment,
         alternativeCount: 1,
         stationCount: fallbackAirQuality?.stationCount ?? 0,
         stationNames: fallbackAirQuality?.stationNames ?? [],
         nearestStationKm: fallbackAirQuality?.nearestDistanceKm ?? null,
-        strategyReason: 'Storitev za izračun poti ni bila na voljo, zato je bil uporabljen neposreden prikaz.',
+        strategyReason: 'Storitev za izračun poti ni bila na voljo, zato je bil uporabljen neposreden prikaz razdalje v ravni črti (brez ocene trajanja).',
         recommendation: fallbackAirQuality?.score != null
           ? 'Nadomestni prikaz poti je bil ustvarjen z uporabo najbližje resnične ARSO postaje.'
           : 'Nadomestni prikaz poti je bil ustvarjen - brez bližnje ARSO postaje za oceno.'
@@ -1107,48 +1144,19 @@ function MapPage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header} className="eco-header">
-        <div style={styles.brandBlock}>
-          <div style={styles.logoRow}>
-            <div style={styles.logoBadge}>EF</div>
-            <div>
-              <h1 style={styles.title} className="eco-title">EcoFlow</h1>
-              <p style={styles.description}>
-                Inteligentno načrtovanje okolju prijaznih poti z uporabo satelitskih, GPX in senzorskih podatkov.
-              </p>
-            </div>
-          </div>
+      <AppHeader />
 
+      <section style={styles.container} className="eco-container">
+        <div style={styles.pageIntro}>
+          <p style={styles.description}>
+            Inteligentno načrtovanje okolju prijaznih poti z uporabo satelitskih, GPX in senzorskih podatkov.
+          </p>
           <div style={styles.statusPill}>
-            <span style={status.includes('Failed') ? styles.statusDotError : styles.statusDot} />
+            <span style={statusIsError ? styles.statusDotError : styles.statusDot} />
             {status}
           </div>
         </div>
 
-        <nav style={styles.nav} className="eco-header-buttons">
-          <Link to="/gpx-upload" style={styles.navButtonPrimary}>
-            Naloži GPX
-          </Link>
-
-          <Link to="/dashboard" style={styles.navButtonSecondary}>
-            Nadzorna plošča
-          </Link>
-
-          <Link to="/profile" style={styles.navButtonSecondary}>
-            Eko profil
-          </Link>
-
-          <Link to="/recommendations" style={styles.navButtonSecondary}>
-            Priporočila
-          </Link>
-
-          <button onClick={handleLogout} style={styles.navButtonGhost}>
-            Odjava
-          </button>
-        </nav>
-      </header>
-
-      <section style={styles.container} className="eco-container">
         {ecoProfile?.alertsEnabled && (
           <div
             style={environmentalAlert ? styles.environmentAlert : styles.environmentAlertClear}
@@ -1253,9 +1261,19 @@ function MapPage() {
 
             {selectedRouteFromRecommendations && (
               <div style={styles.loadedRouteNotice}>
-                Pot naložena: <strong>{selectedRouteFromRecommendations.name}</strong>
-                <br />
-                <small>Eko-ocena: {selectedRouteFromRecommendations.ecoScore}/100</small>
+                <div>
+                  Pot naložena: <strong>{selectedRouteFromRecommendations.name}</strong>
+                  <br />
+                  <small>Eko-ocena: {selectedRouteFromRecommendations.ecoScore}/100</small>
+                </div>
+                <button
+                  onClick={clearLoadedRecommendation}
+                  style={styles.loadedRouteCloseButton}
+                  aria-label="Odstrani naloženo pot"
+                  title="Odstrani naloženo pot"
+                >
+                  ×
+                </button>
               </div>
             )}
 
@@ -1477,7 +1495,7 @@ function MapPage() {
               <span><i style={{ ...styles.legendDot, backgroundColor: '#b45309' }} /> Uravnoteženo</span>
             </div>
 
-            <button onClick={requestMyLocation} style={styles.locateButton} title="Prikaži mojo resnično lokacijo">
+            <button onClick={handleLocateClick} style={styles.locateButton} title="Prikaži mojo resnično lokacijo">
               Moja lokacija
             </button>
 
@@ -1497,7 +1515,7 @@ function MapPage() {
                   : null}
               />
 
-              <FlyToUserLocation position={myPosition} />
+              <FlyToUserLocation position={flyToMyPosition} />
 
               <FlyToPlannedRoute startPoint={startPoint} endPoint={endPoint} routePoints={routePoints} />
 
@@ -1784,6 +1802,8 @@ function MapPage() {
           )}
         </section>
       </section>
+
+      <AppFooter />
     </div>
   )
 }
@@ -1966,6 +1986,14 @@ const styles = {
     color: 'var(--text-muted)',
     marginTop: '6px',
     fontSize: '15px'
+  },
+  pageIntro: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    marginBottom: '20px'
   },
   statusPill: {
     alignSelf: 'flex-start',
@@ -2167,6 +2195,10 @@ const styles = {
     color: '#ffffff'
   },
   loadedRouteNotice: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '10px',
     background: 'var(--info-soft)',
     border: '1px solid var(--info-soft-border)',
     borderRadius: 'var(--radius-md)',
@@ -2174,6 +2206,22 @@ const styles = {
     marginBottom: '14px',
     fontSize: '13px',
     color: 'var(--info)'
+  },
+  loadedRouteCloseButton: {
+    width: '22px',
+    height: '22px',
+    flexShrink: 0,
+    borderRadius: '50%',
+    border: '1px solid currentColor',
+    background: 'transparent',
+    color: 'inherit',
+    cursor: 'pointer',
+    fontSize: '14px',
+    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0
   },
   profileNoticeWarning: {
     background: 'var(--warning-soft)',

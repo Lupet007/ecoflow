@@ -37,7 +37,7 @@ public class RouteController {
 
         try {
             if (file.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
+                return ResponseEntity.badRequest().body(Map.of("error", "Datoteka je prazna"));
             }
 
             System.out.println("Uploading GPX, size: " + file.getSize());
@@ -49,7 +49,7 @@ public class RouteController {
 
             if (points.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("error", "No track points found in GPX file."));
+                        .body(Map.of("error", "V GPX datoteki ni najdenih točk sledi."));
             }
 
             double score = ecoScoreService.calculate(points, activityType, ecoPriority);
@@ -80,7 +80,7 @@ public class RouteController {
             System.out.println("Upload error: " + e.getClass().getName() + ": " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Unexpected error during upload"));
+                    .body(Map.of("error", "Nepričakovana napaka med nalaganjem"));
         }
     }
 
@@ -103,7 +103,7 @@ public class RouteController {
             return ResponseEntity.ok(summaries);
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to fetch routes."));
+                    .body(Map.of("error", "Pridobivanje poti ni uspelo."));
         }
     }
 

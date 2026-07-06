@@ -1,5 +1,6 @@
 package backend.controller;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -18,7 +19,14 @@ public class SucculentDataController {
     private static final String SUCCULENT_URL = "http://localhost:9090/data";
     private static final String SUCCULENT_MEASURE_URL = "http://localhost:9090/measure";
     private static final int SUCCULENT_TIMEOUT_MS = 3000;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Succulent stores readings in a pandas DataFrame and serializes missing
+    // numeric values as the literal token NaN, which is valid in Python's
+    // json module but not standard JSON - Jackson rejects it by default and
+    // the whole response then failed to parse, even though the real
+    // measurements it was mixed in with were perfectly fine.
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS, true);
 
     /**
      * Fetches sensor data collected by the succulent server.
@@ -54,7 +62,7 @@ public class SucculentDataController {
         } catch (ResourceAccessException e) {
             Map<String, Object> result = new HashMap<>();
             result.put("status", "unavailable");
-            result.put("message", "Succulent data collection server is not running.");
+            result.put("message", "Strežnik za zbiranje Succulent podatkov ne deluje.");
             result.put("data", Collections.emptyList());
             return ResponseEntity.ok(result);
         } catch (HttpStatusCodeException e) {
@@ -67,11 +75,11 @@ public class SucculentDataController {
             // "unavailable" rather than surfacing a raw error to the frontend.
             Map<String, Object> result = new HashMap<>();
             result.put("status", "unavailable");
-            result.put("message", "Succulent has no measurements recorded yet.");
+            result.put("message", "Succulent še nima zabeleženih meritev.");
             result.put("data", Collections.emptyList());
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error fetching succulent data: " + e.getMessage());
+            return ResponseEntity.status(500).body("Napaka pri pridobivanju Succulent podatkov: " + e.getMessage());
         }
     }
 
@@ -102,7 +110,7 @@ public class SucculentDataController {
                     "status", "unavailable",
                     "message", "Succulent data collection server is not running."));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to record measurement: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Beleženje meritve ni uspelo: " + e.getMessage()));
         }
     }
 }

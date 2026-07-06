@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { login } from '../services/authService'
+import AppFooter from '../components/AppFooter'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -22,7 +23,7 @@ function LoginPage() {
       await login(formData.email, formData.password)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.message || 'Prijava ni uspela. Preveri svoje podatke za prijavo.')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Prijava ni uspela. Preveri svoje podatke za prijavo.')
     } finally {
       setLoading(false)
     }
@@ -30,59 +31,63 @@ function LoginPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}>EF</div>
-          <div>
-            <h1 style={styles.logoText}>EcoFlow</h1>
-            <p style={styles.logoSub}>Pametno okoljsko načrtovanje poti</p>
+      <div style={styles.centerArea}>
+        <div style={styles.card}>
+          <div style={styles.logo}>
+            <div style={styles.logoIcon}>EF</div>
+            <div>
+              <h1 style={styles.logoText}>EcoFlow</h1>
+              <p style={styles.logoSub}>Pametno okoljsko načrtovanje poti</p>
+            </div>
           </div>
+
+          <h2 style={styles.title}>Dobrodošli nazaj</h2>
+          <p style={styles.subtitle}>Prijavi se za nadaljevanje v svoj EcoFlow prostor.</p>
+
+          <form onSubmit={handleSubmit} style={styles.form}>
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="email">E-poštni naslov</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="ti@primer.com"
+                style={styles.input}
+              />
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="password">Geslo</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                style={styles.input}
+              />
+            </div>
+
+            {error && <p style={styles.error}>{error}</p>}
+
+            <button type="submit" disabled={loading} style={styles.button}>
+              {loading ? 'Prijavljanje ...' : 'Prijava'}
+            </button>
+          </form>
+
+          <p style={styles.footer}>
+            Nimaš računa?{' '}
+            <Link to="/register" style={styles.link}>Ustvari ga</Link>
+          </p>
         </div>
-
-        <h2 style={styles.title}>Dobrodošli nazaj</h2>
-        <p style={styles.subtitle}>Prijavi se za nadaljevanje v svoj EcoFlow prostor.</p>
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label} htmlFor="email">E-poštni naslov</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="ti@primer.com"
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label} htmlFor="password">Geslo</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              style={styles.input}
-            />
-          </div>
-
-          {error && <p style={styles.error}>{error}</p>}
-
-          <button type="submit" disabled={loading} style={styles.button}>
-            {loading ? 'Prijavljanje ...' : 'Prijava'}
-          </button>
-        </form>
-
-        <p style={styles.footer}>
-          Nimaš računa?{' '}
-          <Link to="/register" style={styles.link}>Ustvari ga</Link>
-        </p>
       </div>
+
+      <AppFooter />
     </div>
   )
 }
@@ -91,11 +96,16 @@ const styles = {
   page: {
     minHeight: '100vh',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
+    flexDirection: 'column',
     background: 'var(--bg)',
     fontFamily: 'var(--font)'
+  },
+  centerArea: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px'
   },
   card: {
     width: '100%',

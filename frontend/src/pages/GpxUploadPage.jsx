@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import AppHeader from '../components/AppHeader'
+import AppFooter from '../components/AppFooter'
 
 function formatActivity(type) {
   if (type === 'WALKING') return 'Hoja'
@@ -86,19 +88,15 @@ function GpxUploadPage() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header} className="eco-gpx-header">
-        <div>
-          <p style={styles.eyebrow}>Obdelava GPX poti</p>
-          <h1 style={styles.title}>Naloži in analiziraj pot</h1>
-          <p style={styles.subtitle}>
-            Uvozi GPS sledi in izračunaj eko-oceno poti z uporabo analize na strežniku.
-          </p>
-        </div>
+      <AppHeader />
 
-        <Link to="/" style={styles.backButton}>
-          ← Nazaj na zemljevid
-        </Link>
-      </header>
+      <div style={styles.header}>
+        <p style={styles.eyebrow}>Obdelava GPX poti</p>
+        <h1 style={styles.title}>Naloži in analiziraj pot</h1>
+        <p style={styles.subtitle}>
+          Uvozi GPS sledi in izračunaj eko-oceno poti z uporabo analize na strežniku.
+        </p>
+      </div>
 
       <main style={styles.container}>
 
@@ -216,6 +214,8 @@ function GpxUploadPage() {
           </section>
         )}
       </main>
+
+      <AppFooter />
     </div>
   )
 }
@@ -235,8 +235,7 @@ const styles = {
   },
   header: {
     maxWidth: '1120px', margin: '0 auto',
-    padding: '32px 24px 22px', display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', gap: '20px'
+    padding: '32px 24px 22px'
   },
   eyebrow: {
     margin: 0, color: 'var(--brand)', textTransform: 'uppercase',
@@ -247,11 +246,6 @@ const styles = {
     fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)'
   },
   subtitle: { marginTop: '8px', color: 'var(--text-muted)', fontSize: '15px' },
-  backButton: {
-    padding: '10px 16px', background: 'var(--surface)',
-    color: 'var(--text)', textDecoration: 'none', borderRadius: 'var(--radius-md)',
-    fontWeight: 600, border: '1px solid var(--border-strong)'
-  },
   container: {
     maxWidth: '1120px',
     margin: '0 auto', padding: '0 24px 44px', display: 'grid', gap: '20px'
