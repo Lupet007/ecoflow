@@ -1,7 +1,7 @@
 const ALERT_RULES = {
-  POOR: { airQuality: 40, ecoScore: 40, temperature: 30, label: 'Poor' },
-  MODERATE: { airQuality: 60, ecoScore: 60, temperature: 27, label: 'Moderate' },
-  ANY: { airQuality: 80, ecoScore: 80, temperature: 24, label: 'Caution' }
+  POOR: { airQuality: 40, ecoScore: 40, temperature: 30, label: 'Slabi' },
+  MODERATE: { airQuality: 60, ecoScore: 60, temperature: 27, label: 'Zmerni' },
+  ANY: { airQuality: 80, ecoScore: 80, temperature: 24, label: 'Previdnostni' }
 }
 
 function toNumber(value) {
@@ -278,21 +278,21 @@ export function evaluateEnvironmentalAlert(readings, regionCenter, threshold = '
   const reasons = []
 
   if (reading.airQuality !== null && reading.airQuality < rule.airQuality) {
-    reasons.push(`air quality is ${reading.airQuality}`)
+    reasons.push(`kakovost zraka je ${reading.airQuality}`)
   }
   if (reading.ecoScore !== null && reading.ecoScore < rule.ecoScore) {
-    reasons.push(`eco-score is ${reading.ecoScore}`)
+    reasons.push(`eko-ocena je ${reading.ecoScore}`)
   }
   if (reading.temperature !== null && reading.temperature >= rule.temperature) {
-    reasons.push(`temperature is ${reading.temperature} C`)
+    reasons.push(`temperatura je ${reading.temperature} °C`)
   }
 
   if (!reasons.length) return null
 
   return {
     severity: threshold === 'POOR' ? 'critical' : 'warning',
-    title: `${rule.label} conditions near your preferred region`,
-    message: `${reasons.join(' and ')}. Consider another route or time.`,
+    title: `${rule.label} pogoji v bližini tvoje priljubljene regije`,
+    message: `${reasons.join(' in ')}. Razmisli o drugi poti ali času.`,
     reading
   }
 }
@@ -316,8 +316,8 @@ export function evaluateAirQualityAlert(stations, regionCenter, threshold = 'MOD
 
   return {
     severity: threshold === 'POOR' ? 'critical' : 'warning',
-    title: `${rule.label} conditions near your preferred region`,
-    message: `Air quality index near ${station.stationName ?? 'the nearest station'} is ${index}. Consider another route or time.`,
+    title: `${rule.label} pogoji v bližini tvoje priljubljene regije`,
+    message: `Indeks kakovosti zraka v bližini ${station.stationName ?? 'najbližje postaje'} je ${index}. Razmisli o drugi poti ali času.`,
     station
   }
 }

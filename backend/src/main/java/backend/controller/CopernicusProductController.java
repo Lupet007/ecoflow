@@ -24,7 +24,7 @@ public class CopernicusProductController {
             List<CopernicusProduct> products = repository.findAll();
             return ResponseEntity.ok(products);
         } catch (Exception e){
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to fetch Copernicus products"));
+            return ResponseEntity.internalServerError().body(Map.of("error", "Pridobivanje Copernicus produktov ni uspelo"));
         }
     }
 }

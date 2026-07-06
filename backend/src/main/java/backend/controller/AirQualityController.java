@@ -24,7 +24,7 @@ public class AirQualityController {
             List<ArsoAirQuality> stations = repository.findLatestBatch();
             return ResponseEntity.ok(stations);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to fetch air quality data"));
+            return ResponseEntity.internalServerError().body(Map.of("error", "Pridobivanje podatkov o kakovosti zraka ni uspelo"));
         }
     }
 }

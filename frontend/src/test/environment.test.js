@@ -44,7 +44,7 @@ describe('environment helpers', () => {
 
   it('creates an alert from the saved threshold and nearby reading', () => {
     const alert = evaluateEnvironmentalAlert(sensors, [46.0569, 14.5058], 'MODERATE')
-    expect(alert.message).toContain('air quality is 35')
+    expect(alert.message).toContain('kakovost zraka je 35')
   })
 
   it('normalizes real ARSO station rows and drops entries without coordinates', () => {
@@ -114,7 +114,7 @@ describe('environment helpers', () => {
       { stationCode: 'X1', latitude: '46.0569', longitude: '14.5058', pm2_5: '60' }
     ])
     const alert = evaluateAirQualityAlert(pollutedStation, [46.0569, 14.5058], 'MODERATE')
-    expect(alert.message).toContain('Air quality index')
+    expect(alert.message).toContain('Indeks kakovosti zraka')
 
     const cleanStation = normalizeAirQualityStations([
       { stationCode: 'X2', latitude: '46.0569', longitude: '14.5058', pm2_5: '5' }

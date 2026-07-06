@@ -143,36 +143,11 @@ code {
 
 /* Main app layout */
 
-.eco-header {
-  max-width: 1240px !important;
-  padding: 28px 28px 18px !important;
-  gap: 18px;
-}
-
-.eco-title,
-.eco-header h1 {
-  font-size: clamp(28px, 3.5vw, 40px) !important;
-  font-weight: 800 !important;
-  line-height: 1.1 !important;
-  color: var(--text) !important;
-}
-
-.eco-header p {
-  font-size: 15px;
-}
-
-.eco-header-buttons {
+.eco-app-header-nav {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-}
-
-.eco-header-buttons a,
-.eco-header-buttons button {
-  margin-right: 0 !important;
-  border-radius: var(--radius-md) !important;
-  padding: 10px 16px !important;
 }
 
 .eco-container {
@@ -298,19 +273,13 @@ form button {
 /* Mobile */
 
 @media (max-width: 900px) {
-  .eco-header {
+  .eco-app-header {
     flex-direction: column !important;
     align-items: flex-start !important;
   }
 
-  .eco-header-buttons {
+  .eco-app-header-nav {
     width: 100%;
-  }
-
-  .eco-header-buttons a,
-  .eco-header-buttons button {
-    flex: 1 1 140px;
-    text-align: center;
   }
 
   .eco-filters {
@@ -327,8 +296,8 @@ form button {
     padding: 0 14px 32px !important;
   }
 
-  .eco-header {
-    padding: 20px 14px 14px !important;
+  .eco-app-header {
+    padding: 14px !important;
   }
 
   .eco-button-row,
@@ -337,10 +306,14 @@ form button {
   }
 
   .eco-button-row button,
-  .eco-option-row button,
-  .eco-header-buttons a,
-  .eco-header-buttons button {
+  .eco-option-row button {
     width: 100% !important;
+  }
+
+  .eco-app-header-nav a,
+  .eco-app-header-nav button {
+    flex: 1 1 100px;
+    text-align: center;
   }
 
   .eco-map {
