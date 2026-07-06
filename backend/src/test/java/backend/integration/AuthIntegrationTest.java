@@ -43,7 +43,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.message").value("User registered successfully."));
+                .andExpect(jsonPath("$.message").value("Uporabnik uspešno registriran."));
 
         assertThat(userRepository.findAll()).hasSize(1);
         assertThat(userRepository.findAll().get(0).getEmail())
@@ -98,7 +98,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginBody))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Invalid email or password."));
+                .andExpect(jsonPath("$.error").value("Napačna e-pošta ali geslo."));
     }
 
     @Test
@@ -120,7 +120,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Email already in use."));
+                .andExpect(jsonPath("$.error").value("E-pošta je že v uporabi."));
     }
 
     @Test
@@ -135,6 +135,6 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Email and password are required."));
+                .andExpect(jsonPath("$.error").value("E-pošta in geslo sta obvezna."));
     }
 }

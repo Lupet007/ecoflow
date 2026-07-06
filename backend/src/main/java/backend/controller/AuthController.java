@@ -40,12 +40,12 @@ public class AuthController {
         // Input validation
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Email and password are required."));
+                    .body(Map.of("error", "E-pošta in geslo sta obvezna."));
         }
 
         if (userRepository.findByEmail(email).isPresent()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Email already in use."));
+                    .body(Map.of("error", "E-pošta je že v uporabi."));
         }
 
         User user = new User();
@@ -55,7 +55,7 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.status(201)
-                .body(Map.of("message", "User registered successfully."));
+                .body(Map.of("message", "Uporabnik uspešno registriran."));
     }
 
     // --- LOGIN ---
@@ -67,7 +67,7 @@ public class AuthController {
         // Input validation
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Email and password are required."));
+                    .body(Map.of("error", "E-pošta in geslo sta obvezna."));
         }
 
         try {
@@ -75,7 +75,7 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(email, password));
         } catch (Exception e) {
             return ResponseEntity.status(401)
-                    .body(Map.of("error","Invalid email or password."));
+                    .body(Map.of("error","Napačna e-pošta ali geslo."));
         }
 
         String token = jwtUtil.generateToken(email);

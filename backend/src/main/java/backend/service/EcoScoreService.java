@@ -148,10 +148,10 @@ public class EcoScoreService {
     }
 
     public String getLabel(double score) {
-        if (score >= 80) return "Excellent";
-        if (score >= 60) return "Good";
-        if (score >= 40) return "Moderate";
-        if (score >= 20) return "Poor";
-        return "Bad";
+        if (score >= 80) return "Odlično";
+        if (score >= 60) return "Dobro";
+        if (score >= 40) return "Zmerno";
+        if (score >= 20) return "Slabo";
+        return "Zelo slabo";
     }
 }

@@ -59,6 +59,6 @@ class AirQualityControllerTest {
 
         mockMvc.perform(get("/api/air-quality"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error").value("Failed to fetch air quality data"));
+                .andExpect(jsonPath("$.error").value("Pridobivanje podatkov o kakovosti zraka ni uspelo"));
     }
 }
