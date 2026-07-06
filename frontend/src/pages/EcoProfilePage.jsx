@@ -97,7 +97,7 @@ function EcoProfilePage() {
       </div>
 
       <main style={styles.container} className="eco-container">
-        <section style={styles.heroGrid}>
+        <section style={styles.heroGrid} className="eco-hero-grid">
           <div style={styles.profileCard}>
             <p style={styles.eyebrow}>Stanje profila</p>
             <h2 style={styles.sectionTitle}>Tvoje nastavitve poti</h2>

@@ -62,7 +62,7 @@ function RegisterPage() {
           <p style={styles.subtitle}>Pridruži se platformi EcoFlow za priporočila poti.</p>
 
           <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.row}>
+            <div style={styles.row} className="eco-name-row">
               <div style={styles.field}>
                 <label style={styles.label} htmlFor="firstName">Ime</label>
                 <input

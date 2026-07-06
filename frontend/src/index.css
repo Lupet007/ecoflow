@@ -289,6 +289,17 @@ form button {
   .eco-map {
     height: 380px !important;
   }
+
+  .eco-hero-grid,
+  .eco-grid-two {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .eco-name-row {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 640px) {

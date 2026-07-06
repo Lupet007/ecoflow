@@ -241,7 +241,7 @@ function StatsDashboardPage() {
             />
           </div>
 
-          <div style={styles.gridTwo}>
+          <div style={styles.gridTwo} className="eco-grid-two">
             <section style={styles.section}>
               <div style={styles.sectionHeader}>
                 <div>
