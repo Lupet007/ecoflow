@@ -3,9 +3,6 @@ function AppFooter() {
     <footer style={styles.footer}>
       <div style={styles.inner}>
         <span style={styles.brand}>EcoFlow</span>
-        <span style={styles.text}>
-          Diplomski projekt — Fakulteta za elektrotehniko, računalništvo in informatiko, Univerza v Mariboru
-        </span>
         <span style={styles.text}>© {new Date().getFullYear()} EcoFlow</span>
       </div>
     </footer>
