@@ -11,8 +11,21 @@ import {
   useMapEvents,
   useMap
 } from 'react-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import './App.css'
+
+// Vite doesn't resolve Leaflet's default marker icon URLs, so point them at
+// the bundled asset paths instead.
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+})
 import { API_BASE_URL } from './config'
 import AppHeader from './components/AppHeader'
 import AppFooter from './components/AppFooter'

@@ -47,7 +47,9 @@ const styles = {
   header: {
     position: 'sticky',
     top: 0,
-    zIndex: 900,
+    // Above Leaflet's own control panes (z-index 1000), so the map's zoom/
+    // attribution controls never paint over the sticky header.
+    zIndex: 1100,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
