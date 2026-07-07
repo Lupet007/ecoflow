@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "arso_air_quality")
+@Table(name = "arso_air_quality",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"station_code", "measured_from"}))
 public class ArsoAirQuality {
 
     @Id

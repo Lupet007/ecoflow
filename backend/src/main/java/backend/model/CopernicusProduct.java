@@ -11,7 +11,7 @@ public class CopernicusProduct {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_id")
+    @Column(name = "product_id", unique = true)
     private String productId;
 
     private String name;
