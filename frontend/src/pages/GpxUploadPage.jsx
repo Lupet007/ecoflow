@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import axios from 'axios'
 import AppHeader from '../components/AppHeader'
 import AppFooter from '../components/AppFooter'
+import { API_BASE_URL } from '../config'
 
 function formatActivity(type) {
   if (type === 'WALKING') return 'Hoja'
@@ -66,7 +67,7 @@ function GpxUploadPage() {
       }
 
       const response = await axios.post(
-        'http://localhost:8080/api/routes/upload',
+        `${API_BASE_URL}/api/routes/upload`,
         formData,
         {
           headers: {

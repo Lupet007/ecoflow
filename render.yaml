@@ -1,0 +1,77 @@
+databases:
+  - name: ecoflow-db
+    plan: free
+    databaseName: ecoflow
+    user: ecoflow
+
+services:
+  - type: web
+    name: ecoflow-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ecoflow-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ecoflow-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ecoflow-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ecoflow-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ecoflow-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SUCCULENT_URL
+        sync: false
+
+  - type: web
+    name: ecoflow-succulent
+    runtime: docker
+    plan: free
+    dockerfilePath: ./succulent/Dockerfile
+    dockerContext: ./succulent
+    envVars:
+      - key: GUNICORN_WORKERS
+        value: "1"
+
+  - type: web
+    name: ecoflow-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: cron
+    name: ecoflow-simulator
+    runtime: python
+    plan: free
+    schedule: "*/10 * * * *"
+    buildCommand: cd succulent && pip install -r requirements.txt
+    startCommand: cd succulent && python simulate_data.py
+    envVars:
+      - key: SUCCULENT_URL
+        sync: false
+      - key: SIMULATOR_ROUNDS
+        value: "5"

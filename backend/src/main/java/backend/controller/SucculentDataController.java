@@ -9,6 +9,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.*;
 
@@ -16,8 +17,9 @@ import java.util.*;
 @RequestMapping("/api/succulent-data")
 public class SucculentDataController {
 
-    private static final String SUCCULENT_URL = "http://localhost:9090/data";
-    private static final String SUCCULENT_MEASURE_URL = "http://localhost:9090/measure";
+    @Value("${succulent.url:http://localhost:9090}")
+    private String succulentBaseUrl;
+
     private static final int SUCCULENT_TIMEOUT_MS = 3000;
 
     // Succulent stores readings in a pandas DataFrame and serializes missing
@@ -43,7 +45,7 @@ public class SucculentDataController {
             requestFactory.setReadTimeout(SUCCULENT_TIMEOUT_MS);
 
             RestTemplate restTemplate = new RestTemplate(requestFactory);
-            String jsonResponse = restTemplate.getForObject(SUCCULENT_URL, String.class);
+            String jsonResponse = restTemplate.getForObject(succulentBaseUrl + "/data", String.class);
 
             if (jsonResponse == null || jsonResponse.isBlank()) {
                 return ResponseEntity.ok(Collections.emptyList());
@@ -99,7 +101,7 @@ public class SucculentDataController {
 
             RestTemplate restTemplate = new RestTemplate(requestFactory);
 
-            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(SUCCULENT_MEASURE_URL);
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(succulentBaseUrl + "/measure");
             measurement.forEach((key, value) -> builder.queryParam(key, value));
 
             restTemplate.postForObject(builder.build().toUri(), null, String.class);

@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
+import { API_BASE_URL } from './config'
 import AppHeader from './components/AppHeader'
 import AppFooter from './components/AppFooter'
 import RecommendationsPage from './pages/RecommendationsPage'
@@ -543,7 +544,7 @@ function MapPage() {
   // Detektuj routeId iz query parametra i učitaj rutu
   useEffect(() => {
     if (routeIdParam) {
-      axios.get(`http://localhost:8080/api/routes/${routeIdParam}`, {
+      axios.get(`${API_BASE_URL}/api/routes/${routeIdParam}`, {
         headers: getAuthHeaders()
       })
         .then(response => {
@@ -790,7 +791,7 @@ function MapPage() {
   ]
 
   const loadUploadedRoutes = () => {
-    axios.get('http://localhost:8080/api/routes', {
+    axios.get(`${API_BASE_URL}/api/routes`, {
       headers: getAuthHeaders()
     })
       .then(response => {
@@ -805,7 +806,7 @@ function MapPage() {
 
   useEffect(() => {
     const loadEnvironmentalData = () => {
-      axios.get('http://localhost:8080/api/copernicus-products', {
+      axios.get(`${API_BASE_URL}/api/copernicus-products`, {
         headers: getAuthHeaders()
       })
         .then(response => {
@@ -837,7 +838,7 @@ function MapPage() {
 
   useEffect(() => {
     const loadSensorData = () => {
-      axios.get('http://localhost:8080/api/succulent-data', { headers: getAuthHeaders() })
+      axios.get(`${API_BASE_URL}/api/succulent-data`, { headers: getAuthHeaders() })
         .then(response => {
           const readings = normalizeSensorData(response.data).slice(-500)
           setSensorStatus(readings.length
@@ -857,7 +858,7 @@ function MapPage() {
 
   useEffect(() => {
     const loadAirQualityStations = () => {
-      axios.get('http://localhost:8080/api/air-quality', { headers: getAuthHeaders() })
+      axios.get(`${API_BASE_URL}/api/air-quality`, { headers: getAuthHeaders() })
         .then(response => {
           const stations = normalizeAirQualityStations(response.data)
           setAirQualityStations(stations)

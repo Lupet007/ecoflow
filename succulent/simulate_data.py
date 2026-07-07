@@ -14,6 +14,7 @@ inputs rather than fabricated measurements.
 """
 
 import math
+import os
 import time
 import random
 import xml.etree.ElementTree as ET
@@ -30,7 +31,7 @@ truststore.inject_into_ssl()
 
 import requests
 
-SUCCULENT_URL = "http://localhost:9090/measure"
+SUCCULENT_URL = os.getenv("SUCCULENT_URL", "http://localhost:9090") + "/measure"
 ARSO_URL = "http://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -287,4 +288,5 @@ def run_simulation(interval_seconds=3, rounds=None):
 
 
 if __name__ == "__main__":
-    run_simulation(interval_seconds=3)
+    rounds_env = os.getenv("SIMULATOR_ROUNDS")
+    run_simulation(interval_seconds=3, rounds=int(rounds_env) if rounds_env else None)

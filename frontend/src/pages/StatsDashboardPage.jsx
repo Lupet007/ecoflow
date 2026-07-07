@@ -4,6 +4,7 @@ import { calculateRouteAirQuality, normalizeAirQualityStations } from '../utils/
 import { useRealGeolocation } from '../hooks/useRealGeolocation'
 import AppHeader from '../components/AppHeader'
 import AppFooter from '../components/AppFooter'
+import { API_BASE_URL } from '../config'
 
 function getAuthHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -67,7 +68,7 @@ function StatsDashboardPage() {
   const [locationState, setLocationState] = useState({ status: 'idle', message: '' })
 
   const loadSensorData = () => {
-    axios.get('http://localhost:8080/api/succulent-data', { headers: getAuthHeaders() })
+    axios.get(`${API_BASE_URL}/api/succulent-data`, { headers: getAuthHeaders() })
       .then(res => {
         if (Array.isArray(res.data)) {
           setSensorData(res.data)
@@ -85,8 +86,8 @@ function StatsDashboardPage() {
     const headers = getAuthHeaders()
 
     Promise.all([
-      axios.get('http://localhost:8080/api/copernicus-products', { headers }),
-      axios.get('http://localhost:8080/api/routes', { headers })
+      axios.get(`${API_BASE_URL}/api/copernicus-products`, { headers }),
+      axios.get(`${API_BASE_URL}/api/routes`, { headers })
     ])
       .then(([prodRes, routeRes]) => {
         setProducts(prodRes.data)
@@ -107,7 +108,7 @@ function StatsDashboardPage() {
 
     try {
       const [airQualityRes, weatherRes] = await Promise.all([
-        axios.get('http://localhost:8080/api/air-quality', { headers: getAuthHeaders() }),
+        axios.get(`${API_BASE_URL}/api/air-quality`, { headers: getAuthHeaders() }),
         axios.get('https://api.open-meteo.com/v1/forecast', {
           params: { latitude, longitude, current: 'temperature_2m' }
         })
@@ -139,7 +140,7 @@ function StatsDashboardPage() {
         measurement.temperature = temperature
       }
 
-      await axios.post('http://localhost:8080/api/succulent-data', measurement, { headers: getAuthHeaders() })
+      await axios.post(`${API_BASE_URL}/api/succulent-data`, measurement, { headers: getAuthHeaders() })
 
       const parts = []
       parts.push(airQuality?.score != null
@@ -323,11 +324,6 @@ function StatsDashboardPage() {
                 {sensorStatus === 'ok' ? 'Povezano' : 'Ni na voljo'}
               </span>
             </div>
-
-            <p style={styles.sectionDesc}>
-              Meritve simuliranih naprav (brez fizičnega strojnega dela) z resničnimi podatki o kakovosti zraka in vremenu,
-              zbrane prek ogrodja Succulent.
-            </p>
 
             <div style={styles.locationRecorder}>
               <select
