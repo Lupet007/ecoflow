@@ -52,7 +52,6 @@ services:
   - type: web
     name: ecoflow-frontend
     runtime: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
     envVars:
