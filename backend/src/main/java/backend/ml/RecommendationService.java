@@ -48,6 +48,12 @@ public class RecommendationService {
             return new ArrayList<>();
         }
 
+        // With too few routes, min == max on every feature and the whole
+        // distance calculation collapses to zero for every candidate - every
+        // route would show a meaningless "100% match". Flag it instead of
+        // reporting a number that doesn't actually mean anything yet.
+        boolean limitedData = allFeatures.size() < 3;
+
         // 2. Compute min/max per feature to normalize onto a 0..1 scale,
         //    otherwise elevation (hundreds) would dominate eco-score (0-100).
         int n = RouteFeatures.vectorSize();
@@ -118,7 +124,8 @@ public class RecommendationService {
                     Math.round(f.getAvgElevation()),
                     Math.round(f.getMaxElevation()),
                     Math.round(f.getLengthKm() * 10.0) / 10.0,
-                    reason
+                    reason,
+                    limitedData
             ));
         }
 

@@ -221,6 +221,12 @@ function RecommendationsPage() {
               <span style={styles.resultsHint}>klikni na katerokoli pot za prikaz na zemljevidu</span>
             </div>
 
+            {recommendations.some(rec => rec.limitedData) && (
+              <div style={styles.profileBannerWarning}>
+                V bazi je še premalo poti za natančno primerjavo ujemanja — naloži več GPX poti za boljše rezultate.
+              </div>
+            )}
+
             <div style={styles.cardGrid}>
               {recommendations.map((rec, index) => {
                 const color = ringColor(rec.matchPercent)
@@ -247,21 +253,27 @@ function RecommendationsPage() {
                             stroke="var(--border)"
                             strokeWidth="6"
                           />
-                          <circle
-                            cx="36" cy="36" r="30"
-                            fill="none"
-                            stroke={color}
-                            strokeWidth="6"
-                            strokeLinecap="round"
-                            strokeDasharray={`${(rec.matchPercent / 100) * 188.4} 188.4`}
-                            transform="rotate(-90 36 36)"
-                          />
+                          {!rec.limitedData && (
+                            <circle
+                              cx="36" cy="36" r="30"
+                              fill="none"
+                              stroke={color}
+                              strokeWidth="6"
+                              strokeLinecap="round"
+                              strokeDasharray={`${(rec.matchPercent / 100) * 188.4} 188.4`}
+                              transform="rotate(-90 36 36)"
+                            />
+                          )}
                         </svg>
                         <div style={styles.ringText}>
-                          <span style={styles.ringNum}>{Math.round(rec.matchPercent)}%</span>
+                          <span style={styles.ringNum}>
+                            {rec.limitedData ? '—' : `${Math.round(rec.matchPercent)}%`}
+                          </span>
                         </div>
                       </div>
-                      <span style={styles.matchLabel}>ujemanje</span>
+                      <span style={styles.matchLabel}>
+                        {rec.limitedData ? 'premalo poti' : 'ujemanje'}
+                      </span>
                     </div>
 
                     {/* Info column */}

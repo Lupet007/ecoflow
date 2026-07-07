@@ -19,10 +19,11 @@ public class Recommendation {
     private final long maxElevation;
     private final double lengthKm;
     private final String reason;
+    private final boolean limitedData;
 
     public Recommendation(Long routeId, String routeName, double matchPercent,
                           double ecoScore, long avgElevation, long maxElevation,
-                          double lengthKm, String reason) {
+                          double lengthKm, String reason, boolean limitedData) {
         this.routeId = routeId;
         this.routeName = routeName;
         this.matchPercent = matchPercent;
@@ -31,6 +32,7 @@ public class Recommendation {
         this.maxElevation = maxElevation;
         this.lengthKm = lengthKm;
         this.reason = reason;
+        this.limitedData = limitedData;
     }
 
     public Long getRouteId() {
@@ -63,5 +65,9 @@ public class Recommendation {
 
     public String getReason() {
         return reason;
+    }
+
+    public boolean isLimitedData() {
+        return limitedData;
     }
 }
