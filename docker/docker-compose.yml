@@ -19,14 +19,11 @@ services:
     volumes:
       - ../succulent/run.py:/succulent-app/run.py
       - ../succulent/configuration.yml:/succulent-app/configuration.yml
-      # Without this, the recorded CSV lives only in the container's writable
-      # layer and is silently wiped every time the container is recreated.
+      # Persists the CSV store across container recreation.
       - succulent_data:/succulent-app/data
     environment:
-      # The succulent library reads the whole CSV, modifies it in memory, then
-      # writes it back (not an atomic append) - concurrent workers writing to
-      # the same file can silently lose each other's data. One worker is
-      # correct for this single shared CSV store.
+      # succulent rewrites the whole CSV on each save, so concurrent workers
+      # can clobber each other's writes - keep this at 1.
       - GUNICORN_WORKERS=1
 
 volumes:

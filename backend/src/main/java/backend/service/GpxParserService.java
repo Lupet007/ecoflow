@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jenetics.jpx.GPX;
 import io.jenetics.jpx.Track;
 import io.jenetics.jpx.TrackSegment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
@@ -15,6 +17,8 @@ import java.util.stream.Collectors;
 @Service
 public class GpxParserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(GpxParserService.class);
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Returns List<RoutePoint> — matches what RouteController expects
@@ -23,7 +27,7 @@ public class GpxParserService {
         try {
             gpx = GPX.Reader.of(GPX.Reader.Mode.LENIENT).read(inputStream);
         } catch (Exception e) {
-            System.out.println("GPX parse exception: " + e.getClass().getName() + ": " + e.getMessage());
+            logger.warn("GPX parse exception: {}: {}", e.getClass().getName(), e.getMessage());
             return List.of();
         }
 
@@ -41,7 +45,7 @@ public class GpxParserService {
                 ))
                 .collect(Collectors.toList());
 
-        System.out.println("GPX parsed, point count: " + points.size());
+        logger.info("GPX parsed, point count: {}", points.size());
         return points;
     }
 

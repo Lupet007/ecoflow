@@ -9,29 +9,12 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * RecommendationService = the machine learning engine behind EcoFlow route
- * recommendations. It combines two real techniques:
- *
- * 1. K-MEANS CLUSTERING (unsupervised learning, see {@link KMeansClusterer}):
- *    every time recommendations are requested, we LEARN natural groupings
- *    among the routes currently in the database from their real features
- *    (elevation, length, eco-score). Nothing about the clusters is
- *    hard-coded - they are fit fresh from whatever routes exist right now,
- *    so the model adapts automatically as users upload more GPX routes.
- *
- * 2. WEIGHTED K-NEAREST-NEIGHBOUR RANKING: the user's profile (e.g.
- *    "Walking" + "Air quality") is turned into a target feature vector
- *    using domain knowledge (a walker prefers a shorter route than a
- *    cyclist, etc.) - this part is necessarily a hand-designed heuristic,
- *    since no historical "user liked this route" labels exist to learn
- *    preferences from. Every real route's distance to that target is
- *    measured with weighted Euclidean distance.
- *
- * The final ranking blends both: routes are scored primarily by their
- * profile-distance (2), then nudged by whether they fall in the learned
- * cluster (1) that best matches the requested profile. Feature vectors are
- * built entirely from real GPX + real eco-score data - nothing is invented
- * per route.
+ * ML engine behind EcoFlow's route recommendations. Combines k-means
+ * clustering ({@link KMeansClusterer}), refit on every request from the
+ * routes currently in the database, with a weighted k-nearest-neighbour
+ * ranking against a target feature vector built from the user's profile
+ * (activity type + eco priority). Routes are scored primarily by distance
+ * to that target, then nudged by cluster membership.
  */
 @Service
 public class RecommendationService {
@@ -65,9 +48,8 @@ public class RecommendationService {
             return new ArrayList<>();
         }
 
-        // 2. Compute min and max for each feature, so we can normalize.
-        //    Normalization puts every feature on a 0..1 scale. Without it,
-        //    elevation (hundreds) would completely overpower eco-score (0-100).
+        // 2. Compute min/max per feature to normalize onto a 0..1 scale,
+        //    otherwise elevation (hundreds) would dominate eco-score (0-100).
         int n = RouteFeatures.vectorSize();
         double[] min = new double[n];
         double[] max = new double[n];
@@ -89,11 +71,8 @@ public class RecommendationService {
         // 4. Feature weights: which features matter most for this profile.
         double[] weights = buildWeights(activityType, ecoPriority);
 
-        // 4b. Real unsupervised machine learning step: learn natural
-        // groupings among the routes actually in the database right now via
-        // k-means clustering (Lloyd's algorithm - see KMeansClusterer). This
-        // trains fresh on every request because the live route set IS the
-        // training set - there is no separate offline dataset to go stale.
+        // 4b. Cluster the current routes via k-means (Lloyd's algorithm),
+        // refit on every request since the live route set is the training set.
         List<double[]> normalizedVectors = new ArrayList<>();
         for (RouteFeatures f : allFeatures) {
             normalizedVectors.add(normalize(f.toVector(), min, max));

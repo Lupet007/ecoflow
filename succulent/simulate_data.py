@@ -3,14 +3,10 @@ EcoFlow - Succulent Data Simulator
 Simulates IoT sensor devices (GPS + environmental measurements) from users
 across Slovenia, sending POST requests to the succulent collection server.
 
-Air quality and temperature are REAL, live values - air quality comes from
-ARSO (Agencija RS za okolje) real monitoring stations, scored with the same
-EAQI methodology used by the rest of the app (frontend/src/utils/environment.js),
-and temperature comes from the free Open-Meteo API. Only the small GPS jitter
-(simulating movement within a real city) and the choice of activity type are
-randomized - there is no way to simulate a real person's actual movement or
-activity without physical hardware, so those two stay disclosed simulation
-inputs rather than fabricated measurements.
+Air quality comes from ARSO monitoring stations (scored with the same EAQI
+methodology as frontend/src/utils/environment.js) and temperature from
+Open-Meteo. GPS jitter and activity type are randomized since there's no
+hardware to read actual movement from.
 """
 
 import math
@@ -20,12 +16,9 @@ import random
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
-# Some machines (e.g. behind an antivirus HTTPS-scanning proxy such as Avast)
-# have a locally-trusted root certificate that isn't in Python's bundled CA
-# list, causing "unable to get local issuer certificate" for real HTTPS
-# requests below even though the OS itself trusts the connection. truststore
-# makes Python defer to the OS certificate store instead, matching what the
-# browser/OS already trust.
+# Some machines (e.g. behind an HTTPS-scanning antivirus proxy) have a
+# locally-trusted root cert that isn't in Python's bundled CA list; truststore
+# defers to the OS certificate store instead.
 import truststore
 truststore.inject_into_ssl()
 
@@ -40,7 +33,7 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 # reading would be pointless load on free public services.
 REAL_DATA_REFRESH_SECONDS = 600
 
-# Simulated sensor locations across Slovenia (real cities, real coordinates)
+# Simulated sensor locations across Slovenia
 LOCATIONS = [
     {"city": "Ljubljana",  "lat": 46.0569, "lng": 14.5058},
     {"city": "Maribor",    "lat": 46.5547, "lng": 15.6459},
@@ -54,10 +47,8 @@ LOCATIONS = [
 
 ACTIVITY_TYPES = ["WALKING", "CYCLING", "RUNNING"]
 
-# European Environment Agency's European Air Quality Index (EAQI) breakpoints
-# (eea.europa.eu/themes/air/air-quality-index), ported from
-# frontend/src/utils/environment.js so real ARSO measurements are scored
-# identically everywhere in the app.
+# EAQI breakpoints (eea.europa.eu/themes/air/air-quality-index), ported from
+# frontend/src/utils/environment.js so scoring matches the rest of the app.
 AQI_BAND_SCORES = [95, 80, 65, 45, 25, 10]
 AQI_BREAKPOINTS = {
     "pm2.5": [10, 20, 25, 50, 75],
@@ -203,18 +194,12 @@ class RealDataCache:
 
 
 def generate_sensor_reading(location, cache):
-    """Generate a sensor reading for a given location, using real
-    environmental data. Returns None if real data isn't available for this
-    location right now (caller should skip sending it rather than fabricate
-    a reading)."""
-    # Add small GPS jitter to simulate a device moving around within the
-    # (real) city - this is a simulated movement input, not a fabricated
-    # measurement.
+    """Generate a sensor reading for a location. Returns None if air quality
+    or temperature data isn't available there right now."""
+    # Small GPS jitter simulates a device moving around within the city.
     lat = location["lat"] + random.uniform(-0.01, 0.01)
     lng = location["lng"] + random.uniform(-0.01, 0.01)
 
-    # No real signal exists to know what a simulated (non-existent) device is
-    # actually doing, so activity type stays a disclosed random choice.
     activity = random.choice(ACTIVITY_TYPES)
 
     air_quality = cache.air_quality_for(location["lat"], location["lng"])
@@ -228,9 +213,6 @@ def generate_sensor_reading(location, cache):
         "longitude": round(lng, 6),
         "air_quality": air_quality,
         "temperature": temperature,
-        # eco_score mirrors the real air-quality index - there is no second
-        # real signal (e.g. a personal emissions sensor) to differentiate it,
-        # and inventing one would just be a fabricated formula again.
         "eco_score": air_quality,
         "activity_type": activity,
     }

@@ -32,10 +32,8 @@ public class EcoScoreService {
         return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    // Real signal: is a real ARSO air-quality station actually near this
-    // route's real coordinates, rather than "does any Copernicus product with
-    // a matching name happen to exist anywhere in the database" - which said
-    // nothing about the route's actual location.
+    // Checks for an ARSO station near this route's coordinates, rather than
+    // just checking whether a matching Copernicus product exists in the DB.
     private boolean hasNearbyRealAirQualityStation(List<RoutePoint> points) {
         if (points == null || points.isEmpty()) return false;
 

@@ -5,6 +5,8 @@ import backend.model.RoutePoint;
 import backend.repository.RouteRepository;
 import backend.service.EcoScoreService;
 import backend.service.GpxParserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,6 +18,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/routes")
 public class RouteController {
+
+    private static final Logger logger = LoggerFactory.getLogger(RouteController.class);
 
     private final GpxParserService gpxParserService;
     private final EcoScoreService ecoScoreService;
@@ -40,12 +44,11 @@ public class RouteController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Datoteka je prazna"));
             }
 
-            System.out.println("Uploading GPX, size: " + file.getSize());
-            System.out.println("Activity type: " + activityType);
-            System.out.println("Eco priority: " + ecoPriority);
+            logger.info("Uploading GPX, size: {}", file.getSize());
+            logger.info("Activity type: {}, eco priority: {}", activityType, ecoPriority);
 
             List<RoutePoint> points = gpxParserService.parse(file.getInputStream());
-            System.out.println("Parsed points: " + points.size());
+            logger.info("Parsed points: {}", points.size());
 
             if (points.isEmpty()) {
                 return ResponseEntity.badRequest()
@@ -64,7 +67,7 @@ public class RouteController {
 
             routeRepository.save(route);
 
-            System.out.println("Eco score: " + score + " (" + label + ")");
+            logger.info("Eco score: {} ({})", score, label);
 
             return ResponseEntity.status(201).body(Map.of(
                     "id", route.getId() != null ? route.getId() : 0,
@@ -77,8 +80,7 @@ public class RouteController {
             ));
 
         } catch (Exception e) {
-            System.out.println("Upload error: " + e.getClass().getName() + ": " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Upload error", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Nepričakovana napaka med nalaganjem"));
         }

@@ -7,9 +7,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for KMeansClusterer - verifies it genuinely learns cluster centroids
- * from data (not hard-coded), converges, and groups obviously-separated
- * points correctly.
+ * Tests for KMeansClusterer - verifies it learns cluster centroids from
+ * data, converges, and groups well-separated points correctly.
  */
 class KMeansClustererTest {
 

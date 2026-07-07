@@ -18,7 +18,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/routes")
-@CrossOrigin(origins = "*")
 public class RecommendationController {
 
     private final RecommendationService recommendationService;

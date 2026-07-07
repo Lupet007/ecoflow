@@ -158,7 +158,7 @@ class RecommendationServiceTest {
         // A high-elevation route and a long flat route
         Route highMountain = route(1L, "mountain.gpx", 1500, 2000, 300, 80.0);
         Route longFlat = route(2L, "cycling.gpx", 200, 250, 1200, 80.0);
-        // make the flat route genuinely long by spacing the points far apart
+        // space the points far apart so the flat route is actually long
         longFlat.setCoordinates(
                 "[{\"latitude\":46.0,\"longitude\":15.0,\"elevation\":200.0}," +
                 "{\"latitude\":46.4,\"longitude\":15.6,\"elevation\":250.0}]"

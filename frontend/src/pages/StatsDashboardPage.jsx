@@ -10,10 +10,8 @@ function getAuthHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` }
 }
 
-// Succulent stores measurements in a CSV and reports a genuinely missing
-// numeric value (e.g. air quality for a location with no nearby real ARSO
-// station) as the literal token NaN, rather than fabricating a number - this
-// just renders that honestly as "no data" instead of the raw "NaN" text.
+// Succulent reports a missing numeric value (e.g. no nearby ARSO station)
+// as the literal token NaN - render that as "no data" instead.
 function formatMetric(value) {
   if (value === null || value === undefined) return '—'
   return Number.isFinite(Number(value)) ? value : '—'
@@ -99,10 +97,8 @@ function StatsDashboardPage() {
     loadSensorData()
   }, [])
 
-  // Looks up real ARSO air quality and real Open-Meteo temperature for a
-  // real GPS position - reusing the same nearest-station EAQI logic already
-  // built and tested for route scoring, rather than duplicating it or
-  // fabricating a reading.
+  // Looks up ARSO air quality and Open-Meteo temperature for a GPS position,
+  // reusing the same nearest-station EAQI logic used for route scoring.
   const recordMeasurementForPosition = async ({ latitude, longitude }) => {
     setLocationState({ status: 'requesting', message: 'Iskanje resnične kakovosti zraka in vremena za tvojo lokacijo ...' })
 
@@ -118,11 +114,8 @@ function StatsDashboardPage() {
       const airQuality = calculateRouteAirQuality([[latitude, longitude]], stations)
       const temperature = weatherRes.data?.current?.temperature_2m
 
-      // ARSO only monitors Slovenia, while Open-Meteo is global - so outside
-      // Slovenia, air quality alone is expected to be unavailable. Only
-      // refuse to record when NEITHER real source has anything, and only
-      // ever send the specific fields that are genuinely known (never a
-      // fabricated placeholder for the other one).
+      // ARSO only covers Slovenia while Open-Meteo is global, so only bail
+      // out when neither source returned anything.
       if (airQuality?.score == null && temperature == null) {
         setLocationState({
           status: 'error',
@@ -159,10 +152,8 @@ function StatsDashboardPage() {
     }
   }
 
-  // recordMeasurementForPosition fires both when the button below is clicked
-  // (first-time grant) and automatically once useRealGeolocation silently
-  // resolves a position on mount because permission was already granted on a
-  // previous visit - so repeat visits don't require clicking the button again.
+  // Also fires automatically on mount if geolocation permission was already
+  // granted previously, so repeat visits don't need the button clicked again.
   const { error: geoError, requestLocation } = useRealGeolocation(recordMeasurementForPosition)
 
   const airCount = products.filter(p => getEnvironmentalType(p.name) === 'AIR_QUALITY').length

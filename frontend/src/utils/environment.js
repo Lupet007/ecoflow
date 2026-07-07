@@ -139,12 +139,8 @@ export function calculateRouteExposure(points, readings) {
   }
 }
 
-// European Environment Agency's European Air Quality Index (EAQI) breakpoints
-// (eea.europa.eu/themes/air/air-quality-index) - six qualitative bands per
-// pollutant (Good/Fair/Moderate/Poor/Very Poor/Extremely Poor). Applied here to
-// real ARSO station measurements and mapped to a 0-100 "cleanliness" score
-// (100 = Good, ~10 = Extremely Poor). This is a published methodology applied
-// to real data, not an invented formula.
+// European Air Quality Index (EAQI) breakpoints (eea.europa.eu/themes/air/air-quality-index),
+// mapped to a 0-100 score (100 = Good, ~10 = Extremely Poor).
 const AQI_BAND_SCORES = [95, 80, 65, 45, 25, 10]
 
 const AQI_BREAKPOINTS = {
@@ -171,8 +167,7 @@ export function calculateAirQualityIndex(station) {
 
   if (!subIndexes.length) return null
 
-  // The EAQI convention reports the worst-performing pollutant as the overall
-  // index, since that's the one actually driving health risk.
+  // EAQI reports the worst-performing pollutant as the overall index.
   return Math.min(...subIndexes)
 }
 
@@ -221,9 +216,7 @@ export function selectRouteByStrategy(routes, strategy) {
   const ranked = routes.map(route => ({
     ...route,
     speedScore: fastestDuration > 0 ? Math.min(100, (fastestDuration / route.durationMin) * 100) : 100
-    // environmentScore is passed through as-is: null means "no real air-quality
-    // data near this candidate" and must never be coerced into a fabricated
-    // default value.
+    // environmentScore passes through as-is; null means no air-quality data nearby.
   }))
 
   if (strategy === 'FAST') {
@@ -234,29 +227,23 @@ export function selectRouteByStrategy(routes, strategy) {
     const withData = ranked.filter(route => route.environmentScore !== null && route.environmentScore !== undefined)
 
     if (!withData.length) {
-      // No candidate has any real air-quality data nearby - there is nothing
-      // genuine to rank by, so fall back to the fastest candidate and flag it
-      // honestly rather than inventing an "eco" winner.
+      // No candidate has air-quality data nearby - fall back to the fastest
+      // candidate and flag it instead of inventing an "eco" winner.
       const fastest = [...ranked].sort((a, b) => a.durationMin - b.durationMin)[0]
       return { ...fastest, environmentScore: null, ecoDataUnavailable: true }
     }
 
-    // Rank by the real air-quality score first. Nearby candidates often share
-    // the same closest ARSO station (station coverage is sparse - roughly one
-    // station per city, not one per street), which means their scores can be
-    // genuinely, honestly identical. Array.sort is stable, so without a
-    // tie-break the first candidate (the direct/fastest one) always won on a
-    // tie, making "Eco" silently collapse onto "Fast". Break ties toward the
-    // longer candidate instead, since avoiding the most direct route is the
-    // only meaningful "eco" signal left when the real data doesn't disambiguate.
+    // Nearby candidates often share the same closest ARSO station (coverage
+    // is roughly one station per city), so scores can tie. Array.sort is
+    // stable, so without a tie-break the fastest candidate always wins,
+    // collapsing "Eco" onto "Fast" - break ties toward the longer route instead.
     return [...withData].sort((a, b) => {
       if (b.environmentScore !== a.environmentScore) return b.environmentScore - a.environmentScore
       return b.durationMin - a.durationMin
     })[0]
   }
 
-  // BALANCED: the candidate with the median duration is a genuine middle
-  // ground between the fastest and the most eco-friendly option.
+  // BALANCED: pick the candidate with the median duration.
   const sortedByDuration = [...ranked].sort((a, b) => a.durationMin - b.durationMin)
   return sortedByDuration[Math.floor((sortedByDuration.length - 1) / 2)]
 }

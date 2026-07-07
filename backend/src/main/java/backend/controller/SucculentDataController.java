@@ -22,11 +22,8 @@ public class SucculentDataController {
 
     private static final int SUCCULENT_TIMEOUT_MS = 3000;
 
-    // Succulent stores readings in a pandas DataFrame and serializes missing
-    // numeric values as the literal token NaN, which is valid in Python's
-    // json module but not standard JSON - Jackson rejects it by default and
-    // the whole response then failed to parse, even though the real
-    // measurements it was mixed in with were perfectly fine.
+    // Succulent serializes missing numeric values as NaN, which Jackson
+    // rejects by default.
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS, true);
 
@@ -37,9 +34,6 @@ public class SucculentDataController {
     @GetMapping
     public ResponseEntity<?> getSucculentData() {
         try {
-            // Without an explicit timeout, RestTemplate hangs indefinitely when
-            // the succulent container is unreachable or stuck, instead of
-            // falling through to the "unavailable" response below.
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(SUCCULENT_TIMEOUT_MS);
             requestFactory.setReadTimeout(SUCCULENT_TIMEOUT_MS);
@@ -68,13 +62,8 @@ public class SucculentDataController {
             result.put("data", Collections.emptyList());
             return ResponseEntity.ok(result);
         } catch (HttpStatusCodeException e) {
-            // The succulent server itself has a known bug: when its CSV store is
-            // still empty (no measurement has ever been recorded yet), its /data
-            // endpoint throws a KeyError internally and returns HTTP 500 instead
-            // of an empty result. That is a normal, expected "no data yet" state
-            // (e.g. right after the container starts, before the simulator has
-            // sent anything) - not a real failure - so report it the same way as
-            // "unavailable" rather than surfacing a raw error to the frontend.
+            // succulent's /data endpoint returns HTTP 500 when its CSV store is
+            // still empty - treat that as "no data yet", not a real failure.
             Map<String, Object> result = new HashMap<>();
             result.put("status", "unavailable");
             result.put("message", "Succulent še nima zabeleženih meritev.");
@@ -86,11 +75,8 @@ public class SucculentDataController {
     }
 
     /**
-     * Records a single real measurement (e.g. the logged-in user's real
-     * browser geolocation, paired with real air-quality/temperature values
-     * already looked up by the frontend) by forwarding it to succulent's
-     * /measure endpoint as query parameters - the same way succulent/simulate_data.py
-     * already posts measurements.
+     * Forwards a single measurement to succulent's /measure endpoint as
+     * query parameters, the same way succulent/simulate_data.py does.
      */
     @PostMapping
     public ResponseEntity<?> recordMeasurement(@RequestBody Map<String, Object> measurement) {

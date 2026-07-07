@@ -137,10 +137,8 @@ function MapResizeHandler() {
   useEffect(() => {
     const invalidate = () => map.invalidateSize()
 
-    // Leaflet measures its container once at creation and never rechecks on
-    // its own - on mobile the flex layout (sidebar + map row) often only
-    // settles into its final width a frame or two after mount, so without
-    // this the map silently locks in at 0 width and never shows tiles.
+    // Leaflet measures its container once at creation and never rechecks -
+    // the mobile layout can settle into its final width a frame after mount.
     invalidate()
     const timeoutId = setTimeout(invalidate, 300)
 
@@ -746,9 +744,8 @@ function MapPage() {
         stationName: 'Testna postaja',
         latitude: regionCenter[0],
         longitude: regionCenter[1],
-        // pm2.5 concentrations chosen to land in the EAQI "Poor" (60 ug/m3)
-        // and "Moderate" (30 ug/m3) bands, so the test buttons genuinely
-        // exercise the same real-data-based alert logic as live stations.
+        // pm2.5 chosen to land in the EAQI "Poor" (60) / "Moderate" (30) bands,
+        // so these buttons exercise the same alert logic as live stations.
         pm2_5: critical ? 60 : 30,
         pm10: null,
         no2: null,
@@ -772,10 +769,8 @@ function MapPage() {
     lastNotification.current = notificationKey
   }, [environmentalAlert])
 
-  // Real ARSO stations only - each point's intensity comes from that
-  // station's actual current EAQI reading (worse real air quality = larger,
-  // more prominent circle), not a fabricated per-city value. Stations with
-  // no usable pollutant reading right now are simply left out.
+  // Point intensity comes from each ARSO station's current EAQI reading;
+  // stations with no usable pollutant reading are left out.
   const heatmapPoints = useMemo(() => {
     return airQualityStations
       .map(station => {
@@ -1067,9 +1062,7 @@ function MapPage() {
         const points = route.geometry.coordinates.map(point => [point[1], point[0]])
         const distanceKm = route.distance / 1000
         const durationMin = route.duration / 60
-        // Real ARSO station measurements only - no distance-based formula or
-        // fabricated bonus. `airQuality` is null when no real station is
-        // within range, and that null is never replaced with a made-up score.
+        // null when no ARSO station is within range - never replaced with a fallback score.
         const airQuality = calculateRouteAirQuality(points, airQualityStations)
 
         return {

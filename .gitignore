@@ -145,4 +145,12 @@ vite.config.ts.timestamp-*
 
 #GPX files
 uploads/
-*.gpx"netstat" 
+*.gpx
+netstat
+
+# Python virtual environments and bytecode
+venv/
+.venv*/
+__pycache__/
+*.pyc
+*.pyo
