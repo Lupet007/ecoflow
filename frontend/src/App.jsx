@@ -613,7 +613,6 @@ function MapPage() {
 
   const [selectedRouteType, setSelectedRouteType] = useState('ECO')
   const [showHeatmap, setShowHeatmap] = useState(false)
-  const [alertTestScenario, setAlertTestScenario] = useState(null)
   const lastNotification = useRef(null)
   const routeRequestId = useRef(0)
 
@@ -750,28 +749,12 @@ function MapPage() {
     if (!ecoProfile?.alertsEnabled) return null
     const regionCenter = regionCoordinates[ecoProfile.preferredRegion]
 
-    if (alertTestScenario) {
-      const critical = alertTestScenario === 'POOR'
-      return evaluateAirQualityAlert([{
-        id: `alert-test-${alertTestScenario}`,
-        stationName: 'Testna postaja',
-        latitude: regionCenter[0],
-        longitude: regionCenter[1],
-        // pm2.5 chosen to land in the EAQI "Poor" (60) / "Moderate" (30) bands,
-        // so these buttons exercise the same alert logic as live stations.
-        pm2_5: critical ? 60 : 30,
-        pm10: null,
-        no2: null,
-        o3: null
-      }], regionCenter, alertTestScenario)
-    }
-
     return evaluateAirQualityAlert(
       airQualityStations,
       regionCenter,
       ecoProfile.alertThreshold
     )
-  }, [alertTestScenario, ecoProfile, airQualityStations])
+  }, [ecoProfile, airQualityStations])
 
   useEffect(() => {
     if (!environmentalAlert || typeof Notification === 'undefined') return
@@ -1194,23 +1177,11 @@ function MapPage() {
           >
             <div>
               <strong>
-                {alertTestScenario ? 'TESTNI NAČIN: ' : ''}
                 {environmentalAlert?.title || `Razmere v bližini ${ecoProfile.preferredRegion} so znotraj tvojega praga`}
               </strong>
               <p>{environmentalAlert?.message || `${sensorStatus}. Nivo opozorila: ${ecoProfile.alertThreshold}.`}</p>
             </div>
             <div style={styles.alertActions}>
-              <button type="button" onClick={() => setAlertTestScenario('MODERATE')} style={styles.alertTestButton}>
-                Testiraj opozorilo
-              </button>
-              <button type="button" onClick={() => setAlertTestScenario('POOR')} style={styles.alertTestButton}>
-                Testiraj kritično
-              </button>
-              {alertTestScenario && (
-                <button type="button" onClick={() => setAlertTestScenario(null)} style={styles.alertTestButton}>
-                  Uporabi žive podatke
-                </button>
-              )}
               <Link to="/profile" style={styles.alertSettingsLink}>Nastavitve opozoril</Link>
             </div>
           </div>
@@ -1732,7 +1703,7 @@ function MapPage() {
           <p style={styles.eyebrow}>Stanje sistema</p>
           <h2 style={styles.sectionTitle}>Moduli projekta</h2>
 
-          <div style={styles.moduleList}>
+          <div style={styles.moduleList} className="eco-module-list">
             <div style={styles.moduleItem}>
               <span style={styles.moduleDot} />
               <div>
@@ -2151,7 +2122,7 @@ const styles = {
   plannerRow: {
     display: 'flex',
     gap: '20px',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     marginBottom: '20px'
   },
   sidebar: {
@@ -2556,7 +2527,9 @@ const styles = {
     padding: '10px',
     borderRadius: 'var(--radius-lg)',
     position: 'relative',
-    minWidth: 0
+    minWidth: 0,
+    display: 'flex',
+    alignSelf: 'stretch'
   },
   mapLegend: {
     position: 'absolute',
@@ -2599,8 +2572,10 @@ const styles = {
     boxShadow: 'var(--shadow-sm)'
   },
   map: {
-    height: '600px',
+    height: '100%',
+    minHeight: 0,
     width: '100%',
+    flex: 1,
     borderRadius: 'var(--radius-md)',
     overflow: 'hidden'
   },
@@ -2612,7 +2587,7 @@ const styles = {
   },
   moduleList: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
     gap: '10px',
     marginTop: '16px'
   },

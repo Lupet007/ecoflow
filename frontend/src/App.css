@@ -180,14 +180,30 @@
 
 .eco-planner-row {
   align-items: stretch;
+  height: clamp(540px, calc(100vh - 220px), 760px);
+  min-height: 0;
 }
 
 .eco-sidebar {
   overflow-y: auto;
-  max-height: 720px;
+  max-height: 100%;
+}
+
+.eco-map-box {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.eco-map {
+  height: 100% !important;
+  min-height: 0 !important;
 }
 
 @media (max-width: 900px) {
+  .eco-module-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
   .trend-chart-grid {
     grid-template-columns: 1fr;
   }
@@ -202,6 +218,7 @@
 
   .eco-planner-row {
     flex-direction: column !important;
+    height: auto;
   }
 
   .eco-sidebar {
@@ -212,10 +229,21 @@
 
   .eco-map-box {
     width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .eco-map {
+    height: clamp(420px, 62vh, 620px) !important;
+    min-height: 420px !important;
   }
 }
 
 @media (max-width: 640px) {
+  .eco-module-list {
+    grid-template-columns: 1fr !important;
+  }
+
   .eco-trends > div:first-child {
     flex-direction: column;
   }
@@ -226,6 +254,11 @@
 
   .trend-period-button {
     flex: 1;
+  }
+
+  .eco-map {
+    height: clamp(340px, 58vh, 480px) !important;
+    min-height: 340px !important;
   }
 
   .trend-summary-row strong {
