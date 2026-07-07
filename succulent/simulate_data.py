@@ -25,7 +25,7 @@ truststore.inject_into_ssl()
 import requests
 
 SUCCULENT_URL = os.getenv("SUCCULENT_URL", "http://localhost:9090") + "/measure"
-ARSO_URL = "http://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
+ARSO_URL = "https://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 # ARSO refreshes hourly and Open-Meteo roughly every 15 minutes, but this

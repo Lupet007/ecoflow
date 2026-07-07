@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import psycopg2
 import requests
 
-ARSO_URL = "http://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
+ARSO_URL = "https://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
