@@ -88,7 +88,7 @@ function EcoProfilePage() {
     <div style={styles.page}>
       <AppHeader />
 
-      <div style={styles.header}>
+      <div style={styles.header} className="eco-page-header">
         <p style={styles.eyebrow}>Personalizacija</p>
         <h1 style={styles.title}>Eko profil</h1>
         <p style={styles.subtitle}>
@@ -97,16 +97,16 @@ function EcoProfilePage() {
       </div>
 
       <main style={styles.container} className="eco-container">
-        <section style={styles.heroGrid}>
-          <div style={styles.profileCard}>
+        <section style={styles.heroGrid} className="eco-profile-hero-grid">
+          <div style={styles.profileCard} className="eco-profile-card">
             <p style={styles.eyebrow}>Stanje profila</p>
             <h2 style={styles.sectionTitle}>Tvoje nastavitve poti</h2>
             <p style={styles.sectionDesc}>
               EcoFlow uporablja ta profil za prilagajanje priporočil poti, fokusa zemljevida in predvidene eko-ocene.
             </p>
 
-            <div style={styles.summaryList}>
-              <div style={styles.summaryItem}>
+            <div style={styles.summaryList} className="eco-profile-summary-list">
+              <div style={styles.summaryItem} className="eco-profile-summary-item">
                 <span style={styles.summaryDot} />
                 <div>
                   <strong>Prioriteta</strong>
@@ -114,7 +114,7 @@ function EcoProfilePage() {
                 </div>
               </div>
 
-              <div style={styles.summaryItem}>
+              <div style={styles.summaryItem} className="eco-profile-summary-item">
                 <span style={styles.summaryDot} />
                 <div>
                   <strong>Aktivnost</strong>
@@ -122,7 +122,7 @@ function EcoProfilePage() {
                 </div>
               </div>
 
-              <div style={styles.summaryItem}>
+              <div style={styles.summaryItem} className="eco-profile-summary-item">
                 <span style={styles.summaryDot} />
                 <div>
                   <strong>Regija</strong>
@@ -130,7 +130,7 @@ function EcoProfilePage() {
                 </div>
               </div>
 
-              <div style={styles.summaryItem}>
+              <div style={styles.summaryItem} className="eco-profile-summary-item">
                 <span style={styles.summaryDot} />
                 <div>
                   <strong>Opozorila</strong>
@@ -142,11 +142,11 @@ function EcoProfilePage() {
             </div>
           </div>
 
-          <div style={styles.scoreCard}>
+          <div style={styles.scoreCard} className="eco-profile-score-card">
             <p style={styles.eyebrow}>Kaj to pomeni</p>
             <h2 style={styles.sectionTitle}>Tvoje poti bodo prilagojene za</h2>
 
-            <div style={styles.scoreCircle}>
+            <div style={styles.scoreCircle} className="eco-profile-score-circle">
               <strong style={styles.scoreCircleLabel}>{priorityInfo?.label}</strong>
             </div>
 
@@ -159,14 +159,14 @@ function EcoProfilePage() {
         </section>
 
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
+          <div style={styles.sectionHeader} className="eco-section-header">
             <div>
               <p style={styles.eyebrow}>Okoljska prioriteta</p>
               <h2 style={styles.sectionTitle}>Kaj ti je najbolj pomembno?</h2>
             </div>
           </div>
 
-          <div style={styles.optionGrid}>
+          <div style={styles.optionGrid} className="eco-profile-option-grid">
             {ECO_PRIORITIES.map(opt => (
               <button
                 key={opt.value}
@@ -182,14 +182,14 @@ function EcoProfilePage() {
         </section>
 
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
+          <div style={styles.sectionHeader} className="eco-section-header">
             <div>
               <p style={styles.eyebrow}>Vrsta aktivnosti</p>
               <h2 style={styles.sectionTitle}>Kako se boš gibal/-a?</h2>
             </div>
           </div>
 
-          <div style={styles.optionGrid}>
+          <div style={styles.optionGrid} className="eco-profile-option-grid">
             {ACTIVITY_TYPES.map(opt => (
               <button
                 key={opt.value}
@@ -205,14 +205,14 @@ function EcoProfilePage() {
         </section>
 
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
+          <div style={styles.sectionHeader} className="eco-section-header">
             <div>
               <p style={styles.eyebrow}>Priljubljena regija</p>
               <h2 style={styles.sectionTitle}>Območje fokusa zemljevida</h2>
             </div>
           </div>
 
-          <div style={styles.regionGrid}>
+          <div style={styles.regionGrid} className="eco-profile-region-grid">
             {REGIONS.map(region => (
               <button
                 key={region}
@@ -226,7 +226,7 @@ function EcoProfilePage() {
         </section>
 
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
+          <div style={styles.sectionHeader} className="eco-section-header">
             <div>
               <p style={styles.eyebrow}>Okoljska opozorila</p>
               <h2 style={styles.sectionTitle}>Nastavitve opozoril</h2>
@@ -254,7 +254,7 @@ function EcoProfilePage() {
           </p>
 
           {profile.alertsEnabled && (
-            <div style={styles.regionGrid}>
+            <div style={styles.regionGrid} className="eco-profile-region-grid">
               {ALERT_LEVELS.map(level => (
                 <button
                   key={level.value}
@@ -269,7 +269,7 @@ function EcoProfilePage() {
         </section>
 
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
+          <div style={styles.sectionHeader} className="eco-section-header">
             <div>
               <p style={styles.eyebrow}>Popolnost</p>
               <h2 style={styles.sectionTitle}>Pripravljenost profila</h2>
@@ -288,7 +288,7 @@ function EcoProfilePage() {
             }} />
           </div>
 
-          <div style={styles.progressLabels}>
+          <div style={styles.progressLabels} className="eco-profile-progress-labels">
             <span>Prioriteta</span>
             <span>Aktivnost</span>
             <span>Regija</span>
@@ -296,7 +296,7 @@ function EcoProfilePage() {
           </div>
         </section>
 
-        <div style={styles.buttonRow}>
+        <div style={styles.buttonRow} className="eco-profile-button-row">
           <button onClick={handleSave} style={styles.saveButton}>
             {saved ? 'Shranjeno!' : 'Shrani nastavitve'}
           </button>

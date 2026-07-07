@@ -128,7 +128,7 @@ function RecommendationsPage() {
     <div style={styles.page}>
       <AppHeader />
 
-      <div style={styles.header}>
+      <div style={styles.header} className="eco-page-header">
         <p style={styles.eyebrow}>Prilagojeno zate</p>
         <h1 style={styles.title}>Poti izbrane zate</h1>
         <p style={styles.subtitle}>
@@ -136,7 +136,7 @@ function RecommendationsPage() {
         </p>
       </div>
 
-      <div style={styles.container}>
+      <div style={styles.container} className="eco-page-container eco-recommendations-page">
 
         {/* HOW IT WORKS */}
         <div style={styles.explainerCard}>

@@ -91,7 +91,7 @@ function GpxUploadPage() {
     <div style={styles.page}>
       <AppHeader />
 
-      <div style={styles.header}>
+      <div style={styles.header} className="eco-page-header">
         <p style={styles.eyebrow}>Obdelava GPX poti</p>
         <h1 style={styles.title}>Naloži in analiziraj pot</h1>
         <p style={styles.subtitle}>
@@ -99,7 +99,7 @@ function GpxUploadPage() {
         </p>
       </div>
 
-      <main style={styles.container}>
+      <main style={styles.container} className="eco-page-container eco-gpx-page">
 
         {/* Eco Profile indicator */}
         {ecoProfile ? (
@@ -173,7 +173,7 @@ function GpxUploadPage() {
               <h2 style={styles.sectionTitle}>Rezultat eko-ocene</h2>
             </div>
 
-            <div style={styles.resultGrid}>
+            <div style={styles.resultGrid} className="eco-gpx-result-grid">
               <div style={styles.scoreCircle}>
                 <strong>{uploadedRoute.ecoScore}</strong>
                 <span>/100</span>

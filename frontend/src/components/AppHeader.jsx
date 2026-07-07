@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { logout } from '../services/authService'
 
@@ -11,6 +12,11 @@ const NAV_LINKS = [
 
 function AppHeader() {
   const location = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
 
   const handleLogout = () => {
     logout()
@@ -24,7 +30,23 @@ function AppHeader() {
         <span style={styles.brandName}>EcoFlow</span>
       </Link>
 
-      <nav style={styles.nav} className="eco-app-header-nav">
+      <button
+        type="button"
+        className={menuOpen ? 'eco-menu-toggle active' : 'eco-menu-toggle'}
+        style={styles.menuToggle}
+        onClick={() => setMenuOpen(open => !open)}
+        aria-label={menuOpen ? 'Zapri navigacijo' : 'Odpri navigacijo'}
+        aria-expanded={menuOpen}
+      >
+        <span style={styles.menuLine} />
+        <span style={styles.menuLine} />
+        <span style={styles.menuLine} />
+      </button>
+
+      <nav
+        style={styles.nav}
+        className={menuOpen ? 'eco-app-header-nav open' : 'eco-app-header-nav'}
+      >
         {NAV_LINKS.map(link => (
           <Link
             key={link.to}
@@ -63,7 +85,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    textDecoration: 'none'
+    textDecoration: 'none',
+    minWidth: 0
   },
   logoBadge: {
     width: '34px',
@@ -88,6 +111,27 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     flexWrap: 'wrap'
+  },
+  menuToggle: {
+    display: 'none',
+    width: '42px',
+    height: '42px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    cursor: 'pointer',
+    padding: '9px',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: '5px'
+  },
+  menuLine: {
+    display: 'block',
+    width: '100%',
+    height: '2px',
+    borderRadius: '999px',
+    background: 'currentColor'
   },
   navLink: {
     padding: '8px 12px',

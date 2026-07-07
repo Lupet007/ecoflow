@@ -1173,15 +1173,16 @@ function MapPage() {
         {ecoProfile?.alertsEnabled && (
           <div
             style={environmentalAlert ? styles.environmentAlert : styles.environmentAlertClear}
+            className="eco-environment-alert"
             role={environmentalAlert ? 'alert' : 'status'}
           >
-            <div>
+            <div style={styles.alertContent} className="eco-alert-content">
               <strong>
                 {environmentalAlert?.title || `Razmere v bližini ${ecoProfile.preferredRegion} so znotraj tvojega praga`}
               </strong>
               <p>{environmentalAlert?.message || `${sensorStatus}. Nivo opozorila: ${ecoProfile.alertThreshold}.`}</p>
             </div>
-            <div style={styles.alertActions}>
+            <div style={styles.alertActions} className="eco-alert-actions">
               <Link to="/profile" style={styles.alertSettingsLink}>Nastavitve opozoril</Link>
             </div>
           </div>
@@ -2072,14 +2073,19 @@ const styles = {
   alertSettingsLink: {
     color: 'inherit',
     fontWeight: 700,
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    overflowWrap: 'anywhere'
+  },
+  alertContent: {
+    minWidth: 0
   },
   alertActions: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: '8px',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    flexShrink: 0
   },
   alertTestButton: {
     padding: '7px 10px',

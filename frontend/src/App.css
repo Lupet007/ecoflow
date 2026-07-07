@@ -204,6 +204,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
+  .eco-dashboard-grid-two,
+  .eco-profile-hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .trend-chart-grid {
     grid-template-columns: 1fr;
   }
@@ -242,6 +247,104 @@
 @media (max-width: 640px) {
   .eco-module-list {
     grid-template-columns: 1fr !important;
+  }
+
+  .eco-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .eco-environment-alert {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .eco-alert-actions {
+    justify-content: flex-start !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .eco-alert-actions a {
+    white-space: normal !important;
+    max-width: 100%;
+  }
+
+  .eco-section-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .eco-section-header > span,
+  .eco-section-header > button {
+    align-self: flex-start;
+  }
+
+  .eco-profile-summary-list,
+  .eco-profile-option-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .eco-profile-card,
+  .eco-profile-score-card {
+    padding: 18px !important;
+  }
+
+  .eco-profile-summary-item {
+    align-items: flex-start !important;
+  }
+
+  .eco-profile-score-circle {
+    width: 112px !important;
+    height: 112px !important;
+  }
+
+  .eco-profile-region-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .eco-profile-region-grid > button,
+  .eco-profile-button-row > button {
+    width: 100%;
+  }
+
+  .eco-profile-progress-labels {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+  }
+
+  .eco-profile-button-row {
+    flex-direction: column;
+  }
+
+  .eco-bar-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px 10px !important;
+  }
+
+  .eco-bar-label {
+    text-align: left !important;
+    min-width: 0;
+  }
+
+  .eco-bar-track {
+    grid-column: 1 / -1;
+  }
+
+  .eco-bar-value {
+    justify-self: end;
+  }
+
+  .eco-route-table {
+    overflow-x: auto;
+  }
+
+  .eco-route-table-header,
+  .eco-route-table-row {
+    min-width: 620px;
   }
 
   .eco-trends > div:first-child {

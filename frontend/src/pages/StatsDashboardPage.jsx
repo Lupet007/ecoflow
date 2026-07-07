@@ -36,11 +36,11 @@ function StatCard({ label, value, color, description }) {
 
 function BarChart({ data, maxValue }) {
   return (
-    <div style={styles.barChart}>
+    <div style={styles.barChart} className="eco-bar-chart">
       {data.map((item, i) => (
-        <div key={i} style={styles.barRow}>
-          <div style={styles.barLabel}>{item.label}</div>
-          <div style={styles.barTrack}>
+        <div key={i} style={styles.barRow} className="eco-bar-row">
+          <div style={styles.barLabel} className="eco-bar-label">{item.label}</div>
+          <div style={styles.barTrack} className="eco-bar-track">
             <div
               style={{
                 ...styles.barFill,
@@ -49,7 +49,7 @@ function BarChart({ data, maxValue }) {
               }}
             />
           </div>
-          <div style={styles.barValue}>{item.value}</div>
+          <div style={styles.barValue} className="eco-bar-value">{item.value}</div>
         </div>
       ))}
     </div>
@@ -191,7 +191,7 @@ function StatsDashboardPage() {
     <div style={styles.page}>
       <AppHeader />
 
-      <div style={styles.header}>
+      <div style={styles.header} className="eco-page-header">
         <p style={styles.eyebrow}>Analitski center</p>
         <h1 style={styles.title}>Okoljska nadzorna plošča</h1>
         <p style={styles.subtitle}>
@@ -233,9 +233,9 @@ function StatsDashboardPage() {
             />
           </div>
 
-          <div style={styles.gridTwo}>
+          <div style={styles.gridTwo} className="eco-dashboard-grid-two">
             <section style={styles.section}>
-              <div style={styles.sectionHeader}>
+              <div style={styles.sectionHeader} className="eco-section-header">
                 <div>
                   <p style={styles.eyebrow}>Satelitski podatki</p>
                   <h2 style={styles.sectionTitle}>Okoljski podatki po vrsti</h2>
@@ -251,7 +251,7 @@ function StatsDashboardPage() {
             </section>
 
             <section style={styles.section}>
-              <div style={styles.sectionHeader}>
+              <div style={styles.sectionHeader} className="eco-section-header">
                 <div>
                   <p style={styles.eyebrow}>Kakovost poti</p>
                   <h2 style={styles.sectionTitle}>Poti po eko-oceni</h2>
@@ -273,15 +273,15 @@ function StatsDashboardPage() {
 
           {routes.length > 0 && (
             <section style={styles.section}>
-              <div style={styles.sectionHeader}>
+              <div style={styles.sectionHeader} className="eco-section-header">
                 <div>
                   <p style={styles.eyebrow}>Arhiv poti</p>
                   <h2 style={styles.sectionTitle}>Naložene poti</h2>
                 </div>
               </div>
 
-              <div style={styles.routeTable}>
-                <div style={styles.tableHeader}>
+              <div style={styles.routeTable} className="eco-route-table">
+                <div style={styles.tableHeader} className="eco-route-table-header">
                   <span>Ime</span>
                   <span>Točke</span>
                   <span>Eko-ocena</span>
@@ -289,7 +289,7 @@ function StatsDashboardPage() {
                 </div>
 
                 {routes.map(route => (
-                  <div key={route.id} style={styles.tableRow}>
+                  <div key={route.id} style={styles.tableRow} className="eco-route-table-row">
                     <span style={styles.routeName}>{route.name}</span>
                     <span>{route.pointCount}</span>
                     <span style={{
@@ -306,7 +306,7 @@ function StatsDashboardPage() {
           )}
 
           <section style={styles.section}>
-            <div style={styles.sectionHeader}>
+            <div style={styles.sectionHeader} className="eco-section-header">
               <div>
                 <p style={styles.eyebrow}>IoT senzorji</p>
                 <h2 style={styles.sectionTitle}>Podatki senzorjev v živo</h2>
@@ -392,8 +392,8 @@ function StatsDashboardPage() {
                   </div>
                 </div>
 
-                <div style={styles.sensorTableWrap}>
-                  <div style={styles.sensorTableHeader}>
+                <div style={styles.sensorTableWrap} className="eco-sensor-table-wrap">
+                  <div style={styles.sensorTableHeader} className="eco-sensor-table-header">
                     <span>Zemljepisna širina</span>
                     <span>Zemljepisna dolžina</span>
                     <span>Aktivnost</span>
@@ -403,7 +403,7 @@ function StatsDashboardPage() {
                   </div>
 
                   {sensorData.slice(-10).reverse().map((row, i) => (
-                    <div key={i} style={styles.sensorTableRow}>
+                    <div key={i} style={styles.sensorTableRow} className="eco-sensor-table-row">
                       <span>{row.latitude}</span>
                       <span>{row.longitude}</span>
                       <span>{row.activity_type}</span>
@@ -498,7 +498,7 @@ const styles = {
   },
   cardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: '16px'
   },
   statCard: {
