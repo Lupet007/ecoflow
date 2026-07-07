@@ -209,6 +209,10 @@
     width: 100%;
     max-height: none;
   }
+
+  .eco-map-box {
+    width: 100% !important;
+  }
 }
 
 @media (max-width: 640px) {

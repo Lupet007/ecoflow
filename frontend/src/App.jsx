@@ -131,6 +131,29 @@ function parseRouteCoordinates(route) {
   }
 }
 
+function MapResizeHandler() {
+  const map = useMap()
+
+  useEffect(() => {
+    const invalidate = () => map.invalidateSize()
+
+    // Leaflet measures its container once at creation and never rechecks on
+    // its own - on mobile the flex layout (sidebar + map row) often only
+    // settles into its final width a frame or two after mount, so without
+    // this the map silently locks in at 0 width and never shows tiles.
+    invalidate()
+    const timeoutId = setTimeout(invalidate, 300)
+
+    window.addEventListener('resize', invalidate)
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('resize', invalidate)
+    }
+  }, [map])
+
+  return null
+}
+
 function FlyToRegion({ center }) {
   const map = useMap()
 
@@ -1489,7 +1512,7 @@ function MapPage() {
             </div>
           </aside>
 
-          <div style={styles.mapBox}>
+          <div style={styles.mapBox} className="eco-map-box">
             <div style={styles.mapLegend}>
               <span><i style={{ ...styles.legendDot, backgroundColor: '#15803d' }} /> Eko</span>
               <span><i style={{ ...styles.legendDot, backgroundColor: '#2563eb' }} /> Hitro</span>
@@ -1506,6 +1529,8 @@ function MapPage() {
               style={styles.map}
               className="eco-map"
             >
+              <MapResizeHandler />
+
               <RouteClickHandler
                 onSelectPoint={handleSelectPoint}
               />
