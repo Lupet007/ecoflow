@@ -20,10 +20,10 @@ describe('LoginPage', () => {
 
   it('renders login form', () => {
     renderLoginPage()
-    expect(screen.getByText('EcoFlow')).toBeInTheDocument()
-    expect(screen.getByLabelText('Email')).toBeInTheDocument()
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'EcoFlow' })).toBeInTheDocument()
+    expect(screen.getByLabelText('E-poštni naslov')).toBeInTheDocument()
+    expect(screen.getByLabelText('Geslo')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /prijava/i })).toBeInTheDocument()
   })
 
   it('shows error when login fails', async () => {
@@ -32,14 +32,9 @@ describe('LoginPage', () => {
     })
 
     renderLoginPage()
-
-    fireEvent.change(screen.getByLabelText('Email'), {
-      target: { value: 'wrong@test.com' }
-    })
-    fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'wrongpass' }
-    })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.change(screen.getByLabelText('E-poštni naslov'), { target: { value: 'wrong@test.com' } })
+    fireEvent.change(screen.getByLabelText('Geslo'), { target: { value: 'wrongpass' } })
+    fireEvent.click(screen.getByRole('button', { name: /prijava/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Invalid credentials')).toBeInTheDocument()
@@ -50,14 +45,9 @@ describe('LoginPage', () => {
     authService.login.mockResolvedValue({})
 
     renderLoginPage()
-
-    fireEvent.change(screen.getByLabelText('Email'), {
-      target: { value: 'test@test.com' }
-    })
-    fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'password123' }
-    })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.change(screen.getByLabelText('E-poštni naslov'), { target: { value: 'test@test.com' } })
+    fireEvent.change(screen.getByLabelText('Geslo'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: /prijava/i }))
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith('test@test.com', 'password123')

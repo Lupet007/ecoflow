@@ -13,6 +13,11 @@ const renderGpxUploadPage = () =>
     </MemoryRouter>
   )
 
+const fileInput = () =>
+  screen.getByRole('button', { name: /naloži in analiziraj/i })
+    .closest('main')
+    .querySelector('input[type="file"]')
+
 describe('GpxUploadPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -21,27 +26,20 @@ describe('GpxUploadPage', () => {
 
   it('renders upload form', () => {
     renderGpxUploadPage()
-    expect(screen.getByText('EcoFlow GPX Route Upload')).toBeInTheDocument()
-    expect(screen.getByText(/naloži in analiziraj pot/i)).toBeInTheDocument()
-    expect(screen.getByText('Back to map')).toBeInTheDocument()
+    expect(screen.getByText('Izberi GPX datoteko')).toBeInTheDocument()
+    expect(screen.getByText('Klikni za izbiro GPX datoteke')).toBeInTheDocument()
   })
 
   it('shows error when non-GPX file is selected', () => {
     renderGpxUploadPage()
-
     const file = new File(['content'], 'route.txt', { type: 'text/plain' })
-    const input = screen.getByRole('button', { name: /naloži in analiziraj/i }).closest('main').querySelector('input[type="file"]')
-
-    fireEvent.change(input, { target: { files: [file] } })
-
+    fireEvent.change(fileInput(), { target: { files: [file] } })
     expect(screen.getByText('Prosimo, izberi veljavno GPX datoteko.')).toBeInTheDocument()
   })
 
   it('shows error when upload button clicked without file', async () => {
     renderGpxUploadPage()
-
     fireEvent.click(screen.getByRole('button', { name: /naloži in analiziraj/i }))
-
     await waitFor(() => {
       expect(screen.getByText('Najprej izberi GPX datoteko.')).toBeInTheDocument()
     })
@@ -49,44 +47,32 @@ describe('GpxUploadPage', () => {
 
   it('shows eco-score result after successful upload', async () => {
     axios.post.mockResolvedValue({
-      data: {
-        name: 'test_route.gpx',
-        ecoScore: 85,
-        ecoScoreLabel: 'Excellent',
-        pointCount: 10
-      }
+      data: { name: 'test_route.gpx', ecoScore: 85, ecoScoreLabel: 'Odlično', pointCount: 10 }
     })
 
     renderGpxUploadPage()
-
     const file = new File(['<gpx></gpx>'], 'test_route.gpx', { type: 'application/gpx+xml' })
-    const input = screen.getByRole('button', { name: /naloži in analiziraj/i }).closest('main').querySelector('input[type="file"]')
-
-    fireEvent.change(input, { target: { files: [file] } })
+    fireEvent.change(fileInput(), { target: { files: [file] } })
     fireEvent.click(screen.getByRole('button', { name: /naloži in analiziraj/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Eco-score result')).toBeInTheDocument()
-      expect(screen.getByText(/85\/100/)).toBeInTheDocument()
-      expect(screen.getByText('Excellent')).toBeInTheDocument()
+      expect(screen.getByText('Rezultat eko-ocene')).toBeInTheDocument()
+      expect(screen.getByText('85')).toBeInTheDocument()
+      expect(screen.getByText('Odlično')).toBeInTheDocument()
     })
   })
 
   it('shows error message when upload fails', async () => {
-    axios.post.mockRejectedValue({
-      response: { data: 'Failed to process GPX file.' }
-    })
+    axios.post.mockRejectedValue({ response: { data: 'Failed to process GPX file.' } })
 
     renderGpxUploadPage()
-
     const file = new File(['<gpx></gpx>'], 'test_route.gpx', { type: 'application/gpx+xml' })
-    const input = screen.getByRole('button', { name: /naloži in analiziraj/i }).closest('main').querySelector('input[type="file"]')
-
-    fireEvent.change(input, { target: { files: [file] } })
+    fireEvent.change(fileInput(), { target: { files: [file] } })
     fireEvent.click(screen.getByRole('button', { name: /naloži in analiziraj/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to process GPX file.')).toBeInTheDocument()
+      // data je navaden string (ne {error}), zato komponenta pokaže svoj fallback:
+      expect(screen.getByText('Nalaganje GPX poti ni uspelo.')).toBeInTheDocument()
     })
   })
 })
