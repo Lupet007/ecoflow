@@ -1,0 +1,19 @@
+name: Keep-alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: curl -sf -o /dev/null "https://ecoflow-backend-zbyq.onrender.com/api/health" || true
+
+      - name: Ping succulent server
+        run: curl -sf -o /dev/null "https://ecoflow-succulent.onrender.com/data" || true
+
+      - name: Ping frontend
+        run: curl -sf -o /dev/null "https://ecoflow-frontend-1bfq.onrender.com" || true

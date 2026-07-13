@@ -20,7 +20,11 @@ public class SucculentDataController {
     @Value("${succulent.url:http://localhost:9090}")
     private String succulentBaseUrl;
 
-    private static final int SUCCULENT_TIMEOUT_MS = 3000;
+    // Generous enough to survive a free-tier hosting cold start (the
+    // succulent service can take 10-15s to wake up after being idle),
+    // while still failing fast enough that a genuinely offline server
+    // doesn't hang the request indefinitely.
+    private static final int SUCCULENT_TIMEOUT_MS = 20000;
 
     // Succulent serializes missing numeric values as NaN, which Jackson
     // rejects by default.
