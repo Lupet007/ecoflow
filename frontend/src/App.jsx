@@ -892,10 +892,6 @@ function MapPage() {
     return () => clearInterval(airQualityInterval)
   }, [])
 
-  const environmentalTypes = useMemo(() => {
-    return ['ALL', 'AIR_QUALITY', 'LAND_TEMPERATURE', 'WATER_QUALITY']
-  }, [])
-
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       const environmentalType = getEnvironmentalType(product.name)
@@ -903,10 +899,6 @@ function MapPage() {
       return environmentFilter === 'ALL' || environmentalType === environmentFilter
     })
   }, [products, environmentFilter])
-
-  const resetFilters = () => {
-    setEnvironmentFilter('ALL')
-  }
 
   const handleSelectPoint = (point) => {
     // "Select start"/"Select destination" buttons still work as an explicit
@@ -1168,27 +1160,6 @@ function MapPage() {
             </div>
           </div>
         )}
-
-        <div style={styles.filters} className="eco-filters">
-          <div>
-            <label style={styles.label}>Okoljski sloj</label>
-            <select
-              value={environmentFilter}
-              onChange={(e) => setEnvironmentFilter(e.target.value)}
-              style={styles.input}
-            >
-              {environmentalTypes.map(type => (
-                <option key={type} value={type}>
-                  {formatEnvironmentalType(type)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button onClick={resetFilters} style={styles.resetButton}>
-            Ponastavi filtre
-          </button>
-        </div>
 
         <div style={styles.plannerRow} className="eco-planner-row">
           <aside style={styles.sidebar} className="eco-sidebar">
