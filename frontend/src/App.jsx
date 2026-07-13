@@ -501,7 +501,7 @@ function MapPage() {
     }
   }, [])
 
-  // Detektuj routeId iz query parametra i učitaj rutu
+  // Detect routeId from the query parameter and load that route
   useEffect(() => {
     if (routeIdParam) {
       axios.get(`${API_BASE_URL}/api/routes/${routeIdParam}`, {
@@ -633,7 +633,7 @@ function MapPage() {
     if (!startPoint || !endPoint) return
 
     const defaultName = `${startQuery || `${startPoint[0].toFixed(3)}, ${startPoint[1].toFixed(3)}`} → ${endQuery || `${endPoint[0].toFixed(3)}, ${endPoint[1].toFixed(3)}`}`
-    const name = window.prompt('Ime za to omiljeno pot:', defaultName)
+    const name = window.prompt('Ime poti:', defaultName)
     if (!name) return
 
     const favorite = {
@@ -1242,29 +1242,29 @@ function MapPage() {
 
               {startPoint && endPoint && (
                 <button onClick={saveFavoriteRoute} style={styles.secondaryButton}>
-                  Sačuvaj rutu
+                  Shrani pot
                 </button>
               )}
             </div>
 
             {favoriteRoutes.length > 0 && (
               <div style={styles.favoritesBlock}>
-                <p style={styles.favoritesLabel}>Omiljene rute</p>
+                <p style={styles.favoritesLabel}>Priljubljene poti</p>
                 <div style={styles.favoritesList}>
                   {favoriteRoutes.map(favorite => (
                     <div key={favorite.id} style={styles.favoriteItem}>
                       <button
                         onClick={() => loadFavoriteRoute(favorite)}
                         style={styles.favoriteButton}
-                        title="Naloži to omiljeno pot"
+                        title="Naloži to pot"
                       >
                         {favorite.name}
                       </button>
                       <button
                         onClick={() => deleteFavoriteRoute(favorite.id)}
                         style={styles.favoriteRemoveButton}
-                        aria-label="Odstrani iz omiljenih"
-                        title="Odstrani iz omiljenih"
+                        aria-label="Odstrani iz priljubljenih"
+                        title="Odstrani iz priljubljenih"
                       >
                         ×
                       </button>

@@ -1,5 +1,6 @@
 package backend.config;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,11 +42,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7); // Strip "Bearer "
-        String username = jwtUtil.extractUsername(token);
 
-        // Only authenticate if not already authenticated
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
+        try {
+            String username = jwtUtil.extractUsername(token);
+
+            // Only authenticate if not already authenticated
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.isTokenValid(token, userDetails.getUsername())) {
@@ -54,9 +56,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
-            } catch (UsernameNotFoundException ignored) {
-                SecurityContextHolder.clearContext();
             }
+        } catch (UsernameNotFoundException | JwtException ignored) {
+            // Malformed, expired, or otherwise invalid token (or an unknown
+            // user) - treat the request as unauthenticated instead of letting
+            // the parsing exception surface as a raw 500; the downstream
+            // authorization rules correctly reject it with 401/403 instead.
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
