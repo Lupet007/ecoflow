@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
+import { API_BASE_URL } from './config'
 import AppHeader from './components/AppHeader'
 import AppFooter from './components/AppFooter'
 import RecommendationsPage from './pages/RecommendationsPage'
@@ -236,12 +237,6 @@ const regionCoordinates = {
   Kranj: [46.2397, 14.3556],
 }
 
-const trendColors = {
-  AIR_QUALITY: '#2563eb',
-  LAND_TEMPERATURE: '#b45309',
-  WATER_QUALITY: '#0891b2'
-}
-
 function formatShortDate(value) {
   return new Intl.DateTimeFormat('sl-SI', { month: 'short', day: 'numeric' }).format(value)
 }
@@ -266,26 +261,11 @@ function HistoricalTrends({ products, routes }) {
     return date
   }, [period])
 
-  const productTrend = useMemo(() => {
-    const days = new Map()
-
-    products.forEach(product => {
+  const productsInPeriod = useMemo(() => {
+    return products.filter(product => {
       const date = getProductDate(product)
-      if (!date || (cutoff && date < cutoff)) return
-
-      const key = date.toISOString().slice(0, 10)
-      const day = days.get(key) || {
-        date,
-        AIR_QUALITY: 0,
-        LAND_TEMPERATURE: 0,
-        WATER_QUALITY: 0
-      }
-      const type = getEnvironmentalType(product.name)
-      if (trendColors[type]) day[type] += 1
-      days.set(key, day)
+      return date && (!cutoff || date >= cutoff)
     })
-
-    return [...days.values()].sort((a, b) => a.date - b.date)
   }, [products, cutoff])
 
   const routeTrend = useMemo(() => routes
@@ -298,16 +278,11 @@ function HistoricalTrends({ products, routes }) {
     .filter(item => !cutoff || item.date >= cutoff)
     .sort((a, b) => a.date - b.date), [routes, cutoff])
 
-  const maxDailyCount = Math.max(1, ...productTrend.map(day =>
-    day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY
-  ))
   const chartWidth = 720
   const chartHeight = 190
   const plot = { left: 38, right: 12, top: 12, bottom: 34 }
   const plotWidth = chartWidth - plot.left - plot.right
   const plotHeight = chartHeight - plot.top - plot.bottom
-  const barSlot = productTrend.length ? plotWidth / productTrend.length : plotWidth
-  const barWidth = Math.min(38, Math.max(8, barSlot * 0.62))
   const routePoints = routeTrend.map((item, index) => ({
     ...item,
     x: plot.left + (routeTrend.length === 1 ? plotWidth / 2 : (index / (routeTrend.length - 1)) * plotWidth),
@@ -353,59 +328,12 @@ function HistoricalTrends({ products, routes }) {
       </div>
 
       <div className="trend-summary-row">
-        <div><strong>{productTrend.length}</strong><span>aktivnih dni s podatki</span></div>
-        <div><strong>{productTrend.reduce((sum, day) => sum + day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY, 0)}</strong><span>objavljenih zapisov</span></div>
+        <div><strong>{productsInPeriod.length}</strong><span>okoljskih zapisov</span></div>
         <div><strong>{routeTrend.length}</strong><span>spremljanih poti</span></div>
         <div><strong>{averageScore ?? '--'}</strong><span>povprečna eko-ocena</span></div>
       </div>
 
-      <div className="trend-chart-grid">
-        <article className="trend-chart-panel">
-          <div className="trend-chart-heading">
-            <div>
-              <h3>Aktivnost okoljskih podatkov</h3>
-              <p>Objavljeni zapisi na dan</p>
-            </div>
-            <div className="trend-legend">
-              {Object.entries(trendColors).map(([type, color]) => (
-                <span key={type}><i style={{ background: color }} />{formatEnvironmentalType(type)}</span>
-              ))}
-            </div>
-          </div>
-          {productTrend.length ? (
-            <div className="trend-chart-scroll">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Dnevni okoljski zapisi po kategorijah">
-                {renderGrid(maxDailyCount)}
-                {productTrend.map((day, index) => {
-                  const x = plot.left + index * barSlot + (barSlot - barWidth) / 2
-                  let stackedHeight = 0
-                  const total = day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY
-                  return (
-                    <g key={day.date.toISOString()}>
-                      {Object.keys(trendColors).map(type => {
-                        const height = (day[type] / maxDailyCount) * plotHeight
-                        const y = plot.top + plotHeight - stackedHeight - height
-                        stackedHeight += height
-                        return day[type] > 0 ? (
-                          <rect key={type} x={x} y={y} width={barWidth} height={height} fill={trendColors[type]} rx="2">
-                            <title>{`${formatShortDate(day.date)}: ${day[type]} zapisov (${formatEnvironmentalType(type).toLowerCase()})`}</title>
-                          </rect>
-                        ) : null
-                      })}
-                      {(index === 0 || index === productTrend.length - 1 || productTrend.length <= 6) && (
-                        <text x={x + barWidth / 2} y={chartHeight - 17} textAnchor="middle" className="trend-axis-label">
-                          {formatShortDate(day.date)}
-                        </text>
-                      )}
-                      <title>{`${formatShortDate(day.date)}: ${total} zapisov skupaj`}</title>
-                    </g>
-                  )
-                })}
-              </svg>
-            </div>
-          ) : <div className="trend-empty">V tem obdobju ni okoljske zgodovine.</div>}
-        </article>
-
+      <div className="trend-chart-grid trend-chart-grid-single">
         <article className="trend-chart-panel">
           <div className="trend-chart-heading">
             <div>
@@ -452,6 +380,7 @@ function MapPage() {
 
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
+  const [visibleRouteCount, setVisibleRouteCount] = useState(6)
   const [sensorStatus, setSensorStatus] = useState('Nalaganje podatkov senzorjev v živo ...')
   const [airQualityStations, setAirQualityStations] = useState([])
   const [airQualityStatus, setAirQualityStatus] = useState('Nalaganje ARSO postaj za kakovost zraka ...')
@@ -500,8 +429,6 @@ function MapPage() {
   const [environmentFilter, setEnvironmentFilter] = useState(
     ecoProfile?.ecoPriority || 'ALL'
   )
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
 
   // Route from recommendations
   const [selectedRouteFromRecommendations, setSelectedRouteFromRecommendations] = useState(null)
@@ -543,7 +470,7 @@ function MapPage() {
   // Detektuj routeId iz query parametra i učitaj rutu
   useEffect(() => {
     if (routeIdParam) {
-      axios.get(`http://localhost:8080/api/routes/${routeIdParam}`, {
+      axios.get(`${API_BASE_URL}/api/routes/${routeIdParam}`, {
         headers: getAuthHeaders()
       })
         .then(response => {
@@ -790,7 +717,7 @@ function MapPage() {
   ]
 
   const loadUploadedRoutes = () => {
-    axios.get('http://localhost:8080/api/routes', {
+    axios.get(`${API_BASE_URL}/api/routes`, {
       headers: getAuthHeaders()
     })
       .then(response => {
@@ -805,7 +732,7 @@ function MapPage() {
 
   useEffect(() => {
     const loadEnvironmentalData = () => {
-      axios.get('http://localhost:8080/api/copernicus-products', {
+      axios.get(`${API_BASE_URL}/api/copernicus-products`, {
         headers: getAuthHeaders()
       })
         .then(response => {
@@ -837,7 +764,7 @@ function MapPage() {
 
   useEffect(() => {
     const loadSensorData = () => {
-      axios.get('http://localhost:8080/api/succulent-data', { headers: getAuthHeaders() })
+      axios.get(`${API_BASE_URL}/api/succulent-data`, { headers: getAuthHeaders() })
         .then(response => {
           const readings = normalizeSensorData(response.data).slice(-500)
           setSensorStatus(readings.length
@@ -857,7 +784,7 @@ function MapPage() {
 
   useEffect(() => {
     const loadAirQualityStations = () => {
-      axios.get('http://localhost:8080/api/air-quality', { headers: getAuthHeaders() })
+      axios.get(`${API_BASE_URL}/api/air-quality`, { headers: getAuthHeaders() })
         .then(response => {
           const stations = normalizeAirQualityStations(response.data)
           setAirQualityStations(stations)
@@ -886,30 +813,12 @@ function MapPage() {
     return products.filter(product => {
       const environmentalType = getEnvironmentalType(product.name)
 
-      const matchesType =
-        environmentFilter === 'ALL' ||
-        environmentalType === environmentFilter
-
-      const publicationDate = product.publicationDate
-        ? new Date(product.publicationDate)
-        : null
-
-      const matchesFrom =
-        !dateFromFilter ||
-        (publicationDate && publicationDate >= new Date(dateFromFilter))
-
-      const matchesTo =
-        !dateToFilter ||
-        (publicationDate && publicationDate <= new Date(dateToFilter))
-
-      return matchesType && matchesFrom && matchesTo
+      return environmentFilter === 'ALL' || environmentalType === environmentFilter
     })
-  }, [products, environmentFilter, dateFromFilter, dateToFilter])
+  }, [products, environmentFilter])
 
   const resetFilters = () => {
     setEnvironmentFilter('ALL')
-    setDateFromFilter('')
-    setDateToFilter('')
   }
 
   const handleSelectPoint = (point) => {
@@ -1200,26 +1109,6 @@ function MapPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label style={styles.label}>Datum podatkov od</label>
-            <input
-              type="date"
-              value={dateFromFilter}
-              onChange={(e) => setDateFromFilter(e.target.value)}
-              style={styles.input}
-            />
-          </div>
-
-          <div>
-            <label style={styles.label}>Datum podatkov do</label>
-            <input
-              type="date"
-              value={dateToFilter}
-              onChange={(e) => setDateToFilter(e.target.value)}
-              style={styles.input}
-            />
           </div>
 
           <button onClick={resetFilters} style={styles.resetButton}>
@@ -1773,32 +1662,43 @@ function MapPage() {
               <Link to="/gpx-upload" style={styles.emptyButton}>Naloži GPX pot</Link>
             </div>
           ) : (
-            <div style={styles.routeCardsGrid} className="eco-route-cards">
-              {uploadedRoutes.map(route => (
-                <div key={route.id} style={styles.gpxCard}>
-                  <div style={styles.gpxCardHeader}>
-                    <h3 style={styles.cardTitle}>{route.name}</h3>
+            <>
+              <div style={styles.routeCardsGrid} className="eco-route-cards">
+                {uploadedRoutes.slice(0, visibleRouteCount).map(route => (
+                  <div key={route.id} style={styles.gpxCard}>
+                    <div style={styles.gpxCardHeader}>
+                      <h3 style={styles.cardTitle}>{route.name}</h3>
 
-                    <div
-                      style={{
-                        ...styles.scoreBadge,
-                        backgroundColor: getScoreColor(route.ecoScore)
-                      }}
-                    >
-                      {route.ecoScore}/100
+                      <div
+                        style={{
+                          ...styles.scoreBadge,
+                          backgroundColor: getScoreColor(route.ecoScore)
+                        }}
+                      >
+                        {route.ecoScore}/100
+                      </div>
                     </div>
+
+                    <p style={styles.text}><strong>Stanje:</strong> {route.ecoScoreLabel}</p>
+                    <p style={styles.text}><strong>Točke sledi:</strong> {route.pointCount}</p>
+                    <p style={styles.text}><strong>Naloženo:</strong> {route.uploadedAt || 'ni na voljo'}</p>
+
+                    <p style={styles.mutedText}>
+                      Ta naložena GPX pot je narisana na zemljevidu z uporabo shranjenih koordinat poti iz strežnika.
+                    </p>
                   </div>
+                ))}
+              </div>
 
-                  <p style={styles.text}><strong>Stanje:</strong> {route.ecoScoreLabel}</p>
-                  <p style={styles.text}><strong>Točke sledi:</strong> {route.pointCount}</p>
-                  <p style={styles.text}><strong>Naloženo:</strong> {route.uploadedAt || 'ni na voljo'}</p>
-
-                  <p style={styles.mutedText}>
-                    Ta naložena GPX pot je narisana na zemljevidu z uporabo shranjenih koordinat poti iz strežnika.
-                  </p>
-                </div>
-              ))}
-            </div>
+              {visibleRouteCount < uploadedRoutes.length && (
+                <button
+                  onClick={() => setVisibleRouteCount(count => count + 6)}
+                  style={styles.viewMoreButton}
+                >
+                  Prikaži več ({uploadedRoutes.length - visibleRouteCount} preostalih)
+                </button>
+              )}
+            </>
           )}
         </section>
       </section>
@@ -1831,10 +1731,31 @@ function ThemeToggle() {
   )
 }
 
+function CookieConsent() {
+  const [accepted, setAccepted] = useState(() => localStorage.getItem('cookieConsentAccepted') === 'true')
+
+  if (accepted) return null
+
+  const accept = () => {
+    localStorage.setItem('cookieConsentAccepted', 'true')
+    setAccepted(true)
+  }
+
+  return (
+    <div style={cookieConsentStyle} role="dialog" aria-label="Obvestilo o piškotkih">
+      <p style={cookieConsentTextStyle}>
+        Ta stran za prijavo in shranjevanje tvojih nastavitev uporablja lokalno shrambo brskalnika. Z nadaljnjo uporabo se s tem strinjaš.
+      </p>
+      <button onClick={accept} style={cookieConsentButtonStyle}>V redu</button>
+    </div>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
       <ThemeToggle />
+      <CookieConsent />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -1903,6 +1824,43 @@ const themeToggleStyle = {
   fontSize: '13px',
   fontFamily: 'var(--font)',
   boxShadow: 'var(--shadow-md)'
+}
+
+const cookieConsentStyle = {
+  position: 'fixed',
+  bottom: '20px',
+  left: '20px',
+  zIndex: 1000,
+  maxWidth: '360px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  padding: '16px',
+  borderRadius: 'var(--radius-md)',
+  border: '1px solid var(--border-strong)',
+  background: 'var(--surface)',
+  boxShadow: 'var(--shadow-md)',
+  fontFamily: 'var(--font)'
+}
+
+const cookieConsentTextStyle = {
+  margin: 0,
+  color: 'var(--text)',
+  fontSize: '13px',
+  lineHeight: 1.5
+}
+
+const cookieConsentButtonStyle = {
+  alignSelf: 'flex-end',
+  padding: '8px 18px',
+  borderRadius: 'var(--radius-sm)',
+  border: 'none',
+  background: 'var(--brand)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: '13px',
+  cursor: 'pointer',
+  fontFamily: 'var(--font)'
 }
 
 const baseButton = {
@@ -2094,7 +2052,7 @@ const styles = {
     borderRadius: 'var(--radius-lg)',
     marginBottom: '20px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr)) auto',
+    gridTemplateColumns: 'minmax(220px, 1fr) auto',
     gap: '16px',
     alignItems: 'end'
   },
@@ -2630,6 +2588,18 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '16px'
+  },
+  viewMoreButton: {
+    display: 'block',
+    margin: '18px auto 0',
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    fontWeight: 600,
+    fontSize: '14px',
+    cursor: 'pointer'
   },
   gpxCard: {
     background: 'var(--surface-muted)',

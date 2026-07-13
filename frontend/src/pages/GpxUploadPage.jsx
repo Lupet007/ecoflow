@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '../config'
 import AppHeader from '../components/AppHeader'
 import AppFooter from '../components/AppFooter'
 
@@ -66,7 +67,7 @@ function GpxUploadPage() {
       }
 
       const response = await axios.post(
-        'http://localhost:8080/api/routes/upload',
+        `${API_BASE_URL}/api/routes/upload`,
         formData,
         {
           headers: {

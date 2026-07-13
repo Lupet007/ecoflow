@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '../config'
 import AppHeader from '../components/AppHeader'
 import AppFooter from '../components/AppFooter'
 
@@ -22,7 +23,7 @@ function RecommendationsPage() {
       params.limit = 6
 
       const response = await axios.get(
-        'http://localhost:8080/api/routes/recommend',
+        `${API_BASE_URL}/api/routes/recommend`,
         {
           params,
           headers: {
@@ -53,7 +54,7 @@ function RecommendationsPage() {
         params.limit = 6
 
         const response = await axios.get(
-          'http://localhost:8080/api/routes/recommend',
+          `${API_BASE_URL}/api/routes/recommend`,
           {
             params,
             headers: {

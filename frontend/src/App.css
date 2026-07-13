@@ -70,6 +70,10 @@
   gap: 12px;
 }
 
+.trend-chart-grid-single {
+  grid-template-columns: 1fr;
+}
+
 .trend-chart-panel {
   min-width: 0;
   padding: 14px;

@@ -1,6 +1,7 @@
 package backend.controller;
 
 import backend.config.JwtUtil;
+import backend.config.LoginAttemptTracker;
 import backend.model.Role;
 import backend.model.User;
 import backend.repository.UserRepository;
@@ -20,15 +21,18 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final LoginAttemptTracker loginAttemptTracker;
 
     public AuthController(UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
-            JwtUtil jwtUtil) {
+            JwtUtil jwtUtil,
+            LoginAttemptTracker loginAttemptTracker) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.loginAttemptTracker = loginAttemptTracker;
     }
 
     // --- REGISTER ---
@@ -70,14 +74,21 @@ public class AuthController {
                     .body(Map.of("error", "E-pošta in geslo sta obvezna."));
         }
 
+        if (loginAttemptTracker.isBlocked(email)) {
+            return ResponseEntity.status(429)
+                    .body(Map.of("error", "Preveč neuspešnih poskusov prijave. Poskusi znova čez nekaj minut."));
+        }
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, password));
         } catch (Exception e) {
+            loginAttemptTracker.recordFailure(email);
             return ResponseEntity.status(401)
                     .body(Map.of("error","Napačna e-pošta ali geslo."));
         }
 
+        loginAttemptTracker.recordSuccess(email);
         String token = jwtUtil.generateToken(email);
         return ResponseEntity.ok(Map.of("token", token));
     }
