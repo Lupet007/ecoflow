@@ -1584,7 +1584,7 @@ function MapPage() {
               <span style={styles.moduleDot} />
               <div>
                 <strong>Toplotna karta</strong>
-                <p>{showHeatmap ? 'Omogočeno' : 'Onemogočeno'}</p>
+                <p>{showHeatmap ? 'Prikazana' : 'Skrita'}</p>
               </div>
             </div>
 
