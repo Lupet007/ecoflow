@@ -33,7 +33,7 @@
 
 .trend-summary-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
@@ -68,6 +68,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.trend-chart-grid-single {
+  grid-template-columns: 1fr;
 }
 
 .trend-chart-panel {

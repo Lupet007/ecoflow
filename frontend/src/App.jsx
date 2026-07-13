@@ -271,12 +271,6 @@ const regionCoordinates = {
   Kranj: [46.2397, 14.3556],
 }
 
-const trendColors = {
-  AIR_QUALITY: '#2563eb',
-  LAND_TEMPERATURE: '#b45309',
-  WATER_QUALITY: '#0891b2'
-}
-
 function formatShortDate(value) {
   return new Intl.DateTimeFormat('sl-SI', { month: 'short', day: 'numeric' }).format(value)
 }
@@ -301,26 +295,11 @@ function HistoricalTrends({ products, routes }) {
     return date
   }, [period])
 
-  const productTrend = useMemo(() => {
-    const days = new Map()
-
-    products.forEach(product => {
+  const productsInPeriod = useMemo(() => {
+    return products.filter(product => {
       const date = getProductDate(product)
-      if (!date || (cutoff && date < cutoff)) return
-
-      const key = date.toISOString().slice(0, 10)
-      const day = days.get(key) || {
-        date,
-        AIR_QUALITY: 0,
-        LAND_TEMPERATURE: 0,
-        WATER_QUALITY: 0
-      }
-      const type = getEnvironmentalType(product.name)
-      if (trendColors[type]) day[type] += 1
-      days.set(key, day)
+      return date && (!cutoff || date >= cutoff)
     })
-
-    return [...days.values()].sort((a, b) => a.date - b.date)
   }, [products, cutoff])
 
   const routeTrend = useMemo(() => routes
@@ -333,16 +312,11 @@ function HistoricalTrends({ products, routes }) {
     .filter(item => !cutoff || item.date >= cutoff)
     .sort((a, b) => a.date - b.date), [routes, cutoff])
 
-  const maxDailyCount = Math.max(1, ...productTrend.map(day =>
-    day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY
-  ))
   const chartWidth = 720
   const chartHeight = 190
   const plot = { left: 38, right: 12, top: 12, bottom: 34 }
   const plotWidth = chartWidth - plot.left - plot.right
   const plotHeight = chartHeight - plot.top - plot.bottom
-  const barSlot = productTrend.length ? plotWidth / productTrend.length : plotWidth
-  const barWidth = Math.min(38, Math.max(8, barSlot * 0.62))
   const routePoints = routeTrend.map((item, index) => ({
     ...item,
     x: plot.left + (routeTrend.length === 1 ? plotWidth / 2 : (index / (routeTrend.length - 1)) * plotWidth),
@@ -388,59 +362,12 @@ function HistoricalTrends({ products, routes }) {
       </div>
 
       <div className="trend-summary-row">
-        <div><strong>{productTrend.length}</strong><span>aktivnih dni s podatki</span></div>
-        <div><strong>{productTrend.reduce((sum, day) => sum + day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY, 0)}</strong><span>objavljenih zapisov</span></div>
+        <div><strong>{productsInPeriod.length}</strong><span>okoljskih zapisov</span></div>
         <div><strong>{routeTrend.length}</strong><span>spremljanih poti</span></div>
         <div><strong>{averageScore ?? '--'}</strong><span>povprečna eko-ocena</span></div>
       </div>
 
-      <div className="trend-chart-grid">
-        <article className="trend-chart-panel">
-          <div className="trend-chart-heading">
-            <div>
-              <h3>Aktivnost okoljskih podatkov</h3>
-              <p>Objavljeni zapisi na dan</p>
-            </div>
-            <div className="trend-legend">
-              {Object.entries(trendColors).map(([type, color]) => (
-                <span key={type}><i style={{ background: color }} />{formatEnvironmentalType(type)}</span>
-              ))}
-            </div>
-          </div>
-          {productTrend.length ? (
-            <div className="trend-chart-scroll">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Dnevni okoljski zapisi po kategorijah">
-                {renderGrid(maxDailyCount)}
-                {productTrend.map((day, index) => {
-                  const x = plot.left + index * barSlot + (barSlot - barWidth) / 2
-                  let stackedHeight = 0
-                  const total = day.AIR_QUALITY + day.LAND_TEMPERATURE + day.WATER_QUALITY
-                  return (
-                    <g key={day.date.toISOString()}>
-                      {Object.keys(trendColors).map(type => {
-                        const height = (day[type] / maxDailyCount) * plotHeight
-                        const y = plot.top + plotHeight - stackedHeight - height
-                        stackedHeight += height
-                        return day[type] > 0 ? (
-                          <rect key={type} x={x} y={y} width={barWidth} height={height} fill={trendColors[type]} rx="2">
-                            <title>{`${formatShortDate(day.date)}: ${day[type]} zapisov (${formatEnvironmentalType(type).toLowerCase()})`}</title>
-                          </rect>
-                        ) : null
-                      })}
-                      {(index === 0 || index === productTrend.length - 1 || productTrend.length <= 6) && (
-                        <text x={x + barWidth / 2} y={chartHeight - 17} textAnchor="middle" className="trend-axis-label">
-                          {formatShortDate(day.date)}
-                        </text>
-                      )}
-                      <title>{`${formatShortDate(day.date)}: ${total} zapisov skupaj`}</title>
-                    </g>
-                  )
-                })}
-              </svg>
-            </div>
-          ) : <div className="trend-empty">V tem obdobju ni okoljske zgodovine.</div>}
-        </article>
-
+      <div className="trend-chart-grid trend-chart-grid-single">
         <article className="trend-chart-panel">
           <div className="trend-chart-heading">
             <div>
