@@ -487,6 +487,7 @@ function MapPage() {
 
   const [products, setProducts] = useState([])
   const [uploadedRoutes, setUploadedRoutes] = useState([])
+  const [visibleRouteCount, setVisibleRouteCount] = useState(6)
   const [sensorStatus, setSensorStatus] = useState('Nalaganje podatkov senzorjev v živo ...')
   const [airQualityStations, setAirQualityStations] = useState([])
   const [airQualityStatus, setAirQualityStatus] = useState('Nalaganje ARSO postaj za kakovost zraka ...')
@@ -535,8 +536,6 @@ function MapPage() {
   const [environmentFilter, setEnvironmentFilter] = useState(
     ecoProfile?.ecoPriority || 'ALL'
   )
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
 
   // Route from recommendations
   const [selectedRouteFromRecommendations, setSelectedRouteFromRecommendations] = useState(null)
@@ -901,30 +900,12 @@ function MapPage() {
     return products.filter(product => {
       const environmentalType = getEnvironmentalType(product.name)
 
-      const matchesType =
-        environmentFilter === 'ALL' ||
-        environmentalType === environmentFilter
-
-      const publicationDate = product.publicationDate
-        ? new Date(product.publicationDate)
-        : null
-
-      const matchesFrom =
-        !dateFromFilter ||
-        (publicationDate && publicationDate >= new Date(dateFromFilter))
-
-      const matchesTo =
-        !dateToFilter ||
-        (publicationDate && publicationDate <= new Date(dateToFilter))
-
-      return matchesType && matchesFrom && matchesTo
+      return environmentFilter === 'ALL' || environmentalType === environmentFilter
     })
-  }, [products, environmentFilter, dateFromFilter, dateToFilter])
+  }, [products, environmentFilter])
 
   const resetFilters = () => {
     setEnvironmentFilter('ALL')
-    setDateFromFilter('')
-    setDateToFilter('')
   }
 
   const handleSelectPoint = (point) => {
@@ -1202,26 +1183,6 @@ function MapPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label style={styles.label}>Datum podatkov od</label>
-            <input
-              type="date"
-              value={dateFromFilter}
-              onChange={(e) => setDateFromFilter(e.target.value)}
-              style={styles.input}
-            />
-          </div>
-
-          <div>
-            <label style={styles.label}>Datum podatkov do</label>
-            <input
-              type="date"
-              value={dateToFilter}
-              onChange={(e) => setDateToFilter(e.target.value)}
-              style={styles.input}
-            />
           </div>
 
           <button onClick={resetFilters} style={styles.resetButton}>
@@ -1777,32 +1738,43 @@ function MapPage() {
               <Link to="/gpx-upload" style={styles.emptyButton}>Naloži GPX pot</Link>
             </div>
           ) : (
-            <div style={styles.routeCardsGrid} className="eco-route-cards">
-              {uploadedRoutes.map(route => (
-                <div key={route.id} style={styles.gpxCard}>
-                  <div style={styles.gpxCardHeader}>
-                    <h3 style={styles.cardTitle}>{route.name}</h3>
+            <>
+              <div style={styles.routeCardsGrid} className="eco-route-cards">
+                {uploadedRoutes.slice(0, visibleRouteCount).map(route => (
+                  <div key={route.id} style={styles.gpxCard}>
+                    <div style={styles.gpxCardHeader}>
+                      <h3 style={styles.cardTitle}>{route.name}</h3>
 
-                    <div
-                      style={{
-                        ...styles.scoreBadge,
-                        backgroundColor: getScoreColor(route.ecoScore)
-                      }}
-                    >
-                      {route.ecoScore}/100
+                      <div
+                        style={{
+                          ...styles.scoreBadge,
+                          backgroundColor: getScoreColor(route.ecoScore)
+                        }}
+                      >
+                        {route.ecoScore}/100
+                      </div>
                     </div>
+
+                    <p style={styles.text}><strong>Stanje:</strong> {route.ecoScoreLabel}</p>
+                    <p style={styles.text}><strong>Točke sledi:</strong> {route.pointCount}</p>
+                    <p style={styles.text}><strong>Naloženo:</strong> {route.uploadedAt || 'ni na voljo'}</p>
+
+                    <p style={styles.mutedText}>
+                      Ta naložena GPX pot je narisana na zemljevidu z uporabo shranjenih koordinat poti iz strežnika.
+                    </p>
                   </div>
+                ))}
+              </div>
 
-                  <p style={styles.text}><strong>Stanje:</strong> {route.ecoScoreLabel}</p>
-                  <p style={styles.text}><strong>Točke sledi:</strong> {route.pointCount}</p>
-                  <p style={styles.text}><strong>Naloženo:</strong> {route.uploadedAt || 'ni na voljo'}</p>
-
-                  <p style={styles.mutedText}>
-                    Ta naložena GPX pot je narisana na zemljevidu z uporabo shranjenih koordinat poti iz strežnika.
-                  </p>
-                </div>
-              ))}
-            </div>
+              {visibleRouteCount < uploadedRoutes.length && (
+                <button
+                  onClick={() => setVisibleRouteCount(count => count + 6)}
+                  style={styles.viewMoreButton}
+                >
+                  Prikaži več ({uploadedRoutes.length - visibleRouteCount} preostalih)
+                </button>
+              )}
+            </>
           )}
         </section>
       </section>
@@ -1835,10 +1807,31 @@ function ThemeToggle() {
   )
 }
 
+function CookieConsent() {
+  const [accepted, setAccepted] = useState(() => localStorage.getItem('cookieConsentAccepted') === 'true')
+
+  if (accepted) return null
+
+  const accept = () => {
+    localStorage.setItem('cookieConsentAccepted', 'true')
+    setAccepted(true)
+  }
+
+  return (
+    <div style={cookieConsentStyle} role="dialog" aria-label="Obvestilo o piškotkih">
+      <p style={cookieConsentTextStyle}>
+        Ta stran za prijavo in shranjevanje tvojih nastavitev uporablja lokalno shrambo brskalnika. Z nadaljnjo uporabo se s tem strinjaš.
+      </p>
+      <button onClick={accept} style={cookieConsentButtonStyle}>V redu</button>
+    </div>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
       <ThemeToggle />
+      <CookieConsent />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -1907,6 +1900,43 @@ const themeToggleStyle = {
   fontSize: '13px',
   fontFamily: 'var(--font)',
   boxShadow: 'var(--shadow-md)'
+}
+
+const cookieConsentStyle = {
+  position: 'fixed',
+  bottom: '20px',
+  left: '20px',
+  zIndex: 1000,
+  maxWidth: '360px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  padding: '16px',
+  borderRadius: 'var(--radius-md)',
+  border: '1px solid var(--border-strong)',
+  background: 'var(--surface)',
+  boxShadow: 'var(--shadow-md)',
+  fontFamily: 'var(--font)'
+}
+
+const cookieConsentTextStyle = {
+  margin: 0,
+  color: 'var(--text)',
+  fontSize: '13px',
+  lineHeight: 1.5
+}
+
+const cookieConsentButtonStyle = {
+  alignSelf: 'flex-end',
+  padding: '8px 18px',
+  borderRadius: 'var(--radius-sm)',
+  border: 'none',
+  background: 'var(--brand)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: '13px',
+  cursor: 'pointer',
+  fontFamily: 'var(--font)'
 }
 
 const baseButton = {
@@ -2103,7 +2133,7 @@ const styles = {
     borderRadius: 'var(--radius-lg)',
     marginBottom: '20px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr)) auto',
+    gridTemplateColumns: 'minmax(220px, 1fr) auto',
     gap: '16px',
     alignItems: 'end'
   },
@@ -2643,6 +2673,18 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '16px'
+  },
+  viewMoreButton: {
+    display: 'block',
+    margin: '18px auto 0',
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    fontWeight: 600,
+    fontSize: '14px',
+    cursor: 'pointer'
   },
   gpxCard: {
     background: 'var(--surface-muted)',

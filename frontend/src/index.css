@@ -208,7 +208,7 @@ code {
 /* Filters */
 
 .eco-filters {
-  grid-template-columns: 1fr 1fr 1fr auto !important;
+  grid-template-columns: minmax(220px, 1fr) auto !important;
   align-items: end !important;
   background: var(--surface) !important;
 }

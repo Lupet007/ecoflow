@@ -34,6 +34,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Safe to disable: this API is stateless (SessionCreationPolicy.STATELESS
+                // below) and authenticates via a JWT Bearer token that the frontend
+                // must explicitly attach to each request. CSRF specifically exploits
+                // browsers auto-attaching session cookies to cross-site requests -
+                // there is no cookie-based session here for an attacker to ride on.
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ← kept as-is
                 // --- ADD: make sessions stateless ---
@@ -45,7 +50,19 @@ public class SecurityConfig {
                         .anyRequest().authenticated() // was .permitAll()
                 )
                 // --- ADD: plug in the JWT filter ---
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Explicit security response headers - stated outright rather than
+                // relying silently on framework defaults. frameOptions(deny) blocks
+                // this API from ever being embedded in another site's <iframe>
+                // (clickjacking protection); HSTS tells browsers to only ever reach
+                // this API over HTTPS once they've seen it once.
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)
+                        )
+                );
 
         return http.build();
     }
@@ -67,7 +84,11 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        // Explicit list instead of "*" - the frontend only ever sends these two
+        // headers (JWT bearer token + JSON/multipart content type), and a
+        // wildcard here alongside allowCredentials(true) is unnecessarily
+        // permissive for a REST API with a fixed, known set of clients.
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
