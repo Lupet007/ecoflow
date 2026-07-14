@@ -452,41 +452,69 @@ classDiagram
 ```mermaid
 flowchart TD
     A([Zacetek: List RoutePoint]) --> B[Osnovna vrednost = 50]
-    B --> C{Podatki o kakovosti\nzraka v bazi?}
-    C -->|Da| D[+15]
-    C -->|Ne| E[+0]
-    D & E --> F{Podatki o kakovosti\nvode v bazi?}
-    F -->|Da| G[+10]
-    F -->|Ne| H[+0]
-    G & H --> I{Podatki o temperaturi\ntal v bazi?}
-    I -->|Da| J[+5]
-    I -->|Ne| K[+0]
-    J & K --> L[Izracunaj povprecno\nnodmorsko visino]
-    L --> M{Visina > 500 m?}
-    M -->|Da| N[+10]
-    M -->|Ne| O{Visina > 200 m?}
-    O -->|Da| P[+5]
-    O -->|Ne| Q[+0]
-    N & P & Q --> R{St. tock > 500?}
-    R -->|Da| S[-5]
-    R -->|Ne| T[+0]
-    S & T --> U[Omeji na interval 0-100]
-    U --> V([Rezultat: ecoScore])
+    B --> C{Resnicna ARSO postaja\nv 35 km od poti}
+    C -->|Da| D[plus 15]
+    C -->|Ne| E[plus 0]
+    D --> F
+    E --> F{Copernicus produkt\no kakovosti vode}
+    F -->|Da| G[plus 10]
+    F -->|Ne| H[plus 0]
+    G --> I
+    H --> I{Copernicus produkt\no temperaturi tal}
+    I -->|Da| J[minus 5]
+    I -->|Ne| K[plus 0]
+    J --> L
+    K --> L{Trije ali vec\nrazlicnih virov}
+    L -->|Da| M[plus 5]
+    L -->|Ne| N[plus 0]
+    M --> O
+    N --> O[Izracunaj povprecno\nin najvisjo nadm. visino]
+    O --> P{Povprecna visina}
+    P -->|nad 800m| Q[plus 15]
+    P -->|nad 500m| R[plus 10]
+    P -->|nad 200m| S[plus 5]
+    P -->|pod 100m| T[minus 5]
+    Q --> U
+    R --> U
+    S --> U
+    T --> U{Razlika najvisja\nminus povprecna, nad 300m}
+    U -->|Da| V[plus 5]
+    U -->|Ne| W[plus 0]
+    V --> X
+    W --> X{Stevilo track tock}
+    X -->|nad 1000| Y[minus 10]
+    X -->|nad 500| Z[minus 5]
+    X -->|pod 50| AA[minus 3]
+    Y --> AB
+    Z --> AB
+    AA --> AB[Prilagoditev za\naktivnost in eko-prioriteto]
+    AB --> AC[Omeji na interval 0 do 100]
+    AC --> AD([Rezultat: ecoScore])
 ```
 
-**Tabela točkovanja:**
+**Tabela točkovanja** (ustreza `EcoScoreService.calculate()`):
 
 | Pogoj | Točke |
 |-------|-------|
 | Osnovna vrednost | +50 |
-| Podatki o kakovosti zraka v bazi | +15 |
-| Podatki o kakovosti vode v bazi | +10 |
-| Podatki o temperaturi tal v bazi | +5 |
+| Resnična ARSO postaja v 35 km od poti | **+15** |
+| Copernicus produkt o kakovosti vode v bazi | +10 |
+| Copernicus produkt o temperaturi tal v bazi | **-5** |
+| 3 ali več različnih virov podatkov skupaj | +5 |
+| Povprečna nadmorska višina > 800 m | +15 |
 | Povprečna nadmorska višina > 500 m | +10 |
 | Povprečna nadmorska višina > 200 m | +5 |
+| Povprečna nadmorska višina < 100 m | -5 |
+| Razlika najvišja–povprečna višina > 300 m | +5 |
+| Pot ima > 1000 track točk | -10 |
 | Pot ima > 500 track točk | -5 |
+| Pot ima < 50 track točk | -3 |
+| Aktivnost (hoja/tek/kolesarjenje) glede na prioriteto | ±3 do ±8 |
+| Eko-prioriteta (zrak/voda/temperatura) iz profila | ±3 do ±8 |
 
-Končna vrednost je omejena na interval **[0, 100]**.
+Končna vrednost je omejena na interval **[0, 100]** in zaokrožena na 1 decimalko.
+
+> Opomba: kakovost zraka se preverja geografsko natančno (resnična razdalja do najbližje ARSO postaje), medtem ko kakovost vode in temperatura uporabljata Copernicus produkte iz cele baze brez geografskega filtra, ker ti produkti v bazi nimajo koordinat.
 
 **Logika priporočil poti** (`RecommendationService`) deluje ločeno od eco-score izračuna: vsaka pot v bazi se pretvori v vektor značilk (povprečna/najvišja nadmorska višina, vzpon, dolžina, št. točk, eco-score), ki se normalizira na 0–1. Nad temi vektorji se ob vsaki zahtevi znova nauči **k-means gručenje** (Lloydov algoritem), uporabnikov profil pa se pretvori v "idealni" vektor in primerja z vsako potjo prek **utežene evklidske razdalje**. Pripadnost naučeni gruči rezultat še dodatno prilagodi, končni razmak pa se pretvori v odstotek ujemanja (0–100 %).
 
@@ -650,9 +678,11 @@ sequenceDiagram
 
 **Varnostni mehanizmi:**
 - Gesla hashirana z **BCrypt** (nikoli shranjeno v čistem tekstu)
-- JWT token vsebuje email in čas veljavnosti
+- JWT token vsebuje email in čas veljavnosti, podpisan s HMAC ključem (`jwt.secret`)
 - `JwtAuthenticationFilter` preveri vsak zahtevek pred dostopom do zaščitenih virov
-- CORS dovoljeni izvori so konfigurabilni prek `cors.allowed-origins` (privzeto `http://localhost:5173`, v produkciji dodan tudi javni URL frontenda)
+- `LoginAttemptTracker` blokira prijavo za dani email po 5 neuspešnih poskusih znotraj 15 minut (zaščita pred brute-force napadi)
+- CORS dovoljeni izvori in headerji so eksplicitno omejeni (ne `*`), konfigurabilni prek `cors.allowed-origins`
+- Eksplicitni varnostni odzivni headerji (`frameOptions: deny`, HSTS)
 - Seje so **stateless** (`SessionCreationPolicy.STATELESS`)
 
 ### Sequence diagram – nalaganje GPX poti
